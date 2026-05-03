@@ -11,15 +11,29 @@ class AppBottomNav extends StatelessWidget {
     required this.onTap,
   });
 
+  Widget _buildIcon(String assetPath, IconData fallbackIcon, bool isSelected) {
+    return Image.asset(
+      assetPath,
+      width: 24,
+      height: 24,
+      color: isSelected ? AppColors.primary : AppColors.textSecondary,
+      errorBuilder: (context, error, stackTrace) {
+        // Fallback to standard Flutter icon if the image asset is not yet added
+        return Icon(
+          fallbackIcon,
+          size: 24,
+          color: isSelected ? AppColors.primary : AppColors.textSecondary,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.inputBackground,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: BottomNavigationBar(
         currentIndex: currentIndex,
@@ -28,25 +42,53 @@ class AppBottomNav extends StatelessWidget {
         elevation: 0,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textMain,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
-        items: const [
+        unselectedItemColor: AppColors.textSecondary,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 10),
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.grid_view),
-            label: 'Home',
+            icon: Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: _buildIcon('image/ic_home.png', Icons.home_outlined, currentIndex == 0),
+            ),
+            activeIcon: Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: _buildIcon('image/ic_home_filled.png', Icons.home, currentIndex == 0),
+            ),
+            label: 'Beranda',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.task_alt),
-            label: 'Task',
+            icon: Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: _buildIcon('image/ic_inbox.png', Icons.inbox_outlined, currentIndex == 1),
+            ),
+            activeIcon: Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: _buildIcon('image/ic_inbox_filled.png', Icons.inbox, currentIndex == 1),
+            ),
+            label: 'Kotak Masuk',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.forum_outlined),
-            label: 'Collab',
+            icon: Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: _buildIcon('image/ic_collab.png', Icons.people_outline, currentIndex == 2),
+            ),
+            activeIcon: Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: _buildIcon('image/ic_collab_filled.png', Icons.people, currentIndex == 2),
+            ),
+            label: 'Kolaborasi',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Profil',
+            icon: Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: _buildIcon('image/ic_project.png', Icons.assignment_outlined, currentIndex == 3),
+            ),
+            activeIcon: Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: _buildIcon('image/ic_project_filled.png', Icons.assignment, currentIndex == 3),
+            ),
+            label: 'Proyek',
           ),
         ],
       ),

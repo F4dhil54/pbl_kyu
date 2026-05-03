@@ -1,24 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
-import 'login_screen.dart';
-import '../../widgets/profile_menu.dart';
 
-class ManagerDashboard extends StatefulWidget {
+class ManagerDashboard extends StatelessWidget {
   const ManagerDashboard({super.key});
-
-  @override
-  State<ManagerDashboard> createState() => _ManagerDashboardState();
-}
-
-class _ManagerDashboardState extends State<ManagerDashboard> {
-
-
-  void _handleLogout() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (Route<dynamic> route) => false,
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,16 +14,25 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
         title: const Text(
           'KYU',
           style: TextStyle(
-            color: AppColors.primary,
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
+            color: Color(0xFF1E3A8A), // Dark blue like the image
+            fontWeight: FontWeight.w900,
+            fontSize: 20,
+            letterSpacing: 1,
           ),
         ),
         actions: [
-          ProfileMenu(
-            onLogout: _handleLogout,
+          Padding(
+            padding: const EdgeInsets.only(right: 20.0),
+            child: CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.inputBackground,
+              child: Image.asset(
+                'image/ic_profile.png',
+                width: 24,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
         ],
       ),
       body: SingleChildScrollView(
@@ -48,184 +41,256 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'PERFORMANCE MONITORING',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textMain,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Team Performance',
+              'Selamat datang kembali,\nManajer',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textMain,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Berikut adalah ringkasan singkat status proyek\ntim Anda hari ini.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.5,
               ),
             ),
             const SizedBox(height: 24),
-            
-            // Velocity Overview Card
+
+            // Progress Tim Card
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border, width: 0.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Velocity\nOverview',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Weekly\nthroughput\ncomparison',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
+                      const Text(
+                        'Progress Tim',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       Row(
                         children: [
-                          _buildLegendDot(AppColors.success, 'Completed'),
+                          _buildLegendDot(AppColors.primary, 'Selesai'),
                           const SizedBox(width: 12),
-                          _buildLegendDot(AppColors.textSecondary, 'Pending'),
+                          _buildLegendDot(const Color(0xFFD6E4FF), 'Tertunda'),
                         ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 60), // Space for chart
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day) {
-                      return Text(
-                        day,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: day == 'FRI' ? AppColors.textMain : AppColors.textSecondary,
-                          fontWeight: day == 'FRI' ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                  const SizedBox(height: 24),
+                  _buildProgressBar('UI/UX Sprint', 85),
+                  const SizedBox(height: 16),
+                  _buildProgressBar('Backend API Integration', 42),
+                  const SizedBox(height: 16),
+                  _buildProgressBar('Mobile App Alpha', 68),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Recent Activity Card
+            // Status Anggota Card
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border, width: 0.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Status Anggota',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            'Lihat Semua',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _buildMemberStatus('Fadhil Syahidan', 'Lead Designer', 'Aktif', AppColors.successText, AppColors.successBackground),
+                  const Divider(height: 32, color: AppColors.border),
+                  _buildMemberStatus('Dea Marselia', 'Frontend Dev', 'Sedang Rapat', AppColors.warningText, AppColors.warningBackground),
+                  const Divider(height: 32, color: AppColors.border),
+                  _buildMemberStatus('Sukma Ananda', 'DevOps Engineer', 'Offline', AppColors.offlineText, AppColors.offlineBackground),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Notifikasi Cepat Card
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border, width: 0.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Recent Activity',
+                    'Notifikasi Cepat',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 20),
-                  _buildActivityItem('Dian Paramitha just uploaded\na commit for Task X', '2 minutes ago'),
-                  const SizedBox(height: 16),
-                  _buildActivityItem('Sukma Ananda just upload\nnew commit for task B', '5 minutes ago'),
+                  const Divider(height: 1, color: AppColors.border),
                   const SizedBox(height: 20),
-                  const Center(
-                    child: Text(
-                      'VIEW ALL EVENTS',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.bold,
+                  
+                  _buildNotificationItem(
+                    'image/ic_commit.png', Icons.commit,
+                    AppColors.primary,
+                    RichText(
+                      text: const TextSpan(
+                        style: TextStyle(fontSize: 14, color: AppColors.textMain, height: 1.4),
+                        children: [
+                          TextSpan(text: 'Dian Paramitha', style: TextStyle(fontWeight: FontWeight.bold)),
+                          TextSpan(text: ' melakukan push 3 commit ke '),
+                          TextSpan(text: 'main', style: TextStyle(backgroundColor: Color(0xFFF0F0F0), fontFamily: 'monospace')),
+                        ],
+                      ),
+                    ),
+                    '2 mnt lalu',
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  _buildNotificationItem(
+                    'image/ic_check_circle.png', Icons.check_circle_outline,
+                    AppColors.successText,
+                    RichText(
+                      text: const TextSpan(
+                        style: TextStyle(fontSize: 14, color: AppColors.textMain, height: 1.4),
+                        children: [
+                          TextSpan(text: 'Dea Marselia', style: TextStyle(fontWeight: FontWeight.bold)),
+                          TextSpan(text: ' menandai Navigation Component telah selesai.'),
+                        ],
+                      ),
+                    ),
+                    '45 mnt lalu',
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  _buildNotificationItem(
+                    'image/ic_chat_bubble.png', Icons.chat_bubble_outline,
+                    AppColors.warningText,
+                    RichText(
+                      text: const TextSpan(
+                        style: TextStyle(fontSize: 14, color: AppColors.textMain, height: 1.4),
+                        children: [
+                          TextSpan(text: 'Komentar baru pada Perencanaan Sprint #4 dari '),
+                          TextSpan(text: 'Fadhil Syahidan.', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    '1 jam lalu',
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  _buildNotificationItem(
+                    'image/ic_error.png', Icons.error_outline,
+                    AppColors.alertText,
+                    RichText(
+                      text: const TextSpan(
+                        style: TextStyle(fontSize: 14, color: AppColors.textMain, height: 1.4),
+                        children: [
+                          TextSpan(text: 'Build ', style: TextStyle(fontStyle: FontStyle.italic)),
+                          TextSpan(text: 'gagal terdeteksi pada '),
+                          TextSpan(text: 'pipeline', style: TextStyle(fontStyle: FontStyle.italic)),
+                          TextSpan(text: '\nAuth-Service.', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    '3 jam lalu',
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: OutlinedButton(
+                      onPressed: () {},
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFE3E8FF)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Tandai semua telah dibaca',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Quick Stats
-            const Text(
-              'QUICK STATS',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Active Sprint', style: TextStyle(color: AppColors.textSecondary)),
-                const Text('v2.4.0-beta', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Avg Velocity', style: TextStyle(color: AppColors.textSecondary)),
-                const Text('42 pts', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            // Active Contributors
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Text(
-                  'Active\nContributors',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Text(
-                  'Manage Team',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildContributorItem('Fadhil Syahidan', 'Active', true),
-            const SizedBox(height: 12),
-            _buildContributorItem('Sukma Ananda', 'Active', true),
-            const SizedBox(height: 12),
-            _buildContributorItem('Dian Paramitha', 'Away', false),
-            const SizedBox(height: 12),
-            _buildContributorItem('Dea Marselia', 'Active', true),
-            const SizedBox(height: 20),
+            const SizedBox(height: 80), // Space for FAB
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {},
+        backgroundColor: AppColors.textMain,
+        elevation: 4,
+        shape: const CircleBorder(),
+        child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
     );
   }
@@ -234,97 +299,151 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
     return Row(
       children: [
         Container(
-          width: 6,
-          height: 6,
+          width: 8,
+          height: 8,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 6),
         Text(
           text,
-          style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+          style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
         ),
       ],
     );
   }
 
-  Widget _buildActivityItem(String title, String time) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            time,
-            style: const TextStyle(fontSize: 10, color: AppColors.textMain),
-          ),
-        ],
-      ),
+  Widget _buildProgressBar(String title, int percentage) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+            ),
+            Text(
+              '$percentage%',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Stack(
+          children: [
+            Container(
+              height: 8,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F0F0),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            FractionallySizedBox(
+              widthFactor: percentage / 100,
+              child: Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _buildContributorItem(String name, String status, bool isActive) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Stack(
-            children: [
-              const CircleAvatar(
-                radius: 20,
-                backgroundColor: AppColors.inputBackground,
-                child: Icon(Icons.person_outline, color: AppColors.textMain),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: isActive ? AppColors.success : AppColors.textSecondary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.surface, width: 2),
-                  ),
-                ),
-              ),
-            ],
+  Widget _buildMemberStatus(String name, String role, String status, Color statusColor, Color statusBg) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 20,
+          backgroundColor: Colors.transparent, // fallback
+          child: Image.asset(
+            'image/ic_avatar_${name.split(' ')[0].toLowerCase()}.png',
+            errorBuilder: (context, error, stackTrace) => Icon(Icons.account_circle, size: 40, color: statusColor),
           ),
-          const SizedBox(width: 16),
-          Column(
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              Text(
+                role,
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: statusBg,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(width: 6),
               Text(
                 status,
                 style: TextStyle(
-                  color: isActive ? AppColors.success : AppColors.textSecondary,
-                  fontSize: 12,
+                  color: statusColor,
+                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotificationItem(String assetPath, IconData fallbackIcon, Color iconColor, Widget content, String time) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Image.asset(
+          assetPath,
+          width: 20,
+          height: 20,
+          color: iconColor,
+          errorBuilder: (context, error, stackTrace) => Icon(fallbackIcon, size: 20, color: iconColor),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              content,
+              const SizedBox(height: 4),
+              Text(
+                time,
+                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

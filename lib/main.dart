@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/views/login_screen.dart';
+import 'screens/views/onboarding_screen.dart';
 import 'theme/colors.dart';
 
 void main() {
@@ -15,6 +15,7 @@ class MyApp extends StatelessWidget {
       title: 'KYU App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        fontFamily: 'Inter', // Or any default sans-serif font
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           background: AppColors.background,
@@ -22,7 +23,7 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: AppColors.background,
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: const OnboardingScreen(),
     );
   }
 }
