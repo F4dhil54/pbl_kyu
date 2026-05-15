@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
+import 'profile_view_team.dart';
 
 class TeamDashboard extends StatelessWidget {
   const TeamDashboard({super.key});
@@ -21,13 +22,21 @@ class TeamDashboard extends StatelessWidget {
           ),
         ),
         actions: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.inputBackground,
-            child: Image.asset(
-              'image/ic_profile.png',
-              width: 24,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileViewTeam()),
+              );
+            },
+            child: CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.inputBackground,
+              child: Image.asset(
+                'image/ic_profile.png',
+                width: 24,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+              ),
             ),
           ),
           const SizedBox(width: 20),
@@ -56,113 +65,6 @@ class TeamDashboard extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Pomodoro Card
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.rank1Background, // Dark navy
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    right: -20,
-                    top: -20,
-                    child: Icon(
-                      Icons.timer_outlined,
-                      size: 120,
-                      color: Colors.white.withOpacity(0.05),
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'POMODORO TIMER',
-                        style: TextStyle(
-                          color: Color(0xFF8BA6C1),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        '25:00',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 64,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -2,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () {},
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: AppColors.rank1Background,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                elevation: 0,
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.play_arrow, size: 20),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Mulai',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {},
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFF4A6B8C)),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.stop, size: 20),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Berhenti',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
 
             // Tugas Saya Header
             Row(

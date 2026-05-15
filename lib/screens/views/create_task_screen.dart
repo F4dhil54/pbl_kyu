@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
+import 'profile_view_manager.dart';
 
 class CreateTaskScreen extends StatelessWidget {
   const CreateTaskScreen({super.key});
@@ -21,13 +22,21 @@ class CreateTaskScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.inputBackground,
-            child: Image.asset(
-              'image/ic_profile.png',
-              width: 24,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileViewManager()),
+              );
+            },
+            child: CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.inputBackground,
+              child: Image.asset(
+                'image/ic_profile.png',
+                width: 24,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+              ),
             ),
           ),
           const SizedBox(width: 20),
@@ -77,6 +86,10 @@ class CreateTaskScreen extends StatelessWidget {
                 children: [
                   _buildInputLabel('Judul Tugas'),
                   _buildTextField('Masukkan judul koordinasi...'),
+                  const SizedBox(height: 20),
+
+                  _buildInputLabel('DESKRIPSI'),
+                  _buildTextArea('Jelaskan secara singkat tujuan, ruang\nlingkup, dan target hasil proyek...'),
                   const SizedBox(height: 20),
 
                   _buildInputLabel('Ditugaskan ke'),
@@ -272,6 +285,28 @@ class CreateTaskScreen extends StatelessWidget {
           hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextArea(String hint) {
+    return Container(
+      height: 100,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: TextField(
+        maxLines: null,
+        expands: true,
+        textAlignVertical: TextAlignVertical.top,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.all(16),
         ),
       ),
     );

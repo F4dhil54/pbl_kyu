@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
+import 'profile_view_manager.dart';
 
 class ManagerDashboard extends StatelessWidget {
   const ManagerDashboard({super.key});
@@ -23,13 +24,21 @@ class ManagerDashboard extends StatelessWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 20.0),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.inputBackground,
-              child: Image.asset(
-                'image/ic_profile.png',
-                width: 24,
-                errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfileViewManager()),
+                );
+              },
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: AppColors.inputBackground,
+                child: Image.asset(
+                  'image/ic_profile.png',
+                  width: 24,
+                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+                ),
               ),
             ),
           ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
+import 'edit_member_screen.dart';
+import 'edit_team_screen.dart';
 
 class ProfileViewManager extends StatelessWidget {
   const ProfileViewManager({super.key});
@@ -11,6 +13,10 @@ class ProfileViewManager extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textMain),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           'KYU',
           style: TextStyle(
@@ -21,16 +27,19 @@ class ProfileViewManager extends StatelessWidget {
           ),
         ),
         actions: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.inputBackground,
-            child: Image.asset(
-              'image/ic_profile.png',
-              width: 24,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+          Container(
+            margin: const EdgeInsets.only(right: 20),
+            decoration: const BoxDecoration(
+              color: Color(0xFF020617), // Very dark blue/black
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 20),
+              onPressed: () => Navigator.pop(context),
+              constraints: const BoxConstraints(),
+              padding: const EdgeInsets.all(8),
             ),
           ),
-          const SizedBox(width: 20),
         ],
       ),
       body: SingleChildScrollView(
@@ -48,7 +57,7 @@ class ProfileViewManager extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Kelola profil, anggota tim, dan grup proyek Anda dari dasbor terpusat.',
+              'Kelola profil, anggota tim, dan grup proyek Anda dari\ndasbor terpusat.',
               style: TextStyle(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -60,21 +69,17 @@ class ProfileViewManager extends StatelessWidget {
             // Edit Profil Card
             _buildCardWrapper(
               title: 'Edit Profil',
-              iconAsset: 'image/ic_user_edit.png',
-              fallbackIcon: Icons.manage_accounts_outlined,
+              iconData: Icons.manage_accounts_outlined,
               child: Column(
                 children: [
                   const SizedBox(height: 16),
                   Center(
                     child: Stack(
                       children: [
-                        CircleAvatar(
+                        const CircleAvatar(
                           radius: 40,
                           backgroundColor: Colors.transparent,
-                          child: Image.asset(
-                            'image/ic_avatar_fadhil.png',
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.account_circle, size: 80, color: AppColors.textMain),
-                          ),
+                          child: Icon(Icons.account_circle, size: 80, color: AppColors.textMain),
                         ),
                         Positioned(
                           bottom: 0,
@@ -107,8 +112,7 @@ class ProfileViewManager extends StatelessWidget {
             // Manajemen Orang Card
             _buildCardWrapper(
               title: 'Manajemen Orang',
-              iconAsset: 'image/ic_user_add.png',
-              fallbackIcon: Icons.person_add_alt_1_outlined,
+              iconData: Icons.person_add_alt_1_outlined,
               child: Column(
                 children: [
                   const SizedBox(height: 16),
@@ -124,39 +128,39 @@ class ProfileViewManager extends StatelessWidget {
                       children: [
                         const Text('Tambah Orang', style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
+                        _buildTextField('Nama anggota baru...'),
+                        const SizedBox(height: 12),
                         _buildTextField('Email anggota baru...'),
                         const SizedBox(height: 12),
-                        _buildDropdown('Peran: Anggota'),
+                        _buildDropdown('Jabatan: Anggota'),
                         const SizedBox(height: 16),
                         _buildDarkButton('Kirim Undangan'),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
-                  _buildMemberListItem('Sukma Ananda', 'Project Lead', 'image/ic_avatar_sukma.png', Colors.blue),
+                  _buildMemberListItem(context, 'Sukma Ananda', 'Project Lead', Colors.blue),
                   const Divider(height: 24, color: AppColors.border),
-                  _buildMemberListItem('Dian Paramitha', 'Designer', 'image/ic_avatar_dian.png', Colors.red),
+                  _buildMemberListItem(context, 'Dian Paramitha', 'Designer', Colors.red),
                 ],
               ),
             ),
             const SizedBox(height: 16),
 
-            // Manajemen Grup Card
+            // Manajemen Tim Card
             _buildCardWrapper(
-              title: 'Manajemen Grup',
-              iconAsset: 'image/ic_hierarchy.png',
-              fallbackIcon: Icons.account_tree_outlined,
+              title: 'Manajemen Tim',
+              iconData: Icons.account_tree_outlined,
               child: Column(
                 children: [
                   const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
-                        flex: 3,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Nama Grup', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMain)),
+                            const Text('Nama Tim', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMain)),
                             const SizedBox(height: 8),
                             _buildTextField('mis. Design Sprint'),
                           ],
@@ -164,19 +168,22 @@ class ProfileViewManager extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        flex: 2,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Kategori', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMain)),
+                            const Text('Pilih Anggota', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMain)),
                             const SizedBox(height: 8),
-                            _buildDropdown('Development'),
+                            _buildDropdown('Nama Anggot...'),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
+                  const Text('Pilih Proyek', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMain)),
+                  const SizedBox(height: 8),
+                  _buildDropdown('Nama Proyek'),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     height: 44,
@@ -189,7 +196,7 @@ class ProfileViewManager extends StatelessWidget {
                         ),
                       ),
                       child: const Text(
-                        'Buat Grup Baru',
+                        'Buat Tim Baru',
                         style: TextStyle(
                           color: AppColors.textMain,
                           fontWeight: FontWeight.bold,
@@ -198,10 +205,72 @@ class ProfileViewManager extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  _buildTeamListItem(context, 'Tim Projek Brand Q4', Colors.blue),
+                  const Divider(height: 24, color: AppColors.border),
+                  _buildTeamListItem(context, 'Tim Projek Persiapan Audit Tahunan', Colors.red),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
+
+            // Settings Cards
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border, width: 0.5),
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.dark_mode_outlined, color: AppColors.textSecondary, size: 20),
+                        SizedBox(height: 16),
+                        Text(
+                          'Mode Terang',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textMain,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border, width: 0.5),
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.notifications_none, color: AppColors.textSecondary, size: 20),
+                        SizedBox(height: 16),
+                        Text(
+                          'Notifikasi',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textMain,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
 
             // Keluar Button
             SizedBox(
@@ -219,6 +288,7 @@ class ProfileViewManager extends StatelessWidget {
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
                   side: const BorderSide(color: AppColors.alertText),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -233,7 +303,7 @@ class ProfileViewManager extends StatelessWidget {
     );
   }
 
-  Widget _buildCardWrapper({required String title, required String iconAsset, required IconData fallbackIcon, required Widget child}) {
+  Widget _buildCardWrapper({required String title, required IconData iconData, required Widget child}) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -257,16 +327,12 @@ class ProfileViewManager extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textMain,
                 ),
               ),
-              Image.asset(
-                iconAsset,
-                width: 20,
-                errorBuilder: (context, error, stackTrace) => Icon(fallbackIcon, size: 20, color: AppColors.textSecondary),
-              ),
+              Icon(iconData, size: 20, color: AppColors.textSecondary),
             ],
           ),
           child,
@@ -293,7 +359,7 @@ class ProfileViewManager extends StatelessWidget {
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.border),
       ),
@@ -320,7 +386,13 @@ class ProfileViewManager extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(text, style: const TextStyle(fontSize: 14, color: AppColors.textMain)),
+          Expanded(
+            child: Text(
+              text, 
+              style: const TextStyle(fontSize: 14, color: AppColors.textMain),
+              overflow: TextOverflow.ellipsis,
+            )
+          ),
           const Icon(Icons.keyboard_arrow_down, color: AppColors.textSecondary),
         ],
       ),
@@ -352,16 +424,13 @@ class ProfileViewManager extends StatelessWidget {
     );
   }
 
-  Widget _buildMemberListItem(String name, String role, String avatarAsset, Color fallbackColor) {
+  Widget _buildMemberListItem(BuildContext context, String name, String role, Color fallbackColor) {
     return Row(
       children: [
         CircleAvatar(
           radius: 16,
           backgroundColor: Colors.transparent,
-          child: Image.asset(
-            avatarAsset,
-            errorBuilder: (context, error, stackTrace) => Icon(Icons.account_circle, color: fallbackColor, size: 32),
-          ),
+          child: Icon(Icons.account_circle, color: fallbackColor, size: 32),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -379,7 +448,43 @@ class ProfileViewManager extends StatelessWidget {
             ],
           ),
         ),
-        const Icon(Icons.more_vert, color: AppColors.textSecondary, size: 20),
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const EditMemberScreen()),
+            );
+          },
+          child: const Icon(Icons.more_vert, color: AppColors.textSecondary, size: 20),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTeamListItem(BuildContext context, String name, Color fallbackColor) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 16,
+          backgroundColor: Colors.transparent,
+          child: Icon(Icons.account_circle, color: fallbackColor, size: 32), // Using account_circle as placeholder for team avatar as in image
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Text(
+            name,
+            style: const TextStyle(fontSize: 14, color: AppColors.textMain),
+          ),
+        ),
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const EditTeamScreen()),
+            );
+          },
+          child: const Icon(Icons.more_vert, color: AppColors.textSecondary, size: 20),
+        ),
       ],
     );
   }

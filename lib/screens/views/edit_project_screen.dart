@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
-import 'profile_view_manager.dart';
+import 'profile_view_manager.dart'; // Or team depending on context
 
-class CreateProjectScreen extends StatelessWidget {
-  const CreateProjectScreen({super.key});
+class EditProjectScreen extends StatelessWidget {
+  const EditProjectScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -12,6 +12,10 @@ class CreateProjectScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textMain),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           'KYU',
           style: TextStyle(
@@ -62,7 +66,7 @@ class CreateProjectScreen extends StatelessWidget {
                 const Icon(Icons.chevron_right, size: 14, color: AppColors.primary),
                 const SizedBox(width: 8),
                 const Text(
-                  'PROYEK BARU',
+                  'PROYEK BARU', // Keeping it as image 4 shows
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -73,7 +77,7 @@ class CreateProjectScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Buat Proyek Baru',
+              'Edit Proyek',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -110,11 +114,11 @@ class CreateProjectScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildInputLabel('NAMA PROYEK'),
-                  _buildTextField('mis. Modernisasi Infrastruktur 2024'),
+                  _buildTextField('Kampanye Brand Q4'),
                   const SizedBox(height: 20),
 
                   _buildInputLabel('DESKRIPSI'),
-                  _buildTextArea('Jelaskan secara singkat tujuan, ruang\nlingkup, dan target hasil proyek...'),
+                  _buildTextArea('Proyek Kampanye Brand Q4 adalah\nstrategi promosi akhir tahun untuk\nmeningkatkan awareness, engagement,\ndan penjualan brand melalui media digital\ndan aktivitas pemasaran kreatif.'),
                   const SizedBox(height: 20),
 
                   _buildInputLabel('PILIH LABEL'),
@@ -122,7 +126,7 @@ class CreateProjectScreen extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _buildChip('Urgent', true, AppColors.primary),
+                      _buildChip('Research', true, AppColors.primary),
                       _buildChip('Backend', false, const Color(0xFF2E7D32)),
                       _buildChip('Design System', false, const Color(0xFFA1887F)),
                       _buildAddLabelChip(),
@@ -131,7 +135,7 @@ class CreateProjectScreen extends StatelessWidget {
                   const SizedBox(height: 20),
 
                   _buildInputLabel('TAUTAN REPOSITORI GITHUB'),
-                  _buildTextFieldWithIcon('https://github.com/organization/repo', Icons.link),
+                  _buildTextFieldWithIcon('https://github.com/kampanye-brand-', Icons.link),
                   const SizedBox(height: 8),
                   const Text(
                     'Pastikan repositori dapat diakses oleh anggota proyek.',
@@ -147,7 +151,7 @@ class CreateProjectScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {},
+                          onPressed: () => Navigator.pop(context),
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: AppColors.border),
                             shape: RoundedRectangleBorder(
@@ -177,25 +181,13 @@ class CreateProjectScreen extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             elevation: 0,
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                'Buat Proyek',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Image.asset(
-                                'image/ic_rocket.png',
-                                width: 16,
-                                color: Colors.white,
-                                errorBuilder: (context, error, stackTrace) => const Icon(Icons.rocket_launch, size: 16, color: Colors.white),
-                              ),
-                            ],
+                          child: const Text(
+                            'Simpan Proyek',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
@@ -218,16 +210,9 @@ class CreateProjectScreen extends StatelessWidget {
               'Visibilitas',
               'Secara default, proyek baru bersifat privat. Anda\ndapat mengubah pengaturan visibilitas setelah\nproyek dibuat.',
             ),
-            const SizedBox(height: 80), // For FAB
+            const SizedBox(height: 40),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: Colors.black, // Dark/black FAB like image
-        elevation: 4,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
     );
   }
@@ -254,12 +239,12 @@ class CreateProjectScreen extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: TextField(
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+        controller: TextEditingController(text: hint),
+        decoration: const InputDecoration(
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
+        style: const TextStyle(color: AppColors.textMain, fontSize: 14),
       ),
     );
   }
@@ -272,35 +257,35 @@ class CreateProjectScreen extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: TextField(
+        controller: TextEditingController(text: hint),
         decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           prefixIcon: Icon(icon, color: AppColors.textSecondary, size: 20),
         ),
+        style: const TextStyle(color: AppColors.textMain, fontSize: 14),
       ),
     );
   }
 
   Widget _buildTextArea(String hint) {
     return Container(
-      height: 100,
+      height: 120, // slightly taller for more text
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.border),
       ),
       child: TextField(
+        controller: TextEditingController(text: hint),
         maxLines: null,
         expands: true,
         textAlignVertical: TextAlignVertical.top,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+        decoration: const InputDecoration(
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(16),
+          contentPadding: EdgeInsets.all(16),
         ),
+        style: const TextStyle(color: AppColors.textMain, fontSize: 14),
       ),
     );
   }
@@ -351,7 +336,7 @@ class CreateProjectScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: AppColors.border,
-          style: BorderStyle.solid, // Flutter doesn't have dashed border easily built-in without package, solid is fine or we can use custom painter. Let's stick to solid for simplicity, image looks dashed but border is enough. Wait, I can simulate it or just use solid.
+          style: BorderStyle.solid, 
         ),
       ),
       child: const Row(

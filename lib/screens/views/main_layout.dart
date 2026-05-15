@@ -6,6 +6,8 @@ import 'inbox_screen.dart';
 import 'collab_view.dart';
 import 'profile_view_manager.dart';
 import 'profile_view_team.dart';
+import 'project_list_screen.dart';
+import 'team_task_list_screen.dart';
 
 class MainLayout extends StatefulWidget {
   final String role;
@@ -28,7 +30,7 @@ class _MainLayoutState extends State<MainLayout> {
       widget.role == 'Tim' ? const TeamDashboard() : const ManagerDashboard(), // Beranda
       const InboxScreen(),      // Kotak Masuk
       const CollabView(),       // Kolaborasi
-      widget.role == 'Tim' ? const ProfileViewTeam() : const ProfileViewManager(), // Proyek/Profile
+      widget.role == 'Tim' ? const TeamTaskListScreen() : const ProjectListScreen(), // Proyek
     ];
   }
 

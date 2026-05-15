@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
+import 'profile_view_manager.dart';
 
 class TaskDetailScreen extends StatelessWidget {
   const TaskDetailScreen({super.key});
@@ -25,13 +26,21 @@ class TaskDetailScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.inputBackground,
-            child: Image.asset(
-              'image/ic_profile.png',
-              width: 24,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileViewManager()),
+              );
+            },
+            child: CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.inputBackground,
+              child: Image.asset(
+                'image/ic_profile.png',
+                width: 24,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+              ),
             ),
           ),
           const SizedBox(width: 20),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
+import 'profile_view_team.dart';
 
 class TaskDetailTeamScreen extends StatelessWidget {
   const TaskDetailTeamScreen({super.key});
@@ -11,6 +12,10 @@ class TaskDetailTeamScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textMain),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           'KYU',
           style: TextStyle(
@@ -21,13 +26,23 @@ class TaskDetailTeamScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.inputBackground,
-            child: Image.asset(
-              'image/ic_profile.png',
-              width: 24,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+          const Icon(Icons.notifications_none, color: AppColors.textMain),
+          const SizedBox(width: 16),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileViewTeam()),
+              );
+            },
+            child: CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.inputBackground,
+              child: Image.asset(
+                'image/ic_profile.png',
+                width: 24,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+              ),
             ),
           ),
           const SizedBox(width: 20),
@@ -38,133 +53,204 @@ class TaskDetailTeamScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title Box
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border, width: 0.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.alertText, // Red
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'HIGH PRIORITY',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Refactor Authentication\nMiddleware',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textMain,
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Optimalkan proses verifikasi JWT saat\nini untuk mendukung arsitektur multi-\ntenant dan integrasikan callback OAuth\nGitHub.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Date Card
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.rank1Background, // Dark navy
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'TENGGAT WAKTU',
-                    style: TextStyle(
-                      color: Color(0xFF8BA6C1),
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '24 Okt 2024',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: const LinearProgressIndicator(
-                      value: 0.65,
-                      backgroundColor: Color(0xFF1E3A5F),
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8BA6C1)),
-                      minHeight: 4,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '65% Penyelesaian Proyek Keseluruhan',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 8,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Instruksi Manajer Header
+            // Breadcrumb
             Row(
               children: [
-                const Icon(Icons.assignment_ind_outlined, color: AppColors.primary, size: 20),
+                const Icon(Icons.folder_open_outlined, size: 14, color: AppColors.textSecondary),
                 const SizedBox(width: 8),
                 const Text(
-                  'Instruksi Manajer',
+                  'PROJEK Q4 BRAND',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textMain,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 1,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
 
-            // Instruksi Content Card
+            // Title
+            const Text(
+              'Pemasaran yang Dirancang\nuntuk Meningkatkan\nAwareness, Engagement, dan\nPenjualan Brand',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textMain,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Pomodoro Card
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.rank1Background, // Dark navy
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20,
+                    top: -20,
+                    child: Icon(
+                      Icons.timer_outlined,
+                      size: 120,
+                      color: Colors.white.withOpacity(0.05),
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'POMODORO TIMER',
+                        style: TextStyle(
+                          color: Color(0xFF8BA6C1),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        '25:00',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 64,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -2,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {},
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: AppColors.rank1Background,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                elevation: 0,
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.play_arrow, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Mulai',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {},
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFF4A6B8C)),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.stop, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Berhenti',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Manager Info
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: AppColors.rank1Background,
+                  child: const Icon(Icons.close, color: Colors.white, size: 20), // Closest to the logo icon in the image
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Manager Proyek',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const Text(
+                      'Fadhil Syahidan',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Deadline
+            const Text(
+              'Batas Waktu',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.alertText),
+                const SizedBox(width: 8),
+                const Text(
+                  '24 Oktober 2026, 23:59 WIB',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.alertText,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Instruksi Tugas Box
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -173,67 +259,124 @@ class TaskDetailTeamScreen extends StatelessWidget {
                 border: Border.all(color: AppColors.border, width: 0.5),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Manager Info
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9FAFB),
-                      borderRadius: BorderRadius.circular(12),
+                  Row(
+                    children: [
+                      const Icon(Icons.description_outlined, color: AppColors.textMain, size: 20),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Instruksi Tugas',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Tugas Q4 Brand Campaign melibatkan\npengembangan dan pengelolaan sistem\nkampanye digital untuk meningkatkan\nawareness dan engagement pelanggan\npada kuartal keempat. Sistem harus\nmendukung integrasi API pihak ketiga\nmenggunakan protokol OAuth2 guna\nmenjaga keamanan akses data.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                      height: 1.5,
                     ),
-                    child: Row(
+                  ),
+                  const SizedBox(height: 16),
+                  _buildBulletPoint('Implementasi autentikasi OAuth2\nmenggunakan library Passport.js'),
+                  const SizedBox(height: 12),
+                  _buildBulletPoint('Memastikan environment variables\naman dan tidak meng-commit file .env'),
+                  const SizedBox(height: 12),
+                  _buildBulletPoint('Membuat unit test pada setiap\nendpoint baru'),
+                  const SizedBox(height: 24),
+
+                  // Catatan Penting
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC), // Light slate
+                      borderRadius: BorderRadius.circular(8),
+                      border: const Border(
+                        left: BorderSide(color: AppColors.rank1Background, width: 4), // Navy left border
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.transparent,
-                          child: Image.asset(
-                            'image/ic_avatar_dian.png',
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.account_circle, color: Colors.redAccent, size: 32),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Dian Paramitha',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textMain,
-                                ),
-                              ),
-                              Text(
-                                'Lead Technical Architect',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                         const Text(
-                          'Migrasi Cloud Fase 2',
+                          'Catatan Penting:',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textMain,
+                            color: AppColors.rank1Background, // Navy text
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Pastikan sinkronisasi GitHub dalam\nkeadaan aktif sebelum memulai\npengerjaan kode untuk pencatatan\nprogress otomatis.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.textSecondary,
+                            height: 1.5,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-
-                  // Steps
-                  _buildInstructionStep('01.', 'Tinjau \'auth_service.py\' yang ada\ndan identifikasi lokasi bottleneck\npada logika session lookup.'),
-                  const SizedBox(height: 20),
-                  _buildInstructionStep('02.', 'Implementasikan kelas\n\'GitHubSyncProvider\' untuk\nmenangani pemetaan commit\notomatis ke milestone proyek.'),
-                  const SizedBox(height: 20),
-                  _buildInstructionStep('03.', 'Pastikan semua perubahan\ntercermin dalam dokumentasi di\ndalam path \'/docs/api/security\'.'),
                 ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Perbarui Status Header
+            const Text(
+              'PERBARUI STATUS',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textMain,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Status Options
+            Row(
+              children: [
+                Expanded(child: _buildStatusOption(Icons.circle_outlined, 'Akan\nDikerjakan', false)),
+                const SizedBox(width: 8),
+                Expanded(child: _buildStatusOption(Icons.more_horiz, 'Sedang\nDikerjakan', true)),
+                const SizedBox(width: 8),
+                Expanded(child: _buildStatusOption(Icons.check_circle_outline, 'Selesai', false)),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Save Button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () {},
+                icon: const Text(
+                  'Simpan Pembaruan Tugas',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                label: const Icon(Icons.save_outlined, size: 18),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF020617), // Very dark navy/black
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -309,56 +452,6 @@ class TaskDetailTeamScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-
-            // Perbarui Status Header
-            const Text(
-              'PERBARUI STATUS',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textMain,
-                letterSpacing: 1.5,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Status Options
-            Row(
-              children: [
-                Expanded(child: _buildStatusOption(Icons.circle_outlined, 'Akan\nDikerjakan', false)),
-                const SizedBox(width: 8),
-                Expanded(child: _buildStatusOption(Icons.more_horiz, 'Sedang\nDikerjakan', true)),
-                const SizedBox(width: 8),
-                Expanded(child: _buildStatusOption(Icons.check_circle_outline, 'Selesai', false)),
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            // Save Button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Text(
-                  'Simpan Pembaruan Tugas',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                label: const Icon(Icons.save_outlined, size: 18),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF020617), // Very dark navy/black
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 0,
-                ),
-              ),
-            ),
             const SizedBox(height: 40),
           ],
         ),
@@ -366,25 +459,27 @@ class TaskDetailTeamScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInstructionStep(String number, String text) {
+  Widget _buildBulletPoint(String text) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          number,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
+        const SizedBox(width: 8),
+        Container(
+          width: 4,
+          height: 4,
+          margin: const EdgeInsets.only(top: 8),
+          decoration: const BoxDecoration(
+            color: AppColors.textSecondary,
+            shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
           child: Text(
             text,
             style: const TextStyle(
               fontSize: 14,
-              color: AppColors.textMain,
+              color: AppColors.textSecondary,
               height: 1.5,
             ),
           ),
