@@ -36,3 +36,11 @@ class AppColors {
   static const Color inputBackground = Colors.white; // White input fields
   static const Color border = Color(0xFFE0E0E0); // Light grey border
 }
+
+class AppDarkColors {
+  static const Color background = Color(0xFF0F172A);
+  static const Color surface = Color(0xFF1E293B);
+  static const Color textMain = Colors.white; 
+  static const Color textSecondary = Color(0xFF94A3B8);
+  static const Color border = Color(0xFF334155);
+}

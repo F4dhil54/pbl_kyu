@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/views/onboarding_screen.dart';
 import 'theme/colors.dart';
-
+import 'theme/theme_mode.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -11,19 +11,41 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'KYU App',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: 'Inter', // Or any default sans-serif font
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          background: AppColors.background,
-        ),
-        scaffoldBackgroundColor: AppColors.background,
-        useMaterial3: true,
-      ),
-      home: const OnboardingScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeControl.themeNotifier,
+      builder: (context, currentMode, child) {
+        return MaterialApp(
+          title: 'KYU App',
+          debugShowCheckedModeBanner: false,
+          
+          // Tema terang
+          theme: ThemeData(
+            fontFamily: 'Inter',
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: AppColors.primary,
+              brightness: Brightness.light,
+            ),
+            scaffoldBackgroundColor: AppColors.background,
+            useMaterial3: true,
+          ),
+          
+          // Tema gelap
+          darkTheme: ThemeData(
+            fontFamily: 'Inter',
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: AppColors.primary,
+              brightness: Brightness.dark,
+              surface: AppDarkColors.surface,
+            ),
+            scaffoldBackgroundColor: AppDarkColors.background,
+            useMaterial3: true,
+          ),
+          
+          themeMode: currentMode,
+          
+          home: const OnboardingScreen(),
+        );
+      },
     );
   }
 }
