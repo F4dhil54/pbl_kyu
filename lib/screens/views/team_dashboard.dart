@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import 'profile_view_team.dart';
+import 'task_detail_team_screen.dart' as task_detail;
+import 'team_task_list_screen.dart' as team_task_list;
 
 class TeamDashboard extends StatelessWidget {
   const TeamDashboard({super.key});
@@ -78,18 +80,26 @@ class TeamDashboard extends StatelessWidget {
                     color: AppColors.textMain,
                   ),
                 ),
-                Row(
-                  children: [
-                    Text(
-                      'Lihat Semua',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const team_task_list.TeamTaskListScreen()),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      Text(
+                        'Lihat Semua',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
-                  ],
+                      Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -101,6 +111,12 @@ class TeamDashboard extends StatelessWidget {
               time: '09:00 - 11:00',
               progress: 0.6,
               isCompleted: false,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const task_detail.TaskDetailTeamScreen()),
+                );
+              },
             ),
             const SizedBox(height: 12),
             _buildTaskCard(
@@ -108,6 +124,12 @@ class TeamDashboard extends StatelessWidget {
               time: '13:30 - 15:00',
               progress: 0.2,
               isCompleted: false,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const task_detail.TaskDetailTeamScreen()),
+                );
+              },
             ),
             const SizedBox(height: 12),
             _buildTaskCard(
@@ -164,9 +186,12 @@ class TeamDashboard extends StatelessWidget {
     required String time,
     required double progress,
     required bool isCompleted,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -251,6 +276,7 @@ class TeamDashboard extends StatelessWidget {
             ),
         ],
       ),
+    ),
     );
   }
 }

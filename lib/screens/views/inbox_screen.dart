@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import 'profile_view_manager.dart';
+import 'message_detail_screen.dart' as message_detail;
 
 class InboxScreen extends StatelessWidget {
   const InboxScreen({super.key});
@@ -118,6 +119,19 @@ class InboxScreen extends StatelessWidget {
                     time: '10:24 AM',
                     content: '"Saya telah memperbarui milestone untuk fase engineering. Beri tahu..."',
                     isUnread: true,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const message_detail.MessageDetailScreen(
+                            senderName: 'Dea Marselia',
+                            title: 'Pembaruan Milestone',
+                            content: 'Saya telah memperbarui milestone untuk fase engineering. Beri tahu jika ada feedback tambahan.',
+                            time: '10:24 AM',
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   _buildNotificationCard(
@@ -133,6 +147,19 @@ class InboxScreen extends StatelessWidget {
                     badgeColor: const Color(0xFFE0F2F1),
                     badgeTextColor: const Color(0xFF009688),
                     isUnread: true,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const message_detail.MessageDetailScreen(
+                            senderName: 'Sistem KYU',
+                            title: 'Tugas Baru Diberikan',
+                            content: 'Tinjau protokol keamanan untuk API V2 segera sebelum sprint berakhir.',
+                            time: '08:15 AM',
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   _buildNotificationCard(
@@ -291,9 +318,12 @@ class InboxScreen extends StatelessWidget {
     String? badgeText,
     Color? badgeColor,
     Color? badgeTextColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -396,6 +426,7 @@ class InboxScreen extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import 'profile_view_manager.dart';
+import 'all_members_screen.dart';
+import 'create_project_screen.dart';
 
 class ManagerDashboard extends StatelessWidget {
   const ManagerDashboard({super.key});
@@ -144,18 +146,26 @@ class ManagerDashboard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Row(
-                        children: [
-                          Text(
-                            'Lihat Semua',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const AllMembersScreen()),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            Text(
+                              'Lihat Semua',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
-                        ],
+                            Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -295,7 +305,12 @@ class ManagerDashboard extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CreateProjectScreen()),
+          );
+        },
         backgroundColor: AppColors.textMain,
         elevation: 4,
         shape: const CircleBorder(),

@@ -1,9 +1,56 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import 'profile_view_team.dart';
 
-class TaskDetailTeamScreen extends StatelessWidget {
+class TaskDetailTeamScreen extends StatefulWidget {
   const TaskDetailTeamScreen({super.key});
+
+  @override
+  State<TaskDetailTeamScreen> createState() => _TaskDetailTeamScreenState();
+}
+
+class _TaskDetailTeamScreenState extends State<TaskDetailTeamScreen> {
+  int _secondsRemaining = 25 * 60; // 25 minutes
+  Timer? _timer;
+  bool _isRunning = false;
+
+  String get _timerText {
+    int minutes = _secondsRemaining ~/ 60;
+    int seconds = _secondsRemaining % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  void _startTimer() {
+    if (_isRunning) {
+      _timer?.cancel();
+      setState(() { _isRunning = false; });
+    } else {
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (_secondsRemaining > 0) {
+          setState(() { _secondsRemaining--; });
+        } else {
+          timer.cancel();
+          setState(() { _isRunning = false; });
+        }
+      });
+      setState(() { _isRunning = true; });
+    }
+  }
+
+  void _resetTimer() {
+    _timer?.cancel();
+    setState(() {
+      _secondsRemaining = 25 * 60;
+      _isRunning = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,9 +161,9 @@ class TaskDetailTeamScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const Text(
-                        '25:00',
-                        style: TextStyle(
+                      Text(
+                        _timerText,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 64,
                           fontWeight: FontWeight.w900,
@@ -128,7 +175,7 @@ class TaskDetailTeamScreen extends StatelessWidget {
                         children: [
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () {},
+                              onPressed: _startTimer,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
                                 foregroundColor: AppColors.rank1Background,
@@ -138,14 +185,14 @@ class TaskDetailTeamScreen extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 elevation: 0,
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.play_arrow, size: 20),
-                                  SizedBox(width: 8),
+                                  Icon(_isRunning ? Icons.pause : Icons.play_arrow, size: 20),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    'Mulai',
-                                    style: TextStyle(
+                                    _isRunning ? 'Jeda' : 'Mulai',
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                     ),
@@ -157,7 +204,7 @@ class TaskDetailTeamScreen extends StatelessWidget {
                           const SizedBox(width: 16),
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () {},
+                              onPressed: _resetTimer,
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: Color(0xFF4A6B8C)),
                                 foregroundColor: Colors.white,

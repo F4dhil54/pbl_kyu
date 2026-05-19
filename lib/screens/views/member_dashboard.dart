@@ -38,7 +38,11 @@ class _MemberDashboardState extends State<MemberDashboard> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: AppColors.textMain),
-            onPressed: () {},
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Fitur pencarian akan segera hadir!'), duration: Duration(seconds: 2)),
+              );
+            },
           ),
           ProfileMenu(
             onLogout: _handleLogout,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import 'profile_view_manager.dart';
+import 'create_task_screen.dart';
 
 class TaskDetailScreen extends StatelessWidget {
   const TaskDetailScreen({super.key});
@@ -13,8 +14,8 @@ class TaskDetailScreen extends StatelessWidget {
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.menu, color: AppColors.textMain),
-          onPressed: () {},
+          icon: const Icon(Icons.arrow_back, color: AppColors.textMain),
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'KYU',
@@ -240,7 +241,12 @@ class TaskDetailScreen extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CreateTaskScreen()),
+          );
+        },
         backgroundColor: Colors.black, // Dark/black FAB like image
         elevation: 4,
         shape: const CircleBorder(),

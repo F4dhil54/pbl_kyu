@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import 'edit_member_screen.dart';
 import 'edit_team_screen.dart';
+import 'create_team_screen.dart';
+import 'onboarding_screen.dart';
 
 class ProfileViewManager extends StatelessWidget {
   const ProfileViewManager({super.key});
@@ -27,19 +29,16 @@ class ProfileViewManager extends StatelessWidget {
           ),
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 20),
-            decoration: const BoxDecoration(
-              color: Color(0xFF020617), // Very dark blue/black
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 20),
-              onPressed: () => Navigator.pop(context),
-              constraints: const BoxConstraints(),
-              padding: const EdgeInsets.all(8),
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: AppColors.inputBackground,
+            child: Image.asset(
+              'image/ic_profile.png',
+              width: 24,
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
             ),
           ),
+          const SizedBox(width: 20),
         ],
       ),
       body: SingleChildScrollView(
@@ -69,41 +68,94 @@ class ProfileViewManager extends StatelessWidget {
             // Edit Profil Card
             _buildCardWrapper(
               title: 'Edit Profil',
-              iconData: Icons.manage_accounts_outlined,
+              iconData: Icons.person_add_alt_1_outlined,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 16),
                   Center(
                     child: Stack(
                       children: [
-                        const CircleAvatar(
-                          radius: 40,
-                          backgroundColor: Colors.transparent,
-                          child: Icon(Icons.account_circle, size: 80, color: AppColors.textMain),
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.inputBackground,
+                            border: Border.all(color: AppColors.border, width: 1),
+                          ),
+                          child: const Icon(Icons.person_outline, size: 48, color: AppColors.textSecondary),
                         ),
                         Positioned(
                           bottom: 0,
                           right: 0,
                           child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
                               color: AppColors.textMain,
                               shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
                             ),
-                            child: const Icon(Icons.camera_alt, size: 12, color: Colors.white),
+                            child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
                           ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
-                  _buildInputLabel('Nama Lengkap'),
-                  _buildTextField('Fadhil Syahidan'),
+                  const Text('Nama Lengkap', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.inputBackground,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Fadhil Syahidan',
+                        hintStyle: TextStyle(color: AppColors.textMain, fontSize: 14),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  _buildInputLabel('Alamat Email'),
-                  _buildTextField('fadhil@kyu-corp.com'),
+                  const Text('Alamat Email', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.inputBackground,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const TextField(
+                      decoration: InputDecoration(
+                        hintText: 'fadhil@kyu-corp.com',
+                        hintStyle: TextStyle(color: AppColors.textMain, fontSize: 14),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
-                  _buildDarkButton('Simpan Perubahan'),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.buttonDark,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text('Simpan Perubahan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -112,36 +164,54 @@ class ProfileViewManager extends StatelessWidget {
             // Manajemen Orang Card
             _buildCardWrapper(
               title: 'Manajemen Orang',
-              iconData: Icons.person_add_alt_1_outlined,
+              iconData: Icons.group_add_outlined,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border, width: 1),
+                      border: Border.all(color: AppColors.border),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Tambah Orang', style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 12),
+                        const Text(
+                          'Tambah Orang',
+                          style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 16),
                         _buildTextField('Nama anggota baru...'),
                         const SizedBox(height: 12),
                         _buildTextField('Email anggota baru...'),
                         const SizedBox(height: 12),
                         _buildDropdown('Jabatan: Anggota'),
                         const SizedBox(height: 16),
-                        _buildDarkButton('Kirim Undangan'),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: () {},
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.buttonDark,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text('Kirim Undangan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
-                  _buildMemberListItem(context, 'Sukma Ananda', 'Project Lead', Colors.blue),
+                  _buildMemberListItem(context, 'Sukma Ananda', 'Project Lead', 's'),
                   const Divider(height: 24, color: AppColors.border),
-                  _buildMemberListItem(context, 'Dian Paramitha', 'Designer', Colors.red),
+                  _buildMemberListItem(context, 'Dian Paramitha', 'Designer', 'd', iconColor: Colors.red),
                 ],
               ),
             ),
@@ -152,17 +222,17 @@ class ProfileViewManager extends StatelessWidget {
               title: 'Manajemen Tim',
               iconData: Icons.account_tree_outlined,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Nama Tim', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMain)),
+                            const Text('Nama Tim', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 8),
-                            _buildTextField('mis. Design Sprint'),
+                            _buildTextField('mis. Design Sprint', height: 40),
                           ],
                         ),
                       ),
@@ -171,38 +241,39 @@ class ProfileViewManager extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Pilih Anggota', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMain)),
+                            const Text('Pilih Anggota', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 8),
-                            _buildDropdown('Nama Anggot...'),
+                            _buildDropdown('Nama Anggot', height: 40),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  const Text('Pilih Proyek', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMain)),
+                  const SizedBox(height: 16),
+                  const Text('Pilih Proyek', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  _buildDropdown('Nama Proyek'),
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.4,
+                    child: _buildDropdown('Nama Proyek', height: 40),
+                  ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     height: 44,
                     child: OutlinedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const CreateTeamScreen()),
+                        );
+                      },
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppColors.textMain),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text(
-                        'Buat Tim Baru',
-                        style: TextStyle(
-                          color: AppColors.textMain,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
+                      child: const Text('Buat Tim Baru', style: TextStyle(color: AppColors.textMain, fontWeight: FontWeight.bold, fontSize: 14)),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -214,30 +285,23 @@ class ProfileViewManager extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Settings Cards
+            // Row of 2 Cards (Mode Terang & Notifikasi)
             Row(
               children: [
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.border, width: 0.5),
                     ),
                     child: const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.dark_mode_outlined, color: AppColors.textSecondary, size: 20),
+                        Icon(Icons.dark_mode_outlined, color: AppColors.textSecondary, size: 28),
                         SizedBox(height: 16),
-                        Text(
-                          'Mode Terang',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textMain,
-                          ),
-                        ),
+                        Text('Mode Terang', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain)),
                       ],
                     ),
                   ),
@@ -245,48 +309,40 @@ class ProfileViewManager extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.border, width: 0.5),
                     ),
                     child: const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.notifications_none, color: AppColors.textSecondary, size: 20),
+                        Icon(Icons.notifications_none, color: AppColors.textSecondary, size: 28),
                         SizedBox(height: 16),
-                        Text(
-                          'Notifikasi',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textMain,
-                          ),
-                        ),
+                        Text('Notifikasi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain)),
                       ],
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
 
             // Keluar Button
             SizedBox(
               width: double.infinity,
               height: 48,
               child: OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+                    (route) => false,
+                  );
+                },
                 icon: const Icon(Icons.logout, color: AppColors.alertText, size: 20),
-                label: const Text(
-                  'Keluar',
-                  style: TextStyle(
-                    color: AppColors.alertText,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
+                label: const Text('Keluar', style: TextStyle(color: AppColors.alertText, fontWeight: FontWeight.bold, fontSize: 14)),
                 style: OutlinedButton.styleFrom(
                   backgroundColor: Colors.white,
                   side: const BorderSide(color: AppColors.alertText),
@@ -305,18 +361,11 @@ class ProfileViewManager extends StatelessWidget {
 
   Widget _buildCardWrapper({required String title, required IconData iconData, required Widget child}) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border, width: 0.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,32 +381,19 @@ class ProfileViewManager extends StatelessWidget {
                   color: AppColors.textMain,
                 ),
               ),
-              Icon(iconData, size: 20, color: AppColors.textSecondary),
+              Icon(iconData, color: AppColors.textSecondary, size: 24),
             ],
           ),
+          const SizedBox(height: 16),
           child,
         ],
       ),
     );
   }
 
-  Widget _buildInputLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textMain,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField(String hint) {
+  Widget _buildTextField(String hint, {double height = 48}) {
     return Container(
-      height: 44,
+      height: height,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -368,15 +404,15 @@ class ProfileViewManager extends StatelessWidget {
           hintText: hint,
           hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: (height - 20) / 2),
         ),
       ),
     );
   }
 
-  Widget _buildDropdown(String text) {
+  Widget _buildDropdown(String hint, {double height = 48}) {
     return Container(
-      height: 44,
+      height: height,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -386,65 +422,34 @@ class ProfileViewManager extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Text(
-              text, 
-              style: const TextStyle(fontSize: 14, color: AppColors.textMain),
-              overflow: TextOverflow.ellipsis,
-            )
-          ),
+          Text(hint, style: const TextStyle(color: AppColors.textMain, fontSize: 14)),
           const Icon(Icons.keyboard_arrow_down, color: AppColors.textSecondary),
         ],
       ),
     );
   }
 
-  Widget _buildDarkButton(String text) {
-    return SizedBox(
-      width: double.infinity,
-      height: 44,
-      child: ElevatedButton(
-        onPressed: () {},
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.buttonDark,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          elevation: 0,
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMemberListItem(BuildContext context, String name, String role, Color fallbackColor) {
+  Widget _buildMemberListItem(BuildContext context, String name, String role, String initial, {Color iconColor = Colors.blue}) {
     return Row(
       children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: Colors.transparent,
-          child: Icon(Icons.account_circle, color: fallbackColor, size: 32),
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: iconColor, width: 2),
+          ),
+          child: Center(
+            child: Icon(Icons.person, color: iconColor, size: 20),
+          ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                name,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textMain),
-              ),
-              Text(
-                role,
-                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
-              ),
+              Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textMain)),
+              Text(role, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             ],
           ),
         ),
@@ -461,20 +466,23 @@ class ProfileViewManager extends StatelessWidget {
     );
   }
 
-  Widget _buildTeamListItem(BuildContext context, String name, Color fallbackColor) {
+  Widget _buildTeamListItem(BuildContext context, String name, Color iconColor) {
     return Row(
       children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: Colors.transparent,
-          child: Icon(Icons.account_circle, color: fallbackColor, size: 32), // Using account_circle as placeholder for team avatar as in image
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Text(
-            name,
-            style: const TextStyle(fontSize: 14, color: AppColors.textMain),
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: iconColor, width: 2),
           ),
+          child: Center(
+            child: Icon(Icons.person, color: iconColor, size: 20),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textMain)),
         ),
         GestureDetector(
           onTap: () {

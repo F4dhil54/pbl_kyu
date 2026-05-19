@@ -26,7 +26,7 @@ class OnboardingScreen extends StatelessWidget {
                 ),
                 child: Center(
                   child: Image.asset(
-                    'image/logo_blue.png',
+                    'image/logoSemua.png',
                     width: 60,
                     errorBuilder: (context, error, stackTrace) => const Icon(
                       Icons.business_center,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import 'profile_view_manager.dart';
+import 'create_post_screen.dart';
 
 class CollabView extends StatelessWidget {
   const CollabView({super.key});
@@ -192,6 +193,18 @@ class CollabView extends StatelessWidget {
             const SizedBox(height: 40),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CreatePostScreen()),
+          );
+        },
+        backgroundColor: AppColors.textMain,
+        elevation: 4,
+        shape: const CircleBorder(),
+        child: const Icon(Icons.edit, color: Colors.white, size: 24),
       ),
     );
   }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
+import 'login_screen.dart';
+import 'onboarding_screen.dart';
 
 class ProfileViewTeam extends StatelessWidget {
   const ProfileViewTeam({super.key});
@@ -11,6 +13,10 @@ class ProfileViewTeam extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textMain),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           'KYU',
           style: TextStyle(
@@ -53,7 +59,7 @@ class ProfileViewTeam extends StatelessWidget {
                         child: Image.asset(
                           'image/ic_avatar_team.png',
                           width: 48,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.phone_android, size: 40, color: AppColors.rank1Background), // Using a phone icon as fallback since the image shows a phone-like avatar
+                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.phone_android, size: 40, color: AppColors.rank1Background),
                         ),
                       ),
                     ),
@@ -77,7 +83,7 @@ class ProfileViewTeam extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Layar Tim',
+                        'Pengaturan Tim',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -107,131 +113,160 @@ class ProfileViewTeam extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.border, width: 0.5),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.rank1Background, // Dark navy
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.manage_accounts, color: Colors.white),
-                  ),
-                  const SizedBox(width: 16),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Edit Profil',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textMain,
-                          ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Edit Profil',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textMain,
                         ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Perbarui identitas dan info akun',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
+                      ),
+                      Icon(Icons.person_add_alt_1_outlined, color: AppColors.textSecondary, size: 24),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  // Avatar with camera icon
+                  Center(
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.inputBackground,
+                            border: Border.all(color: AppColors.border, width: 1),
+                          ),
+                          child: const Icon(Icons.person_outline, size: 48, color: AppColors.textSecondary),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppColors.textMain,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                  const SizedBox(height: 24),
+                  // Nama Lengkap
+                  const Text(
+                    'Nama Lengkap',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Nama Lengkap',
+                        hintStyle: TextStyle(color: AppColors.textMain, fontSize: 14),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Alamat Email
+                  const Text(
+                    'Alamat Email',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Alamat Email',
+                        hintStyle: TextStyle(color: AppColors.textMain, fontSize: 14),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Simpan Perubahan Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.buttonDark,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Simpan Perubahan',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
 
-            // Sinkronisasi GitHub Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border, width: 0.5),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: AppColors.rank1Background, // Dark navy
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.sync_alt, color: Colors.white),
-                      ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Text(
-                          'Sinkronisasi GitHub',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textMain,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFB2DFDB), // Light teal/green
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          'Terhubung',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF00695C), // Dark teal text
-                          ),
-                        ),
-                      ),
-                    ],
+            // Hubungkan Akun Github Button
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.sync_alt, color: Colors.white, size: 20),
+                label: const Text(
+                  'Hubungkan Akun Github',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.vpn_key_outlined, size: 16, color: AppColors.textSecondary),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'ghp_8872...9921kLk',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textMain,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          'Token hub',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.rank1Background,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
+                  elevation: 0,
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
             // Statistik Fokus Card
             Container(
@@ -250,7 +285,7 @@ class ProfileViewTeam extends StatelessWidget {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF78909C), // Blue grey
+                          color: const Color(0xFF78909C),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(Icons.timer_outlined, color: Colors.white),
@@ -305,7 +340,7 @@ class ProfileViewTeam extends StatelessWidget {
                   const SizedBox(height: 24),
                   // Chart
                   SizedBox(
-                    height: 100,
+                    height: 120,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -325,7 +360,7 @@ class ProfileViewTeam extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Row of 2 Cards
+            // Row of 2 Cards (Mode Terang & Notifikasi)
             Row(
               children: [
                 Expanded(
@@ -336,12 +371,12 @@ class ProfileViewTeam extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.border, width: 0.5),
                     ),
-                    child: Column(
+                    child: const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.dark_mode_outlined, color: AppColors.textSecondary, size: 28),
-                        const SizedBox(height: 16),
-                        const Text(
+                        Icon(Icons.dark_mode_outlined, color: AppColors.textSecondary, size: 28),
+                        SizedBox(height: 16),
+                        Text(
                           'Mode Terang',
                           style: TextStyle(
                             fontSize: 16,
@@ -362,12 +397,12 @@ class ProfileViewTeam extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.border, width: 0.5),
                     ),
-                    child: Column(
+                    child: const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.notifications_none, color: AppColors.textSecondary, size: 28),
-                        const SizedBox(height: 16),
-                        const Text(
+                        Icon(Icons.notifications_none, color: AppColors.textSecondary, size: 28),
+                        SizedBox(height: 16),
+                        Text(
                           'Notifikasi',
                           style: TextStyle(
                             fontSize: 16,
@@ -388,7 +423,13 @@ class ProfileViewTeam extends StatelessWidget {
               width: double.infinity,
               height: 48,
               child: OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+                    (route) => false,
+                  );
+                },
                 icon: const Icon(Icons.logout, color: AppColors.alertText, size: 20),
                 label: const Text(
                   'Keluar',
@@ -418,8 +459,8 @@ class ProfileViewTeam extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Container(
-          width: 32, // Based on image, bars are quite wide and touch each other slightly or have small gaps. Let's make them wide.
-          height: 80 * fillHeight, // 80 is max height for bars
+          width: 32,
+          height: 80 * fillHeight,
           color: isHighlight ? const Color(0xFF6F8CAE) : const Color(0xFFEEEEEE),
         ),
         const SizedBox(height: 8),

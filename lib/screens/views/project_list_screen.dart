@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
-import 'profile_view_team.dart'; // Or profile_view_manager depending on role, assuming manager for now or team
+import 'profile_view_manager.dart';
 import 'create_project_screen.dart';
 import 'project_detail_screen.dart';
 
@@ -25,14 +25,18 @@ class ProjectListScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Fitur pencarian akan segera hadir!'), duration: Duration(seconds: 2)),
+              );
+            },
             icon: const Icon(Icons.search, color: AppColors.textMain),
           ),
           GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ProfileViewTeam()), // Replace with correct profile if needed
+                MaterialPageRoute(builder: (context) => const ProfileViewManager()),
               );
             },
             child: CircleAvatar(

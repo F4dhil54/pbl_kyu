@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
-import 'profile_view_team.dart'; // or profile_view_manager
+import 'profile_view_manager.dart';
 import 'create_task_screen.dart';
+import 'edit_project_screen.dart';
 
 class ProjectDetailScreen extends StatelessWidget {
   const ProjectDetailScreen({super.key});
@@ -31,7 +32,7 @@ class ProjectDetailScreen extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ProfileViewTeam()),
+                MaterialPageRoute(builder: (context) => const ProfileViewManager()),
               );
             },
             child: CircleAvatar(
@@ -320,7 +321,12 @@ class ProjectDetailScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const EditProjectScreen()),
+                    );
+                  },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.border),
                     shape: RoundedRectangleBorder(
@@ -341,7 +347,9 @@ class ProjectDetailScreen extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFB91C1C), // Red 700
                     shape: RoundedRectangleBorder(

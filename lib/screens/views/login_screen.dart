@@ -77,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 40),
               
-              // Role Selector
+              //   Selector
               Align(
                 alignment: Alignment.centerLeft,
                 child: const Text(

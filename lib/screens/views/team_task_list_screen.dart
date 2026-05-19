@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import 'profile_view_team.dart';
+import 'task_detail_team_screen.dart' as task_detail;
 
 class TeamTaskListScreen extends StatelessWidget {
   const TeamTaskListScreen({super.key});
@@ -106,6 +107,12 @@ class TeamTaskListScreen extends StatelessWidget {
                 child: const Icon(Icons.close, color: Colors.white, size: 14),
               ),
               leftBorderColor: const Color(0xFF020617), // Dark navy border on left
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const task_detail.TaskDetailTeamScreen()),
+                );
+              },
             ),
             const SizedBox(height: 16),
 
@@ -157,9 +164,12 @@ class TeamTaskListScreen extends StatelessWidget {
     required IconData topRightIcon,
     Widget? bottomRightWidget,
     Color? leftBorderColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      decoration: BoxDecoration(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border, width: 0.5),
@@ -247,6 +257,7 @@ class TeamTaskListScreen extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }
