@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import 'profile_view_team.dart';
+import 'github_status.dart';
 
 class TaskDetailTeamScreen extends StatefulWidget {
   const TaskDetailTeamScreen({super.key});
@@ -50,6 +51,24 @@ class _TaskDetailTeamScreenState extends State<TaskDetailTeamScreen> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadData();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  void _loadData() {
+    if (mounted) {
+      setState(() {});
+    };
   }
 
   @override
@@ -429,74 +448,101 @@ class _TaskDetailTeamScreenState extends State<TaskDetailTeamScreen> {
             const SizedBox(height: 16),
 
             // Sinkronisasi Commit GitHub
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B), // Navy blue
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+            GestureDetector(
+              onTap: () {
+                if (GitHubStatus.isConnected) {
+                  setState(() {
+                    GitHubStatus.isSyncActive = !GitHubStatus.isSyncActive;
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Silakan hubungkan akun GitHub di menu Profil terlebih dahulu.'),
+                      backgroundColor: Colors.red,
                     ),
-                    child: const Icon(Icons.sync, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 16),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Sinkronisasi Commit GitHub',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                  );
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B), 
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.sync, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Sinkronisasi Commit GitHub',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 4),
-                        Row(
-                          children: [
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Text(
+                                'Repositori tertaut: ',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                              Text(
+                                GitHubStatus.repoName,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF60A5FA), 
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (GitHubStatus.isConnected) ...[
+                            const SizedBox(height: 2),
                             Text(
-                              'Repositori tertaut: ',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.white70,
+                              'Oleh: @${GitHubStatus.username}',
+                              style: const TextStyle(
+                                fontSize: 10, 
+                                color: Colors.white54, 
+                                fontStyle: FontStyle.italic
                               ),
                             ),
-                            Text(
-                              'kyu-org/core-engine',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF60A5FA), // Light blue
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF064E3B), // Dark green background
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Aktif',
-                      style: TextStyle(
-                        color: Color(0xFF34D399), // Light green text
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                          ]
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: GitHubStatus.isSyncActive ? const Color(0xFF064E3B) : Colors.red.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        GitHubStatus.isSyncActive ? 'Aktif' : 'Non-Aktif',
+                        style: TextStyle(
+                          color: GitHubStatus.isSyncActive ? const Color(0xFF34D399) : Colors.redAccent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 40),
@@ -505,6 +551,7 @@ class _TaskDetailTeamScreenState extends State<TaskDetailTeamScreen> {
       ),
     );
   }
+
 
   Widget _buildBulletPoint(String text) {
     return Row(

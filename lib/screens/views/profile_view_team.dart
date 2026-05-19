@@ -1,10 +1,101 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import '../../theme/colors.dart';
-import 'login_screen.dart';
 import 'onboarding_screen.dart';
+import 'github_status.dart';
 
-class ProfileViewTeam extends StatelessWidget {
+class ProfileViewTeam extends StatefulWidget {
   const ProfileViewTeam({super.key});
+
+  @override
+  State<ProfileViewTeam> createState() => _ProfileViewTeamState();
+}
+
+class _ProfileViewTeamState extends State<ProfileViewTeam> {
+  bool _isConnecting = false;
+  bool _isConnected = false;
+  String? _githubAccessToken;
+  String? _githubUsername;
+
+  // Konfigurasi GitHub OAuth
+  final String clientId = 'Ov23liyhzVvur2XKSlmg';
+  final String clientSecret = '2532f44f75ea3f045b886a02257cb30b1ab6bf13'; 
+
+  Future<void> _hubungkanGitHub() async {
+    setState(() => _isConnecting = true);
+
+    try {
+      final result = await FlutterWebAuth2.authenticate(
+        url: "https://github.com/login/oauth/authorize?client_id=$clientId&scope=repo,user",
+        callbackUrlScheme: "kyu",
+      );
+
+      final code = Uri.parse(result).queryParameters['code'];
+
+      if (code != null) {
+        final response = await http.post(
+          Uri.parse('https://github.com/login/oauth/access_token'),
+          headers: {'Accept': 'application/json'},
+          body: {
+            'client_id': clientId,
+            'client_secret': clientSecret,
+            'code': code,
+          },
+        );
+
+        final data = json.decode(response.body);
+        final token = data['access_token'];
+
+        if (token != null) {
+          print("Token berhasil disimpan: $_githubAccessToken");
+          final userResponse = await http.get(
+            Uri.parse('https://api.github.com/user'),
+            headers: {'Authorization': 'Bearer $token'},
+          );
+          final userData = json.decode(userResponse.body);
+          
+          if (mounted) {
+            setState(() {
+              _githubAccessToken = token;
+              _isConnected = true;
+              _githubUsername = userData['login'];
+
+              GitHubStatus.isConnected = true;
+              GitHubStatus.username = userData['login'];
+              GitHubStatus.isSyncActive = true;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error: $e");
+    } finally {
+      if (mounted) setState(() => _isConnecting = false);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadData();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  void _loadData() {
+    if (mounted) {
+      setState(() {
+        _isConnected = GitHubStatus.isConnected;
+        _githubUsername = GitHubStatus.username;
+      });
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,24 +108,12 @@ class ProfileViewTeam extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: AppColors.textMain),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'KYU',
-          style: TextStyle(
-            color: Color(0xFF1E3A8A),
-            fontWeight: FontWeight.w900,
-            fontSize: 20,
-            letterSpacing: 1,
-          ),
-        ),
+        title: const Text('KYU', style: TextStyle(color: Color(0xFF1E3A8A), fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: 1)),
         actions: [
           CircleAvatar(
             radius: 16,
             backgroundColor: AppColors.inputBackground,
-            child: Image.asset(
-              'image/ic_profile.png',
-              width: 24,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
-            ),
+            child: Icon(Icons.person, color: AppColors.textMain, size: 24),
           ),
           const SizedBox(width: 20),
         ],
@@ -247,26 +326,34 @@ class ProfileViewTeam extends StatelessWidget {
               width: double.infinity,
               height: 56,
               child: ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.sync_alt, color: Colors.white, size: 20),
-                label: const Text(
-                  'Hubungkan Akun Github',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                onPressed: _isConnected ? null : _hubungkanGitHub,
+                icon: _isConnecting 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Icon(_isConnected ? Icons.check_circle : Icons.sync_alt, color: Colors.white, size: 20),
+                label: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _isConnected ? 'Terhubung dengan akun GitHub' : 'Hubungkan Akun Github',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    if (_isConnected && _githubUsername != null)
+                      Text(
+                        '@$_githubUsername',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: Colors.white70),
+                      ),
+                  ],
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.rank1Background,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
+                  backgroundColor: _isConnected ? const Color(0xFF2EA043) : AppColors.rank1Background,
+                  disabledBackgroundColor: const Color(0xFF2EA043), 
+                  disabledForegroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            
+            const SizedBox(height: 40),
 
             // Statistik Fokus Card
             Container(
