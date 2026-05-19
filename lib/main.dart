@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/views/onboarding_screen.dart';
-import 'theme/colors.dart';
+import 'package:pbl_kyu/features/auth/presentation/views/onboarding_screen.dart';
+import 'core/theme/colors.dart';
 
 void main() {
   runApp(const MyApp());
