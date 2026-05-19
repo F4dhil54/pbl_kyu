@@ -6,8 +6,8 @@ import 'package:pbl_kyu/features/task/presentation/views/team_dashboard.dart';
 import 'package:pbl_kyu/features/task/presentation/views/team_task_list_screen.dart';
 import 'package:pbl_kyu/features/notification/presentation/views/inbox_screen.dart';
 import 'package:pbl_kyu/features/kudos/presentation/views/collab_view.dart';
-import 'package:pbl_kyu/features/profile/presentation/views/profile_view_manager.dart';
-import 'package:pbl_kyu/features/profile/presentation/views/profile_view_team.dart';
+//import 'package:pbl_kyu/features/profile/presentation/views/profile_view_manager.dart';
+//import 'package:pbl_kyu/features/profile/presentation/views/profile_view_team.dart';
 
 class MainLayout extends StatefulWidget {
   final String role;
