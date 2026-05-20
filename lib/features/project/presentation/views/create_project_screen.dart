@@ -256,13 +256,6 @@ class CreateProjectScreen extends StatelessWidget {
               ],
             ),
           ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {},
-            backgroundColor: isDark ? AppColors.primary : Colors.black, 
-            elevation: 4,
-            shape: const CircleBorder(),
-            child: const Icon(Icons.add, color: Colors.white, size: 28),
-          ),
         );
       },
     );
