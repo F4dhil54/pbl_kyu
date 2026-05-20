@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/theme_mode.dart';
 import '../../../profile/presentation/views/profile_view_manager.dart';
 import 'create_post_screen.dart';
 
@@ -8,204 +9,232 @@ class CollabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        title: const Text(
-          'KYU',
-          style: TextStyle(
-            color: Color(0xFF1E3A8A),
-            fontWeight: FontWeight.w900,
-            fontSize: 20,
-            letterSpacing: 1,
-          ),
-        ),
-        actions: [
-          Image.asset(
-            'image/ic_search.png',
-            width: 24,
-            errorBuilder: (context, error, stackTrace) => const Icon(Icons.search, color: AppColors.textSecondary),
-          ),
-          const SizedBox(width: 16),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileViewManager()),
-              );
-            },
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.inputBackground,
-              child: Image.asset(
-                'image/ic_profile.png',
-                width: 24,
-                errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: AppColors.textMain, size: 24),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeControl.themeNotifier,
+      builder: (context, currentMode, child) {
+        bool isDark = currentMode == ThemeMode.dark;
+
+        return Scaffold(
+          backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+          appBar: AppBar(
+            backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+            elevation: 0,
+            title: Text(
+              'KYU',
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                letterSpacing: 1,
               ),
             ),
+            actions: [
+              Image.asset(
+                'image/ic_search.png',
+                width: 24,
+                errorBuilder: (context, error, stackTrace) => Icon(
+                  Icons.search, 
+                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
+                ),
+              ),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfileViewManager()),
+                  );
+                },
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
+                  child: Image.asset(
+                    'image/ic_profile.png',
+                    width: 24,
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                      Icons.person, 
+                      color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
+                      size: 24
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+            ],
           ),
-          const SizedBox(width: 20),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Papan Peringkat Mingguan',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMain,
-                  ),
-                ),
-                const Text(
-                  '24 - 30 Juli',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            
-            // Podium
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Rank 2
-                Expanded(
-                  child: _buildPodiumCard(
-                    rank: 2,
-                    name: 'Dea',
-                    score: '840',
-                    isFirst: false,
-                    avatarColor: const Color(0xFFD6E4FF), // Light blueish silver border
-                    height: 140,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Rank 1
-                Expanded(
-                  child: _buildPodiumCard(
-                    rank: 1,
-                    name: 'Sukma',
-                    score: '1,205',
-                    isFirst: true,
-                    avatarColor: const Color(0xFF84C6CE), // Teal border
-                    height: 160,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Rank 3
-                Expanded(
-                  child: _buildPodiumCard(
-                    rank: 3,
-                    name: 'Dian',
-                    score: '790',
-                    isFirst: false,
-                    avatarColor: const Color(0xFFFFCCB3), // Bronze/orange border
-                    height: 130,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Aktivitas Terbaru',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMain,
-                  ),
-                ),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Lihat Semua',
+                      'Papan Peringkat Mingguan',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.primary,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: isDark ? AppDarkColors.textMain : AppColors.textMain,
                       ),
                     ),
-                    Icon(Icons.arrow_forward, size: 14, color: AppColors.primary),
+                    Text(
+                      '24 - 30 Juli',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
+                const SizedBox(height: 24),
+                
+                // Podium Section
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // Rank 2
+                    Expanded(
+                      child: _buildPodiumCard(
+                        rank: 2,
+                        name: 'Dea',
+                        score: '840',
+                        isFirst: false,
+                        avatarColor: const Color(0xFFD6E4FF), 
+                        height: 140,
+                        isDark: isDark,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Rank 1
+                    Expanded(
+                      child: _buildPodiumCard(
+                        rank: 1,
+                        name: 'Sukma',
+                        score: '1,205',
+                        isFirst: true,
+                        avatarColor: const Color(0xFF84C6CE), 
+                        height: 160,
+                        isDark: isDark,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Rank 3
+                    Expanded(
+                      child: _buildPodiumCard(
+                        rank: 3,
+                        name: 'Dian',
+                        score: '790',
+                        isFirst: false,
+                        avatarColor: const Color(0xFFFFCCB3), 
+                        height: 130,
+                        isDark: isDark,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Aktivitas Terbaru',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'Lihat Semua',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.amberAccent : AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward, 
+                          size: 14, 
+                          color: isDark ? Colors.amberAccent : AppColors.primary
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                _buildActivityCard(
+                  name: 'Dea',
+                  avatarAsset: 'image/ic_avatar_dea.png',
+                  actionText: 'menyelesaikan',
+                  linkText: 'Task Design System',
+                  time: '2j lalu',
+                  kudosIcon: '👏',
+                  kudosText: 'Beri Kudos',
+                  isDark: isDark,
+                  extraWidget: Row(
+                    children: [
+                      _buildMiniAvatar('S', isDark: isDark),
+                      _buildMiniAvatar('AK', isDark: isDark),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                _buildActivityCard(
+                  name: 'Dian',
+                  avatarAsset: 'image/ic_avatar_dian.png',
+                  actionText: 'mengunggah',
+                  linkText: 'Dokumentasi Sprint 12',
+                  time: '4j lalu',
+                  kudosIcon: '👍',
+                  kudosText: 'Beri Kudos',
+                  isDark: isDark,
+                  extraWidget: null,
+                ),
+                const SizedBox(height: 16),
+
+                _buildActivityCard(
+                  name: 'Sukma',
+                  avatarAsset: 'image/ic_avatar_sukma.png',
+                  actionText: 'mencapai\nmilestone',
+                  linkText: '1,000 Kudos Club!',
+                  time: 'Kemarin',
+                  kudosIcon: '🔥',
+                  kudosText: 'Beri Kudos',
+                  isDark: isDark,
+                  extraWidget: Text(
+                    '12 orang memberi\nkudos',
+                    style: TextStyle(
+                      fontSize: 12, 
+                      color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, 
+                      height: 1.4
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
               ],
             ),
-            const SizedBox(height: 20),
-
-            _buildActivityCard(
-              name: 'Dea',
-              avatarAsset: 'image/ic_avatar_dea.png',
-              actionText: 'menyelesaikan',
-              linkText: 'Task Design System',
-              time: '2j lalu',
-              kudosIcon: '👏',
-              kudosText: 'Beri Kudos',
-              extraWidget: Row(
-                children: [
-                  _buildMiniAvatar('S'),
-                  _buildMiniAvatar('AK'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            _buildActivityCard(
-              name: 'Dian',
-              avatarAsset: 'image/ic_avatar_dian.png',
-              actionText: 'mengunggah',
-              linkText: 'Dokumentasi Sprint 12',
-              time: '4j lalu',
-              kudosIcon: '👍',
-              kudosText: 'Beri Kudos',
-              extraWidget: null,
-            ),
-            const SizedBox(height: 16),
-
-            _buildActivityCard(
-              name: 'Sukma',
-              avatarAsset: 'image/ic_avatar_sukma.png',
-              actionText: 'mencapai\nmilestone',
-              linkText: '1,000 Kudos Club!',
-              time: 'Kemarin',
-              kudosIcon: '🔥',
-              kudosText: 'Beri Kudos',
-              extraWidget: const Text(
-                '12 orang memberi\nkudos',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
-              ),
-            ),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CreatePostScreen()),
-          );
-        },
-        backgroundColor: AppColors.textMain,
-        elevation: 4,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.edit, color: Colors.white, size: 24),
-      ),
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CreatePostScreen()),
+              );
+            },
+            backgroundColor: isDark ? Colors.white : AppColors.textMain,
+            elevation: 4,
+            shape: const CircleBorder(),
+            child: Icon(Icons.edit, color: isDark ? AppDarkColors.background : Colors.white, size: 24),
+          ),
+        );
+      },
     );
   }
 
@@ -216,16 +245,19 @@ class CollabView extends StatelessWidget {
     required bool isFirst,
     required Color avatarColor,
     required double height,
+    required bool isDark,
   }) {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: isFirst ? AppColors.rank1Background : Colors.white,
+        color: isFirst 
+            ? AppColors.rank1Background 
+            : (isDark ? AppDarkColors.surface : Colors.white),
         borderRadius: BorderRadius.circular(16),
-        border: isFirst ? null : Border.all(color: AppColors.border, width: 0.5),
+        border: isFirst ? null : Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -243,7 +275,7 @@ class CollabView extends StatelessWidget {
                 height: 56,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isFirst ? Colors.white.withOpacity(0.1) : AppColors.inputBackground,
+                  color: isFirst ? Colors.white.withOpacity(0.1) : (isDark ? AppDarkColors.background : AppColors.inputBackground),
                   border: Border.all(color: avatarColor, width: 2),
                 ),
                 child: Center(
@@ -252,7 +284,7 @@ class CollabView extends StatelessWidget {
                     width: 40,
                     errorBuilder: (context, error, stackTrace) => Icon(
                       Icons.person,
-                      color: isFirst ? Colors.white : AppColors.textSecondary,
+                      color: isFirst ? Colors.white : (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
                       size: 32,
                     ),
                   ),
@@ -265,7 +297,7 @@ class CollabView extends StatelessWidget {
                   width: 20,
                   height: 20,
                   decoration: BoxDecoration(
-                    color: isFirst ? Colors.white : AppColors.textMain,
+                    color: isFirst ? Colors.white : (isDark ? Colors.white : AppColors.textMain),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
@@ -274,7 +306,7 @@ class CollabView extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: isFirst ? AppColors.rank1Background : Colors.white,
+                        color: isFirst ? AppColors.rank1Background : (isDark ? AppDarkColors.surface : Colors.white),
                       ),
                     ),
                   ),
@@ -288,7 +320,7 @@ class CollabView extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: isFirst ? Colors.white : AppColors.textMain,
+              color: isFirst ? Colors.white : (isDark ? AppDarkColors.textMain : AppColors.textMain),
             ),
           ),
           const SizedBox(height: 4),
@@ -298,14 +330,14 @@ class CollabView extends StatelessWidget {
               Icon(
                 Icons.emoji_events,
                 size: 12,
-                color: isFirst ? avatarColor : AppColors.textSecondary,
+                color: isFirst ? avatarColor : (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
               ),
               const SizedBox(width: 4),
               Text(
                 score,
                 style: TextStyle(
                   fontSize: 12,
-                  color: isFirst ? avatarColor : AppColors.textSecondary,
+                  color: isFirst ? avatarColor : (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
                   fontWeight: isFirst ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -325,16 +357,17 @@ class CollabView extends StatelessWidget {
     required String kudosIcon,
     required String kudosText,
     required Widget? extraWidget,
+    required bool isDark,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? AppDarkColors.surface : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withOpacity(isDark ? 0.1 : 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -345,10 +378,14 @@ class CollabView extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 20,
-            backgroundColor: AppColors.inputBackground,
+            backgroundColor: isDark ? AppDarkColors.background : AppColors.inputBackground,
             child: Image.asset(
               avatarAsset,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.account_circle, color: AppColors.textSecondary, size: 40),
+              errorBuilder: (context, error, stackTrace) => Icon(
+                Icons.account_circle, 
+                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, 
+                size: 40
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -362,14 +399,19 @@ class CollabView extends StatelessWidget {
                     Expanded(
                       child: RichText(
                         text: TextSpan(
-                          style: const TextStyle(fontSize: 14, color: AppColors.textMain, height: 1.4),
+                          style: TextStyle(
+                            fontSize: 14, 
+                            color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
+                            height: 1.4,
+                            fontFamily: 'Inter',
+                          ),
                           children: [
                             TextSpan(text: '$name ', style: const TextStyle(fontWeight: FontWeight.bold)),
                             TextSpan(text: '$actionText\n'),
                             TextSpan(
                               text: linkText,
-                              style: const TextStyle(
-                                color: AppColors.primary,
+                              style: TextStyle(
+                                color: isDark ? Colors.amberAccent : AppColors.primary,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -379,7 +421,10 @@ class CollabView extends StatelessWidget {
                     ),
                     Text(
                       time,
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      style: TextStyle(
+                        fontSize: 12, 
+                        color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
+                      ),
                     ),
                   ],
                 ),
@@ -389,9 +434,9 @@ class CollabView extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? AppDarkColors.background : Colors.white,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -400,9 +445,9 @@ class CollabView extends StatelessWidget {
                           const SizedBox(width: 8),
                           Text(
                             kudosText,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: AppColors.textMain,
+                              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -423,19 +468,23 @@ class CollabView extends StatelessWidget {
     );
   }
 
-  Widget _buildMiniAvatar(String initials) {
+  Widget _buildMiniAvatar(String initials, {required bool isDark}) {
     return Container(
       width: 24,
       height: 24,
       margin: const EdgeInsets.only(right: 4),
-      decoration: const BoxDecoration(
-        color: Color(0xFFE0E0E0),
+      decoration: BoxDecoration(
+        color: isDark ? AppDarkColors.border : const Color(0xFFE0E0E0),
         shape: BoxShape.circle,
       ),
       child: Center(
         child: Text(
           initials,
-          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: AppColors.textMain),
+          style: TextStyle(
+            fontSize: 8, 
+            fontWeight: FontWeight.bold, 
+            color: isDark ? AppDarkColors.textMain : AppColors.textMain
+          ),
         ),
       ),
     );

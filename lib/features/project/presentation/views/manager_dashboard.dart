@@ -169,20 +169,20 @@ class ManagerDashboard extends StatelessWidget {
                                 ),
                               );
                             },
-                            child: const Row(
+                            child: Row(
                               children: [
                                 Text(
                                   'Lihat Semua',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: AppColors.primary,
+                                    color: isDark ? Colors.amberAccent : AppColors.primary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 Icon(
                                   Icons.chevron_right,
                                   size: 16,
-                                  color: AppColors.primary,
+                                  color: isDark ? Colors.amberAccent : AppColors.primary,
                                 ),
                               ],
                             ),
@@ -381,10 +381,10 @@ class ManagerDashboard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Tandai semua telah dibaca',
                             style: TextStyle(
-                              color: AppColors.primary,
+                              color: isDark ? Colors.amberAccent : AppColors.primary,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),

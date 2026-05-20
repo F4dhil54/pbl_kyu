@@ -98,15 +98,15 @@ class TeamDashboard extends StatelessWidget {
                       },
                       child: Row(
                         children: [
-                          const Text(
+                          Text(
                             'Lihat Semua',
                             style: TextStyle(
                               fontSize: 12,
-                              color: AppColors.primary,
+                              color: isDark ? Colors.amberAccent : AppColors.primary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                          Icon(Icons.chevron_right, size: 16, color: isDark ? Colors.amberAccent : AppColors.primary,),
                         ],
                       ),
                     ),
@@ -175,11 +175,11 @@ class TeamDashboard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const Text(
+                      Text(
                         '— Aristotle',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.primary,
+                          color: isDark ? Colors.amberAccent : AppColors.primary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

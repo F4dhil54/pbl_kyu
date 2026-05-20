@@ -16,26 +16,18 @@ class OnboardingScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-              // Logo Box
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Center(
-                  child: Image.asset(
-                    'image/logoSemua.png',
-                    width: 60,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.business_center,
-                      size: 60,
-                      color: AppColors.primary,
-                    ),
-                  ),
+              Image.asset(
+                'image/logoSemua.png',
+                width: 90,
+                height: 90,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  Icons.business_center,
+                  size: 60,
+                  color: AppColors.primary,
                 ),
               ),
+              
               const SizedBox(height: 40),
               const Text(
                 'SELAMAT DATANG DI KYU',
