@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../shared/widgets/app_bottom_nav.dart';
 import 'package:pbl_kyu/features/project/presentation/views/manager_dashboard.dart';
 import 'package:pbl_kyu/features/project/presentation/views/project_list_screen.dart';
-import 'package:pbl_kyu/features/task/presentation/views/team_dashboard.dart';
+import 'package:pbl_kyu/features/project/presentation/views/team_dashboard.dart';
 import 'package:pbl_kyu/features/task/presentation/views/team_task_list_screen.dart';
 import 'package:pbl_kyu/features/notification/presentation/views/inbox_screen.dart';
 import 'package:pbl_kyu/features/kudos/presentation/views/collab_view.dart';
