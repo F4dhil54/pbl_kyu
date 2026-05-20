@@ -94,7 +94,7 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
         _isConnected = GitHubStatus.isConnected;
         _githubUsername = GitHubStatus.username;
       });
-    };
+    }
   }
 
   @override
@@ -113,7 +113,15 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
               icon: Icon(Icons.arrow_back, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
               onPressed: () => Navigator.pop(context),
             ),
-            title: const Text('KYU', style: TextStyle(color: Color(0xFF1E3A8A), fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: 1)),
+            title: Text(
+              'KYU', 
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF1E3A8A), 
+                fontWeight: FontWeight.w900, 
+                fontSize: 20, 
+                letterSpacing: 1
+              ),
+            ),
             actions: [
               CircleAvatar(
                 radius: 16,
@@ -136,14 +144,15 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                           width: 72,
                           height: 72,
                           decoration: BoxDecoration(
-                            color: isDark ? AppDarkColors.border : const Color(0xFFE5E7EB),
+                            color: isDark ? AppDarkColors.surface : const Color(0xFFE5E7EB),
                             borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: isDark ? AppDarkColors.border : Colors.transparent),
                           ),
                           child: Center(
                             child: Image.asset(
                               'image/ic_avatar_team.png',
                               width: 48,
-                              errorBuilder: (context, error, stackTrace) => Icon(Icons.phone_android, size: 40, color: AppColors.rank1Background),
+                              errorBuilder: (context, error, stackTrace) => Icon(Icons.phone_android, size: 40, color: isDark ? AppDarkColors.textSecondary : AppColors.rank1Background,),
                             ),
                           ),
                         ),
@@ -153,8 +162,9 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                              color: isDark ? AppColors.primary : AppColors.textMain,
                               shape: BoxShape.circle,
+                              border: Border.all(color: isDark ? AppDarkColors.background : AppColors.background, width: 2),
                             ),
                             child: const Icon(Icons.edit, size: 12, color: Colors.white),
                           ),
@@ -262,7 +272,7 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                           style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
                           decoration: InputDecoration(
                             hintText: 'Nama Lengkap',
-                            hintStyle: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontSize: 14),
+                            hintStyle: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 14),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
@@ -285,7 +295,7 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                           style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
                           decoration: InputDecoration(
                             hintText: 'Alamat Email',
-                            hintStyle: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontSize: 14),
+                            hintStyle: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 14),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
@@ -298,7 +308,7 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                         child: ElevatedButton(
                           onPressed: () {},
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.buttonDark,
+                            backgroundColor: isDark ? AppColors.primary : AppColors.buttonDark,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             elevation: 0,
@@ -425,7 +435,7 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                 // Row of 2 Cards
                 Row(
                   children: [
-                    // Mode Toggle (Sun/Moon)
+                    // Mode Gelap atau Mode Terang
                     Expanded(
                       child: GestureDetector(
                         onTap: ThemeControl.toggleTheme,
@@ -440,14 +450,18 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Icon(
-                                isDark ? Icons.light_mode : Icons.dark_mode_outlined,
-                                color: isDark ? Colors.amberAccent : AppColors.textSecondary,
+                                isDark ? Icons.dark_mode : Icons.light_mode,
+                                color: isDark ? Colors.amberAccent : Colors.orange,
                                 size: 28,
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                isDark ? 'Mode Terang' : 'Mode Terang',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+                                isDark ? 'Mode Gelap' : 'Mode Terang',
+                                style: TextStyle(
+                                  fontSize: 16, 
+                                  fontWeight: FontWeight.bold, 
+                                  color: isDark ? AppDarkColors.textMain : AppColors.textMain
+                                ),
                               ),
                             ],
                           ),
@@ -499,6 +513,7 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                       style: TextStyle(color: AppColors.alertText, fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     style: OutlinedButton.styleFrom(
+                      backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
                       side: const BorderSide(color: AppColors.alertText),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
