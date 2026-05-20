@@ -14,10 +14,6 @@ class InboxScreen extends StatelessWidget {
       builder: (context, currentMode, child) {
         bool isDark = currentMode == ThemeMode.dark;
 
-        // ==========================================
-        // LOCAL HELPER WIDGETS (Untuk menghindari error variabel)
-        // ==========================================
-        
         Widget buildTab(String text, bool isSelected) {
           Color selectedBg = isDark ? Colors.white : AppColors.textMain;
           Color unselectedBg = isDark ? AppDarkColors.surface : Colors.white;
@@ -214,9 +210,6 @@ class InboxScreen extends StatelessWidget {
           );
         }
 
-        // ==========================================
-        // MAIN SCAFFOLD RENDER
-        // ==========================================
         return Scaffold(
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
           appBar: AppBar(
