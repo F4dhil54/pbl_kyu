@@ -99,8 +99,8 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                     'image/ic_profile.png',
                     width: 24,
                     errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.person,
-                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                      Icons.person, 
+                      color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
                       size: 24,
                     ),
                   ),
@@ -168,7 +168,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                           decoration: BoxDecoration(
                             color: isDark ? AppDarkColors.background : Colors.white,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: _isHoliday ? AppColors.alertText : (isDark ? AppDarkColors.border : AppColors.border)),
+                            border: Border.all(color: _isHoliday ? AppColors.alertText.withOpacity(0.5) : (isDark ? AppDarkColors.border : AppColors.border)),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -177,14 +177,57 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                                 _selectedDate == null ? 'Pilih tenggat waktu' : DateFormat('dd/MM/yyyy').format(_selectedDate!),
                                 style: TextStyle(color: _selectedDate == null ? (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary) : (isDark ? AppDarkColors.textMain : AppColors.textMain)),
                               ),
-                              Icon(Icons.calendar_today, size: 18, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+                              if (_isLoadingDate)
+                                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              else
+                                Icon(Icons.calendar_today, size: 18, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
                             ],
                           ),
                         ),
                       ),
+                      if (_isHoliday) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF4A1D1D) : const Color(0xFFFFF5F5),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.alertText.withOpacity(0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Image.asset(
+                                    'image/ic_warning_red.png',
+                                    width: 16,
+                                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.warning_amber_rounded, color: AppColors.alertText, size: 16),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    'Hari Libur Nasional / Akhir Pekan',
+                                    style: TextStyle(color: AppColors.alertText, fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Sistem mendeteksi tanggal yang dipilih bertepatan dengan hari libur nasional atau hari Minggu.',
+                                style: TextStyle(
+                                  fontSize: 11, 
+                                  color: isDark ? const Color(0xFFFCA5A5) : AppColors.textSecondary,
+                                  height: 1.4
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      
                       const SizedBox(height: 32),
 
-                      // Buttons
+                      // Buttons Row
                       Row(
                         children: [
                           Expanded(
@@ -193,6 +236,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                               style: OutlinedButton.styleFrom(
                                 side: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
                                 padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                               child: Text('Batal', style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
                             ),
@@ -204,8 +248,10 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isDark ? AppColors.primary : AppColors.buttonDark,
                                 padding: const EdgeInsets.symmetric(vertical: 16),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
-                              child: const Text('Simpan Tugas', style: TextStyle(color: Colors.white)),
+                              child: const Text('Simpan Tugas', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                             ),
                           ),
                         ],
@@ -213,6 +259,56 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                     ],
                   ),
                 ),
+                
+                const SizedBox(height: 20),
+
+                // Info Card (Tips Manajer)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppDarkColors.surface : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE5EEFF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.info_outline, color: AppColors.primary, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Tips Manajer',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Menugaskan tugas dengan prioritas \'Sedang\' pada hari libur dapat menurunkan indeks produktivitas tim sebesar 15%.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -223,7 +319,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
 
   Widget _buildInputLabel(String label, bool isDark) => Padding(
     padding: const EdgeInsets.only(bottom: 8.0),
-    child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
+    child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textSecondary : AppDarkColors.textSecondary, letterSpacing: 0.5)),
   );
 
   Widget _buildTextField(String hint, bool isDark) => Container(
@@ -245,7 +341,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
 
   Widget _buildPriorityChip(String label, bool isSelected, Color dotColor, bool isDark) => Container(
     padding: const EdgeInsets.symmetric(vertical: 12),
-    decoration: BoxDecoration(color: isSelected ? (isDark ? AppDarkColors.border : const Color(0xFFD6E4FF)) : (isDark ? AppDarkColors.background : Colors.white), borderRadius: BorderRadius.circular(8), border: Border.all(color: isSelected ? AppColors.primary : (isDark ? AppDarkColors.border : AppColors.border))),
-    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 8, height: 8, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)), const SizedBox(width: 8), Text(label, style: TextStyle(fontSize: 12, color: isDark ? AppDarkColors.textMain : AppColors.textMain))]),
+    decoration: BoxDecoration(color: isSelected ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFE5EEFF)) : (isDark ? AppDarkColors.background : Colors.white), borderRadius: BorderRadius.circular(8), border: Border.all(color: isSelected ? AppColors.primary : (isDark ? AppDarkColors.border : AppColors.border))),
+    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 8, height: 8, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)), const SizedBox(width: 8), Text(label, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isDark ? AppDarkColors.textMain : AppColors.textMain))]),
   );
 }
