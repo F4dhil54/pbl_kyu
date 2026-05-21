@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/theme_mode.dart';
 import 'edit_member_screen.dart';
 
 class AllMembersScreen extends StatelessWidget {
@@ -7,52 +8,63 @@ class AllMembersScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textMain),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Semua Anggota Tim',
-          style: TextStyle(
-            color: AppColors.textMain,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeControl.themeNotifier,
+      builder: (context, currentMode, child) {
+        bool isDark = currentMode == ThemeMode.dark;
+
+        return Scaffold(
+          backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+          appBar: AppBar(
+            backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+            elevation: 0,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Text(
+              'Semua Anggota Tim',
+              style: TextStyle(
+                color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.search, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Fitur pencarian akan segera hadir!'), duration: Duration(seconds: 2)),
+                  );
+                },
+              ),
+            ],
           ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: AppColors.textMain),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Fitur pencarian akan segera hadir!'), duration: Duration(seconds: 2)),
-              );
-            },
+          body: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              _buildMemberItem(context, 'Fadhil Syahidan', 'Lead Designer', 'Aktif', AppColors.successText, AppColors.successBackground, isDark: isDark),
+              Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
+              
+              _buildMemberItem(context, 'Dea Marselia', 'Frontend Dev', 'Sedang Rapat', AppColors.warningText, AppColors.warningBackground, isDark: isDark),
+              Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
+              
+              _buildMemberItem(context, 'Sukma Ananda', 'DevOps Engineer', 'Offline', AppColors.offlineText, AppColors.offlineBackground, isDark: isDark),
+              Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
+              
+              _buildMemberItem(context, 'Budi Santoso', 'Backend Developer', 'Aktif', AppColors.successText, AppColors.successBackground, isDark: isDark),
+              Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
+              
+              _buildMemberItem(context, 'Siti Aminah', 'QA Tester', 'Cuti', AppColors.alertText, const Color(0xFFFEE2E2), isDark: isDark),
+            ],
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          _buildMemberItem(context, 'Fadhil Syahidan', 'Lead Designer', 'Aktif', AppColors.successText, AppColors.successBackground),
-          const Divider(height: 32, color: AppColors.border),
-          _buildMemberItem(context, 'Dea Marselia', 'Frontend Dev', 'Sedang Rapat', AppColors.warningText, AppColors.warningBackground),
-          const Divider(height: 32, color: AppColors.border),
-          _buildMemberItem(context, 'Sukma Ananda', 'DevOps Engineer', 'Offline', AppColors.offlineText, AppColors.offlineBackground),
-          const Divider(height: 32, color: AppColors.border),
-          _buildMemberItem(context, 'Budi Santoso', 'Backend Developer', 'Aktif', AppColors.successText, AppColors.successBackground),
-          const Divider(height: 32, color: AppColors.border),
-          _buildMemberItem(context, 'Siti Aminah', 'QA Tester', 'Cuti', AppColors.alertText, const Color(0xFFFEE2E2)),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildMemberItem(BuildContext context, String name, String role, String status, Color statusColor, Color statusBg) {
+  Widget _buildMemberItem(BuildContext context, String name, String role, String status, Color statusColor, Color statusBg, {required bool isDark}) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -77,12 +89,19 @@ class AllMembersScreen extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textMain),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold, 
+                    fontSize: 16, 
+                    color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   role,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12, 
+                    color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
