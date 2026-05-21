@@ -1,27 +1,61 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/colors.dart';
-import 'register_screen.dart';
-import '../../../main_layout.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. Import Riverpod
 
-class LoginScreen extends StatefulWidget {
+// Jalur bento grid
+import 'package:pbl_kyu/core/theme/colors.dart';
+
+import 'package:pbl_kyu/features/auth/providers/auth_provider.dart';
+import 'register_screen.dart';
+
+class LoginScreen extends ConsumerStatefulWidget { 
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   String selectedRole = 'Tim';
+  
+  // 3. Tambahkan Controller untuk merekam ketikan user
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    // Bersihkan controller dari memori HP saat pindah halaman
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   void _handleLogin() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => MainLayout(role: selectedRole)),
-    );
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email dan Kata Sandi tidak boleh kosong!')),
+      );
+      return;
+    }
+
+    // 4. Panggil fungsi login nyata dari AuthController 
+    ref.read(authControllerProvider).loginWithEmail(
+          context: context,
+          email: email,
+          password: password,
+        );
+    
+    // Catatan: Navigasi pindah halaman tidak perlu ditulis manual lagi di sini,
+    // karena lib/main.dart kita kemarin otomatis mengoper user jika login sukses!
   }
 
   @override
   Widget build(BuildContext context) {
+    // 5. Pantau status loading dari provider secara realtime
+    final isLoading = ref.watch(authLoadingProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -31,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 40),
-              // Logo
+              // Logo Box
               Container(
                 width: 64,
                 height: 64,
@@ -74,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 40),
 
-              //   Selector
+              // Selector Peran
               Align(
                 alignment: Alignment.centerLeft,
                 child: const Text(
@@ -152,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Email Field
+              // Input Alamat Email
               Align(
                 alignment: Alignment.centerLeft,
                 child: const Text(
@@ -171,8 +205,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: const TextField(
-                  decoration: InputDecoration(
+                child: TextField(
+                  controller: _emailController, // Hubungkan controller
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
                     hintText: 'name@organisasi.com',
                     hintStyle: TextStyle(
                       color: AppColors.textSecondary,
@@ -188,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Password Field
+              // Input Kata Sandi
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -217,9 +253,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: const TextField(
+                child: TextField(
+                  controller: _passwordController, // Hubungkan controller
                   obscureText: true,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: '••••••••',
                     hintStyle: TextStyle(
                       color: AppColors.textSecondary,
@@ -235,24 +272,33 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Login Button
+              // Tombol Login Dinamis (Bisa Berputar saat Loading)
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _handleLogin,
+                  onPressed: isLoading ? null : _handleLogin, // Kunci tombol saat loading
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.textMain, // Black button
+                    backgroundColor: AppColors.textMain,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Masuk',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : const Text(
+                          'Masuk',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
               const SizedBox(height: 40),
@@ -260,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Divider(color: AppColors.border),
               const SizedBox(height: 24),
 
-              // Register Link
+              // Link Pendaftaran Akun Baru
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -280,8 +326,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text(
                       'Daftar',
                       style: TextStyle(
-                        color: AppColors
-                            .primary, // Used to be primary, wait, in image it's a bit muted blue/grey. Let's use primary.
+                        color: AppColors.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -290,7 +335,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 40),
 
-              // Dots indicator at bottom (like in image)
+              // Tiga Indikator Garis Bawah Figma
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -298,7 +343,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: 24,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.border,
+                      color: AppColors.textMain,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -329,4 +374,10 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+}
+
+// 6. Membuat kelas pembantu agar kodingan di atas tetap rapi
+class ConsumerStatexlw extends ConsumerState<LoginScreen> {
+  @override
+  Widget build(BuildContext context) => const SizedBox();
 }
