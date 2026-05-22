@@ -31,7 +31,8 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="kyu" android:host="callback" />
+                <data android:scheme="io.supabase.pblkyu" android:host="login-callback" />
+                <data android:scheme="io.supabase.pblkyu" android:host="reset-password" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
