@@ -2,14 +2,16 @@ import 'dart:async'; // Tambahkan untuk StreamSubscription
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
+import '../../../../core/network/supabase_provider.dart';
+import 'package:pbl_kyu/features/auth/providers/auth_provider.dart';
+
 import 'register_screen.dart';
 import 'onboarding_screen.dart';
 import 'forgot_password_screen.dart';
 import '../../../main_layout.dart';
-import '../../../../core/network/supabase_provider.dart';
-import '../../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
