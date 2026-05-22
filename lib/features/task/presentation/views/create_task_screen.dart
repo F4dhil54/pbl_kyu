@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
-import '../../../profile/presentation/views/profile_view_manager.dart';
+import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
 
 Future<bool> cekTanggalMerah(DateTime tanggalPilihan) async {
   if (tanggalPilihan.weekday == DateTime.sunday) return true;
@@ -85,27 +85,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
               ),
             ),
             actions: [
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ProfileViewManager()),
-                  );
-                },
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                  child: Image.asset(
-                    'image/ic_profile.png',
-                    width: 24,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.person, 
-                      color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
+              const ProfileAvatarButton(),
               const SizedBox(width: 20),
             ],
           ),

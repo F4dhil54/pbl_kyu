@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 
@@ -56,19 +57,7 @@ class CreatePostScreen extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                      child: Image.asset(
-                        'image/ic_profile.png',
-                        width: 24,
-                        errorBuilder: (context, error, stackTrace) => Icon(
-                          Icons.person, 
-                          color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
-                          size: 24
-                        ),
-                      ),
-                    ),
+                    const ProfileAvatar(radius: 20),
                     const SizedBox(width: 16),
                     Expanded(
                       child: TextField(

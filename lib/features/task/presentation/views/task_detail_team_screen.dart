@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
-import '../../../profile/presentation/views/profile_view_team.dart';
+import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
 import 'package:pbl_kyu/core/services/github_status.dart';
 
 class TaskDetailTeamScreen extends StatefulWidget {
@@ -100,27 +100,7 @@ class _TaskDetailTeamScreenState extends State<TaskDetailTeamScreen> {
             actions: [
               Icon(Icons.notifications_none, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
               const SizedBox(width: 16),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ProfileViewTeam()),
-                  );
-                },
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                  child: Image.asset(
-                    'image/ic_profile.png',
-                    width: 24,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.person,
-                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
+              const ProfileAvatarButton(),
               const SizedBox(width: 20),
             ],
           ),
