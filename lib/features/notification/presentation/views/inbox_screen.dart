@@ -1,12 +1,150 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
 import 'package:pbl_kyu/shared/widgets/app_sidebar.dart';
 import 'message_detail_screen.dart' as message_detail;
 
-class InboxScreen extends StatelessWidget {
+class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});
+
+  @override
+  State<InboxScreen> createState() => _InboxScreenState();
+}
+
+class _InboxScreenState extends State<InboxScreen> {
+  List<Map<String, dynamic>> _invitationRequests = [];
+  List<Map<String, dynamic>> _dbNotifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserAndInvitations();
+  }
+
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
+  bool _isYesterday(DateTime date) {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    return date.year == yesterday.year && date.month == yesterday.month && date.day == yesterday.day;
+  }
+
+  String _formatNotificationTime(DateTime date) {
+    if (_isToday(date)) {
+      final hour = date.hour.toString().padLeft(2, '0');
+      final minute = date.minute.toString().padLeft(2, '0');
+      return '$hour:$minute';
+    } else if (_isYesterday(date)) {
+      return 'Kemarin';
+    } else {
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      return '${date.day} ${months[date.month - 1]}';
+    }
+  }
+
+  Future<void> _loadUserAndInvitations() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+      if (user != null) {
+        // Load team invitations
+        final response = await supabase
+            .from('invitations')
+            .select('id, invited_by, role, profiles!invitations_invited_by_fkey(nama, email, avatar_url)')
+            .eq('user_id', user.id)
+            .eq('status', 'pending');
+
+        final list = response as List<dynamic>;
+        final invs = list.map((item) {
+          final inviterProfile = item['profiles'] as Map<String, dynamic>? ?? {};
+          return {
+            'invitation_id': item['id'] as String,
+            'invited_by_id': item['invited_by'] as String,
+            'inviter_name': inviterProfile['nama'] ?? 'Manajer',
+            'inviter_email': inviterProfile['email'] ?? '',
+            'role': item['role'] ?? 'Anggota',
+          };
+        }).toList();
+
+        // Load project notifications
+        final notifResponse = await supabase
+            .from('notifications')
+            .select('id, user_id, project_id, tipe_notifikasi, judul, pesan, is_read, created_at, projects(nama_proyek)')
+            .eq('user_id', user.id)
+            .order('created_at', ascending: false);
+
+        final notifList = notifResponse as List<dynamic>;
+        final notifs = notifList.map((item) {
+          final project = item['projects'] as Map<String, dynamic>? ?? {};
+          return {
+            'id': item['id'] as String,
+            'project_id': item['project_id'] as String?,
+            'projectName': project['nama_proyek'] ?? '',
+            'tipe_notifikasi': item['tipe_notifikasi'] as String,
+            'judul': item['judul'] as String,
+            'pesan': item['pesan'] as String,
+            'is_read': item['is_read'] as bool,
+            'created_at': DateTime.parse(item['created_at'] as String).toLocal(),
+          };
+        }).toList();
+
+        setState(() {
+          _invitationRequests = invs;
+          _dbNotifications = notifs;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading inbox data: $e');
+    }
+  }
+
+  Future<void> _respondInvitation(String invitationId, String status) async {
+    try {
+      final supabase = Supabase.instance.client;
+      await supabase
+          .from('invitations')
+          .update({'status': status})
+          .eq('id', invitationId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(status == 'aktif' 
+                ? 'Undangan berhasil diterima!' 
+                : 'Undangan berhasil ditolak!'),
+            backgroundColor: status == 'aktif' ? Colors.green : Colors.red,
+          ),
+        );
+      }
+      await _loadUserAndInvitations();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memproses undangan: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _markAsRead(String id) async {
+    try {
+      final supabase = Supabase.instance.client;
+      await supabase
+          .from('notifications')
+          .update({'is_read': true})
+          .eq('id', id);
+      await _loadUserAndInvitations();
+    } catch (e) {
+      debugPrint('Error marking notification as read: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -211,6 +349,141 @@ class InboxScreen extends StatelessWidget {
           );
         }
 
+        Widget buildInvitationRequestCard({
+          required String inviterName,
+          required String inviterEmail,
+          required String role,
+          required String invitationId,
+        }) {
+          Color cardBg = isDark ? AppDarkColors.surface : Colors.white;
+          Color textColor = isDark ? AppDarkColors.textMain : AppColors.textMain;
+          Color secTextColor = isDark ? AppDarkColors.textSecondary : AppColors.textSecondary;
+          Color borderCol = isDark ? AppDarkColors.border : AppColors.border;
+
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: borderCol, width: 0.5),
+              boxShadow: isDark 
+                  ? [] 
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.01),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F4FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.group_add_outlined, 
+                      color: AppColors.primary, 
+                      size: 20
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontSize: 13, 
+                            color: textColor, 
+                            height: 1.4
+                          ),
+                          children: [
+                            TextSpan(
+                              text: inviterName, 
+                              style: const TextStyle(fontWeight: FontWeight.bold)
+                            ),
+                            TextSpan(
+                              text: ' mengundang Anda untuk bergabung sebagai ',
+                              style: TextStyle(color: secTextColor)
+                            ),
+                            TextSpan(
+                              text: role, 
+                              style: const TextStyle(fontWeight: FontWeight.bold)
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 32,
+                              child: ElevatedButton(
+                                onPressed: () => _respondInvitation(invitationId, 'aktif'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  elevation: 0,
+                                  padding: EdgeInsets.zero,
+                                ),
+                                child: const Text(
+                                  'Terima', 
+                                  style: TextStyle(
+                                    fontSize: 12, 
+                                    fontWeight: FontWeight.bold
+                                  )
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: SizedBox(
+                              height: 32,
+                              child: OutlinedButton(
+                                onPressed: () => _respondInvitation(invitationId, 'nonaktif'),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: AppColors.alertText),
+                                  foregroundColor: AppColors.alertText,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                ),
+                                child: const Text(
+                                  'Tolak', 
+                                  style: TextStyle(
+                                    fontSize: 12, 
+                                    fontWeight: FontWeight.bold
+                                  )
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
         return Scaffold(
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
           drawer: const AppSidebar(),
@@ -270,13 +543,18 @@ class InboxScreen extends StatelessWidget {
                           color: isDark ? Colors.white : AppColors.textMain,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          '12 Baru',
-                          style: TextStyle(
-                            color: isDark ? AppDarkColors.background : Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        child: Builder(
+                          builder: (context) {
+                            final unreadCount = _dbNotifications.where((n) => !(n['is_read'] as bool)).length + _invitationRequests.length;
+                            return Text(
+                              '$unreadCount Baru',
+                              style: TextStyle(
+                                color: isDark ? AppDarkColors.background : Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -298,6 +576,18 @@ class InboxScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
+                if (_invitationRequests.isNotEmpty) ...[
+                  buildDateDivider('UNDANGAN TIM'),
+                  const SizedBox(height: 12),
+                  ..._invitationRequests.map((invite) => buildInvitationRequestCard(
+                    inviterName: invite['inviter_name'] as String,
+                    inviterEmail: invite['inviter_email'] as String,
+                    role: invite['role'] as String,
+                    invitationId: invite['invitation_id'] as String,
+                  )),
+                  const SizedBox(height: 24),
+                ],
+
                 // HARI INI Divider
                 buildDateDivider('HARI INI'),
                 const SizedBox(height: 16),
@@ -307,6 +597,24 @@ class InboxScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     children: [
+                      // Render db today notifications first
+                      ..._dbNotifications.where((n) => _isToday(n['created_at'] as DateTime)).map((n) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: buildNotificationCard(
+                            iconBgColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F4FF),
+                            iconAsset: 'image/ic_document_grey.png',
+                            fallbackIcon: Icons.assignment_ind_outlined,
+                            iconColor: AppColors.primary,
+                            title: n['judul'] as String,
+                            subtitle: '',
+                            time: _formatNotificationTime(n['created_at'] as DateTime),
+                            content: n['pesan'] as String,
+                            isUnread: !(n['is_read'] as bool),
+                            onTap: () => _markAsRead(n['id'] as String),
+                          ),
+                        );
+                      }),
                       buildNotificationCard(
                         iconBgColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F4FF),
                         iconAsset: 'image/ic_chat_blue.png',
@@ -385,6 +693,24 @@ class InboxScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     children: [
+                      // Render db yesterday notifications first
+                      ..._dbNotifications.where((n) => _isYesterday(n['created_at'] as DateTime)).map((n) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: buildNotificationCard(
+                            iconBgColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F4FF),
+                            iconAsset: 'image/ic_document_grey.png',
+                            fallbackIcon: Icons.assignment_ind_outlined,
+                            iconColor: AppColors.primary,
+                            title: n['judul'] as String,
+                            subtitle: '',
+                            time: _formatNotificationTime(n['created_at'] as DateTime),
+                            content: n['pesan'] as String,
+                            isUnread: !(n['is_read'] as bool),
+                            onTap: () => _markAsRead(n['id'] as String),
+                          ),
+                        );
+                      }),
                       buildNotificationCard(
                         iconBgColor: isDark ? const Color(0xFF334155) : const Color(0xFFF5F5F5),
                         iconAsset: 'image/ic_document_grey.png',
@@ -411,6 +737,35 @@ class InboxScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+
+                // Older Notifications
+                if (_dbNotifications.any((n) => !_isToday(n['created_at'] as DateTime) && !_isYesterday(n['created_at'] as DateTime))) ...[
+                  const SizedBox(height: 24),
+                  buildDateDivider('SEBELUMNYA'),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: _dbNotifications.where((n) => !_isToday(n['created_at'] as DateTime) && !_isYesterday(n['created_at'] as DateTime)).map((n) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: buildNotificationCard(
+                            iconBgColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F4FF),
+                            iconAsset: 'image/ic_document_grey.png',
+                            fallbackIcon: Icons.assignment_ind_outlined,
+                            iconColor: AppColors.primary,
+                            title: n['judul'] as String,
+                            subtitle: '',
+                            time: _formatNotificationTime(n['created_at'] as DateTime),
+                            content: n['pesan'] as String,
+                            isUnread: !(n['is_read'] as bool),
+                            onTap: () => _markAsRead(n['id'] as String),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
                 
                 const SizedBox(height: 40),
                 

@@ -69,7 +69,12 @@ class AllMembersScreen extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const EditMemberScreen()),
+          MaterialPageRoute(builder: (context) => EditMemberScreen(
+            invitationId: '',
+            name: name,
+            email: 'email@example.com',
+            status: status.toLowerCase() == 'aktif' ? 'aktif' : 'nonaktif',
+          )),
         );
       },
       child: Row(

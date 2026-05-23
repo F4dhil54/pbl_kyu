@@ -40,26 +40,30 @@ class AppSidebar extends ConsumerWidget {
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppColors.primary, Color(0xFF6366F1)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primary.withOpacity(0.3),
+                              color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.grid_view_rounded,
-                          color: Colors.white,
-                          size: 24,
+                        child: Center(
+                          child: Image.asset(
+                            'image/logoSemua.png',
+                            width: 24,
+                            height: 24,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              Icons.business_center,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
