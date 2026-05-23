@@ -31,6 +31,11 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
   String? _selectedImageName;
   User? _currentUser;
 
+  // Real-time Pomodoro Focus Stats state
+  double _totalFocusHoursThisWeek = 0.0;
+  List<double> _weeklyFocusMinutes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+  RealtimeChannel? _pomodoroChannel;
+
   // Konfigurasi GitHub OAuth
   final String clientId = 'Ov23liyhzVvur2XKSlmg';
   final String clientSecret = '2532f44f75ea3f045b886a02257cb30b1ab6bf13'; 
@@ -98,12 +103,29 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
     super.initState();
     _loadData();
     _loadUserProfile();
+    _subscribePomodoroRealtime();
   }
 
   @override
   void dispose() {
+    _pomodoroChannel?.unsubscribe();
     _nameController.dispose();
     super.dispose();
+  }
+
+  void _subscribePomodoroRealtime() {
+    final supabase = Supabase.instance.client;
+    _pomodoroChannel = supabase.channel('pomodoro_stats_realtime')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'pomodoro_sessions',
+        callback: (payload) {
+          debugPrint('Realtime: New pomodoro session detected, refreshing stats...');
+          _loadFocusStats();
+        },
+      )
+      .subscribe();
   }
 
   void _loadData() {
@@ -129,6 +151,58 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                      user.userMetadata?['picture'] ?? 
                      user.userMetadata?['avatar'];
       });
+      _loadFocusStats();
+    }
+  }
+
+  Future<void> _loadFocusStats() async {
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final now = DateTime.now();
+      final currentWeekday = now.weekday;
+      
+      // Calculate Monday (1) of this week
+      final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: currentWeekday - 1));
+      final endOfWeek = startOfWeek.add(const Duration(days: 7));
+
+      final response = await supabase
+          .from('pomodoro_sessions')
+          .select('durasi_menit, started_at')
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+          .gte('started_at', startOfWeek.toIso8601String())
+          .lt('started_at', endOfWeek.toIso8601String());
+
+      final List<dynamic> data = response as List<dynamic>;
+
+      final List<double> weeklyMinutes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+      double totalMinutes = 0.0;
+
+      for (final session in data) {
+        final double durasi = (session['durasi_menit'] as num).toDouble();
+        final String startedAtStr = session['started_at'] as String;
+        final DateTime startedAt = DateTime.parse(startedAtStr).toLocal();
+
+        final int weekday = startedAt.weekday;
+        final int index = weekday - 1;
+
+        if (index >= 0 && index < 7) {
+          weeklyMinutes[index] += durasi;
+          totalMinutes += durasi;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _weeklyFocusMinutes = weeklyMinutes;
+          _totalFocusHoursThisWeek = totalMinutes / 60.0;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading focus stats: $e');
     }
   }
 
@@ -602,7 +676,7 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                '12.5j',
+                                '${_totalFocusHoursThisWeek.toStringAsFixed(1)}j',
                                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
                               ),
                               Text(
@@ -617,18 +691,30 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                       const SizedBox(height: 24),
                       SizedBox(
                         height: 120,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildBar('S', 0.3, false, isDark),
-                            _buildBar('S', 0.4, false, isDark),
-                            _buildBar('R', 0.8, true, isDark),
-                            _buildBar('K', 0.2, false, isDark),
-                            _buildBar('J', 1.0, true, isDark),
-                            _buildBar('S', 0.35, false, isDark),
-                            _buildBar('M', 0.15, false, isDark),
-                          ],
+                        child: Builder(
+                          builder: (context) {
+                            double maxMin = 0.0;
+                            for (final m in _weeklyFocusMinutes) {
+                              if (m > maxMin) maxMin = m;
+                            }
+                            if (maxMin < 25.0) maxMin = 25.0; // Avoid division by zero, min 25 mins scale
+
+                            final labels = ['S', 'S', 'R', 'K', 'J', 'S', 'M'];
+                            final todayIndex = DateTime.now().weekday - 1; // 0 = Senin, 6 = Minggu
+
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: List.generate(7, (index) {
+                                final double minutes = _weeklyFocusMinutes[index];
+                                final double fillHeight = minutes / maxMin;
+                                final String label = labels[index];
+                                final bool isToday = index == todayIndex;
+
+                                return _buildBar(label, fillHeight, isToday, isDark);
+                              }),
+                            );
+                          }
                         ),
                       ),
                     ],

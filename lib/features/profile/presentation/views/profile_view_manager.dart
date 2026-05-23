@@ -27,36 +27,17 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
   final _emailController = TextEditingController();
   bool _isLoadingInvitation = false;
 
-  // New state variables to support dynamic edit and delete
-  final List<Map<String, dynamic>> _members = [
-    {
-      'id': '1',
-      'name': 'Sukma Ananda',
-      'role': 'Project Lead',
-      'initial': 's',
-      'color': Colors.blue,
-    },
-    {
-      'id': '2',
-      'name': 'Dian Paramitha',
-      'role': 'Designer',
-      'initial': 'd',
-      'color': Colors.red,
-    },
-  ];
+  List<Map<String, dynamic>> _teams = [];
+  bool _isLoadingTeams = false;
+  List<Map<String, dynamic>> _dbProjects = [];
+  bool _isLoadingProjects = false;
+  final _teamNameController = TextEditingController();
+  String? _selectedMemberId;
+  String? _selectedProjectId;
+  bool _isCreatingTeam = false;
 
-  final List<Map<String, dynamic>> _teams = [
-    {
-      'id': '1',
-      'name': 'Tim Projek Brand Q4',
-      'color': Colors.blue,
-    },
-    {
-      'id': '2',
-      'name': 'Tim Projek Persiapan Audit Tahunan',
-      'color': Colors.red,
-    },
-  ];
+  List<Map<String, dynamic>> _members = [];
+  bool _isLoadingMembers = false;
 
   @override
   void initState() {
@@ -68,6 +49,7 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _teamNameController.dispose();
     super.dispose();
   }
 
@@ -85,6 +67,229 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
                      user.userMetadata?['picture'] ?? 
                      user.userMetadata?['avatar'];
       });
+      _loadInvitations();
+      _loadProjects();
+      _loadTeams();
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'aktif':
+        return Colors.green;
+      case 'nonaktif':
+        return Colors.red;
+      case 'pending':
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Future<void> _loadInvitations() async {
+    if (_currentUser == null) return;
+    setState(() => _isLoadingMembers = true);
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('invitations')
+          .select('id, user_id, status, role, profiles!invitations_user_id_fkey(nama, email, avatar_url)')
+          .eq('invited_by', _currentUser!.id);
+
+      final list = response as List<dynamic>;
+      setState(() {
+        _members = list.map((item) {
+          final profile = item['profiles'] as Map<String, dynamic>? ?? {};
+          final name = profile['nama'] ?? 'Anggota';
+          final email = profile['email'] ?? 'Tidak ada email';
+          return {
+            'invitation_id': item['id'] as String,
+            'id': item['user_id'] as String,
+            'name': name,
+            'email': email,
+            'role': item['role'] ?? 'Anggota',
+            'initial': name.isNotEmpty ? name[0].toLowerCase() : 'u',
+            'color': _getStatusColor(item['status'] as String),
+            'status': item['status'] as String,
+          };
+        }).toList();
+      });
+    } catch (e) {
+      debugPrint('Error loading invitations: $e');
+    } finally {
+      setState(() => _isLoadingMembers = false);
+    }
+  }
+
+  Future<void> _loadProjects() async {
+    if (_currentUser == null) return;
+    setState(() => _isLoadingProjects = true);
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('projects')
+          .select('id, nama_proyek')
+          .eq('pembuat_id', _currentUser!.id);
+      
+      final list = response as List<dynamic>;
+      setState(() {
+        _dbProjects = list.map((item) => <String, dynamic>{
+          'id': item['id'] as String,
+          'name': item['nama_proyek'] as String,
+        }).toList();
+      });
+    } catch (e) {
+      debugPrint('Error loading projects: $e');
+    } finally {
+      setState(() => _isLoadingProjects = false);
+    }
+  }
+
+  Future<void> _loadTeams() async {
+    if (_currentUser == null) return;
+    setState(() => _isLoadingTeams = true);
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('teams')
+          .select('id, nama_tim')
+          .eq('manajer_id', _currentUser!.id);
+
+      final list = response as List<dynamic>;
+      setState(() {
+        _teams = list.map((item) => {
+          'id': item['id'] as String,
+          'name': item['nama_tim'] as String,
+          'color': Colors.blue,
+        }).toList();
+      });
+    } catch (e) {
+      debugPrint('Error loading teams: $e');
+    } finally {
+      setState(() => _isLoadingTeams = false);
+    }
+  }
+
+  Future<void> _createTeam() async {
+    final teamName = _teamNameController.text.trim();
+    if (teamName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nama tim tidak boleh kosong'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedMemberId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih anggota terlebih dahulu'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedProjectId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih proyek terlebih dahulu'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isCreatingTeam = true);
+
+    try {
+      final supabase = Supabase.instance.client;
+
+      // 1. Insert team
+      final teamResponse = await supabase.from('teams').insert({
+        'nama_tim': teamName,
+        'manajer_id': _currentUser!.id,
+        'deskripsi': 'Tim Proyek',
+      }).select('id').single();
+
+      final teamId = teamResponse['id'] as String;
+
+      // 2. Insert team member
+      await supabase.from('team_members').insert({
+        'team_id': teamId,
+        'user_id': _selectedMemberId!,
+      });
+
+      // 3. Upsert project member
+      await supabase.from('project_members').upsert({
+        'project_id': _selectedProjectId!,
+        'user_id': _selectedMemberId!,
+        'invited_by': _currentUser!.id,
+        'status_akses': 'aktif',
+      }, onConflict: 'project_id, user_id');
+
+      // 4. Send notification to the member
+      String projectName = 'Proyek';
+      for (final p in _dbProjects) {
+        if (p['id'] == _selectedProjectId) {
+          projectName = p['name'] as String;
+          break;
+        }
+      }
+
+      final managerName = _currentUser!.userMetadata?['nama'] ??
+          _currentUser!.userMetadata?['name'] ??
+          _currentUser!.userMetadata?['full_name'] ??
+          'Manajer';
+
+      await supabase.from('notifications').insert({
+        'user_id': _selectedMemberId!,
+        'project_id': _selectedProjectId!,
+        'tipe_notifikasi': 'project_invite',
+        'judul': 'Ditambahkan ke Proyek',
+        'pesan': '$managerName menambahkan Anda ke proyek "$projectName" melalui tim "$teamName".',
+        'peran_penerima': 'member',
+        'link_type': 'project',
+        'link_id': _selectedProjectId!,
+        'is_read': false,
+      });
+
+      if (mounted) {
+        _teamNameController.clear();
+        setState(() {
+          _selectedMemberId = null;
+          _selectedProjectId = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tim baru berhasil dibuat!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      await _loadTeams();
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = 'Gagal membuat tim.';
+        if (e.toString().contains('teams_manajer_id_nama_tim_key') || 
+            e.toString().contains('duplicate key')) {
+          errorMessage = 'Nama tim "$teamName" sudah digunakan. Gunakan nama lain.';
+        } else {
+          errorMessage = 'Gagal membuat tim: $e';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppColors.alertText,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCreatingTeam = false);
+      }
     }
   }
 
@@ -454,19 +659,43 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      for (int i = 0; i < _members.length; i++) ...[
-                        _buildMemberListItem(
-                          context,
-                          _members[i]['id'] as String,
-                          _members[i]['name'] as String,
-                          _members[i]['role'] as String,
-                          _members[i]['initial'] as String,
-                          iconColor: _members[i]['color'] as Color,
-                          isDark: isDark,
-                        ),
-                        if (i < _members.length - 1)
-                          Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
-                      ],
+                      if (_isLoadingMembers)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else if (_members.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text(
+                              'Belum ada anggota atau undangan.',
+                              style: TextStyle(
+                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        for (int i = 0; i < _members.length; i++) ...[
+                          _buildMemberListItem(
+                            context,
+                            _members[i]['id'] as String,
+                            _members[i]['name'] as String,
+                            _members[i]['role'] as String,
+                            _members[i]['initial'] as String,
+                            iconColor: _members[i]['color'] as Color,
+                            isDark: isDark,
+                            status: _members[i]['status'] as String,
+                            invitationId: _members[i]['invitation_id'] as String,
+                            email: _members[i]['email'] as String,
+                          ),
+                          if (i < _members.length - 1)
+                            Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
+                        ],
                     ],
                   ),
                 ),
@@ -488,7 +717,7 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
                               children: [
                                 Text('Nama Tim', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
                                 const SizedBox(height: 8),
-                                _buildTextField('mis. Design Sprint', height: 40, isDark: isDark),
+                                _buildTextField('mis. Design Sprint', height: 40, isDark: isDark, controller: _teamNameController),
                               ],
                             ),
                           ),
@@ -499,7 +728,7 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
                               children: [
                                 Text('Pilih Anggota', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
                                 const SizedBox(height: 8),
-                                _buildDropdown('Nama Anggot', height: 40, isDark: isDark),
+                                _buildMemberDropdown(isDark: isDark),
                               ],
                             ),
                           ),
@@ -510,40 +739,64 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
                       const SizedBox(height: 8),
                       SizedBox(
                         width: MediaQuery.of(context).size.width * 0.4,
-                        child: _buildDropdown('Nama Proyek', height: 40, isDark: isDark),
+                        child: _buildProjectDropdown(isDark: isDark),
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         height: 44,
-                        child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const CreateTeamScreen()),
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: isDark ? AppDarkColors.textSecondary : AppColors.textMain),
+                        child: ElevatedButton(
+                          onPressed: _isCreatingTeam ? null : _createTeam,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isDark ? AppColors.primary : AppColors.buttonDark,
+                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
+                            elevation: 0,
                           ),
-                          child: Text('Buat Tim Baru', style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontWeight: FontWeight.bold, fontSize: 14)),
+                          child: _isCreatingTeam
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text('Buat Tim Baru', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                         ),
                       ),
                       const SizedBox(height: 24),
-                      for (int i = 0; i < _teams.length; i++) ...[
-                        _buildTeamListItem(
-                          context,
-                          _teams[i]['id'] as String,
-                          _teams[i]['name'] as String,
-                          _teams[i]['color'] as Color,
-                          isDark: isDark,
-                        ),
-                        if (i < _teams.length - 1)
-                          Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
-                      ],
+                      if (_isLoadingTeams)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else if (_teams.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text(
+                              'Belum ada tim yang dibuat.',
+                              style: TextStyle(
+                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        for (int i = 0; i < _teams.length; i++) ...[
+                          _buildTeamListItem(
+                            context,
+                            _teams[i]['id'] as String,
+                            _teams[i]['name'] as String,
+                            _teams[i]['color'] as Color,
+                            isDark: isDark,
+                          ),
+                          if (i < _teams.length - 1)
+                            Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
+                        ],
                     ],
                   ),
                 ),
@@ -718,7 +971,102 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
     );
   }
 
-  Widget _buildMemberListItem(BuildContext context, String id, String name, String role, String initial, {Color iconColor = Colors.blue, required bool isDark}) {
+  Widget _buildMemberDropdown({required bool isDark}) {
+    final activeMembers = _members.where((m) => m['status'] == 'aktif').toList();
+    
+    if (_selectedMemberId != null && !activeMembers.any((m) => m['id'] == _selectedMemberId)) {
+      _selectedMemberId = null;
+    }
+
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? AppDarkColors.background : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedMemberId,
+          hint: Text(
+            'Nama Anggota', 
+            style: TextStyle(
+              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+              fontSize: 14
+            )
+          ),
+          dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
+          isExpanded: true,
+          style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontSize: 14),
+          icon: Icon(Icons.keyboard_arrow_down, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+          onChanged: (String? newValue) {
+            setState(() {
+              _selectedMemberId = newValue;
+            });
+          },
+          items: activeMembers.map<DropdownMenuItem<String>>((Map<String, dynamic> member) {
+            return DropdownMenuItem<String>(
+              value: member['id'] as String,
+              child: Text(member['name'] as String),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProjectDropdown({required bool isDark}) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? AppDarkColors.background : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedProjectId,
+          hint: Text(
+            'Nama Proyek', 
+            style: TextStyle(
+              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+              fontSize: 14
+            )
+          ),
+          dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
+          isExpanded: true,
+          style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontSize: 14),
+          icon: Icon(Icons.keyboard_arrow_down, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+          onChanged: (String? newValue) {
+            setState(() {
+              _selectedProjectId = newValue;
+            });
+          },
+          items: _dbProjects.map<DropdownMenuItem<String>>((Map<String, dynamic> project) {
+            return DropdownMenuItem<String>(
+              value: project['id'] as String,
+              child: Text(project['name'] as String),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMemberListItem(
+    BuildContext context, 
+    String id, 
+    String name, 
+    String role, 
+    String initial, {
+    Color iconColor = Colors.blue, 
+    required bool isDark,
+    required String status,
+    required String invitationId,
+    required String email,
+  }) {
     return Row(
       children: [
         Container(
@@ -738,7 +1086,29 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
-              Text(role, style: TextStyle(fontSize: 12, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary)),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Text(role, style: TextStyle(fontSize: 12, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary)),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: iconColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: iconColor, width: 0.5),
+                    ),
+                    child: Text(
+                      status == 'pending' ? 'Pending' : (status == 'aktif' ? 'Aktif' : 'Nonaktif'),
+                      style: TextStyle(
+                        color: iconColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -750,18 +1120,46 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
             if (value == 'edit') {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const EditMemberScreen()),
-              );
+                MaterialPageRoute(builder: (context) => EditMemberScreen(
+                  invitationId: invitationId,
+                  name: name,
+                  email: email,
+                  status: status,
+                )),
+              ).then((shouldReload) {
+                if (shouldReload == true) {
+                  _loadInvitations();
+                }
+              });
             } else if (value == 'delete') {
               _showDeleteConfirmation(
                 context,
                 isDark: isDark,
                 title: 'Konfirmasi Hapus',
                 message: 'Apakah anda yakin ingin menghapus orang?',
-                onConfirm: () {
-                  setState(() {
-                    _members.removeWhere((m) => m['id'] == id);
-                  });
+                onConfirm: () async {
+                  try {
+                    final supabase = Supabase.instance.client;
+                    await supabase.from('invitations').delete().eq('id', invitationId);
+                    await _loadInvitations();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Anggota berhasil dihapus!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Gagal menghapus anggota: $e'),
+                          backgroundColor: AppColors.alertText,
+                        ),
+                      );
+                    }
+                  }
                 },
               );
             }
@@ -798,7 +1196,7 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
             border: Border.all(color: iconColor, width: 2),
           ),
           child: Center(
-            child: Icon(Icons.person, color: iconColor, size: 20),
+            child: Icon(Icons.group, color: iconColor, size: 20),
           ),
         ),
         const SizedBox(width: 12),
@@ -813,18 +1211,41 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
             if (value == 'edit') {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const EditTeamScreen()),
-              );
+                MaterialPageRoute(builder: (context) => EditTeamScreen(teamId: id, teamName: name)),
+              ).then((shouldReload) {
+                if (shouldReload == true) {
+                  _loadTeams();
+                }
+              });
             } else if (value == 'delete') {
               _showDeleteConfirmation(
                 context,
                 isDark: isDark,
                 title: 'Konfirmasi Hapus',
                 message: 'Apakah anda yakin ingin menghapus tim?',
-                onConfirm: () {
-                  setState(() {
-                    _teams.removeWhere((t) => t['id'] == id);
-                  });
+                onConfirm: () async {
+                  try {
+                    final supabase = Supabase.instance.client;
+                    await supabase.from('teams').delete().eq('id', id);
+                    await _loadTeams();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Tim berhasil dihapus!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Gagal menghapus tim: $e'),
+                          backgroundColor: AppColors.alertText,
+                        ),
+                      );
+                    }
+                  }
                 },
               );
             }
@@ -911,6 +1332,16 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
   }
 
   Future<void> _inviteMember() async {
+    if (_currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sesi telah berakhir. Silakan login kembali.'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -957,7 +1388,6 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
 
       final profile = response;
       final profileId = profile['id'] as String;
-      final profileName = profile['nama'] as String;
 
       final alreadyExists = _members.any((member) => member['id'] == profileId);
       if (alreadyExists) {
@@ -972,18 +1402,15 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
         return;
       }
 
-      if (mounted) {
-        setState(() {
-          _members.add({
-            'id': profileId,
-            'name': profileName,
-            'role': 'Anggota',
-            'initial': profileName.isNotEmpty ? profileName[0].toLowerCase() : 'u',
-            'color': Colors.blue,
-          });
-          _emailController.clear();
-        });
+      await supabase.from('invitations').insert({
+        'invited_by': _currentUser!.id,
+        'user_id': profileId,
+        'role': 'Anggota',
+        'status': 'pending',
+      });
 
+      if (mounted) {
+        _emailController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Undangan berhasil dikirim!'),
@@ -991,6 +1418,8 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
           ),
         );
       }
+      
+      await _loadInvitations();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
