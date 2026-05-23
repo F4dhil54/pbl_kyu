@@ -1,23 +1,25 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:pbl_kyu/features/auth/presentation/views/onboarding_screen.dart';
 import 'package:pbl_kyu/core/theme/colors.dart';
 import 'package:pbl_kyu/core/theme/theme_mode.dart';
+import 'package:pbl_kyu/core/network/supabase_provider.dart';
+import '../providers/profile_provider.dart';
 import 'edit_team_screen.dart';
 import 'edit_member_screen.dart';
-import 'create_team_screen.dart';
 
-class ProfileViewManager extends StatefulWidget {
+class ProfileViewManager extends ConsumerStatefulWidget {
   const ProfileViewManager({super.key});
 
   @override
-  State<ProfileViewManager> createState() => _ProfileViewManagerState();
+  ConsumerState<ProfileViewManager> createState() => _ProfileViewManagerState();
 }
 
-class _ProfileViewManagerState extends State<ProfileViewManager> {
+class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
   final _nameController = TextEditingController();
   bool _isLoading = false;
   String? _avatarUrl;
@@ -30,7 +32,6 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
   List<Map<String, dynamic>> _teams = [];
   bool _isLoadingTeams = false;
   List<Map<String, dynamic>> _dbProjects = [];
-  bool _isLoadingProjects = false;
   final _teamNameController = TextEditingController();
   String? _selectedMemberId;
   String? _selectedProjectId;
@@ -54,7 +55,7 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
   }
 
   void _loadUserProfile() {
-    final supabase = Supabase.instance.client;
+    final supabase = ref.read(supabaseClientProvider);
     final user = supabase.auth.currentUser;
     if (user != null) {
       setState(() {
@@ -89,13 +90,9 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
     if (_currentUser == null) return;
     setState(() => _isLoadingMembers = true);
     try {
-      final supabase = Supabase.instance.client;
-      final response = await supabase
-          .from('invitations')
-          .select('id, user_id, status, role, profiles!invitations_user_id_fkey(nama, email, avatar_url)')
-          .eq('invited_by', _currentUser!.id);
+      final response = await ref.read(profileRepositoryProvider).getInvitations(_currentUser!.id);
 
-      final list = response as List<dynamic>;
+      final list = response;
       setState(() {
         _members = list.map((item) {
           final profile = item['profiles'] as Map<String, dynamic>? ?? {};
@@ -122,15 +119,10 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
 
   Future<void> _loadProjects() async {
     if (_currentUser == null) return;
-    setState(() => _isLoadingProjects = true);
     try {
-      final supabase = Supabase.instance.client;
-      final response = await supabase
-          .from('projects')
-          .select('id, nama_proyek')
-          .eq('pembuat_id', _currentUser!.id);
+      final response = await ref.read(profileRepositoryProvider).getProjects(_currentUser!.id);
       
-      final list = response as List<dynamic>;
+      final list = response;
       setState(() {
         _dbProjects = list.map((item) => <String, dynamic>{
           'id': item['id'] as String,
@@ -139,8 +131,6 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
       });
     } catch (e) {
       debugPrint('Error loading projects: $e');
-    } finally {
-      setState(() => _isLoadingProjects = false);
     }
   }
 
@@ -148,13 +138,9 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
     if (_currentUser == null) return;
     setState(() => _isLoadingTeams = true);
     try {
-      final supabase = Supabase.instance.client;
-      final response = await supabase
-          .from('teams')
-          .select('id, nama_tim')
-          .eq('manajer_id', _currentUser!.id);
+      final response = await ref.read(profileRepositoryProvider).getTeams(_currentUser!.id);
 
-      final list = response as List<dynamic>;
+      final list = response;
       setState(() {
         _teams = list.map((item) => {
           'id': item['id'] as String,
@@ -204,32 +190,6 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
     setState(() => _isCreatingTeam = true);
 
     try {
-      final supabase = Supabase.instance.client;
-
-      // 1. Insert team
-      final teamResponse = await supabase.from('teams').insert({
-        'nama_tim': teamName,
-        'manajer_id': _currentUser!.id,
-        'deskripsi': 'Tim Proyek',
-      }).select('id').single();
-
-      final teamId = teamResponse['id'] as String;
-
-      // 2. Insert team member
-      await supabase.from('team_members').insert({
-        'team_id': teamId,
-        'user_id': _selectedMemberId!,
-      });
-
-      // 3. Upsert project member
-      await supabase.from('project_members').upsert({
-        'project_id': _selectedProjectId!,
-        'user_id': _selectedMemberId!,
-        'invited_by': _currentUser!.id,
-        'status_akses': 'aktif',
-      }, onConflict: 'project_id, user_id');
-
-      // 4. Send notification to the member
       String projectName = 'Proyek';
       for (final p in _dbProjects) {
         if (p['id'] == _selectedProjectId) {
@@ -243,17 +203,14 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
           _currentUser!.userMetadata?['full_name'] ??
           'Manajer';
 
-      await supabase.from('notifications').insert({
-        'user_id': _selectedMemberId!,
-        'project_id': _selectedProjectId!,
-        'tipe_notifikasi': 'project_invite',
-        'judul': 'Ditambahkan ke Proyek',
-        'pesan': '$managerName menambahkan Anda ke proyek "$projectName" melalui tim "$teamName".',
-        'peran_penerima': 'member',
-        'link_type': 'project',
-        'link_id': _selectedProjectId!,
-        'is_read': false,
-      });
+      await ref.read(profileRepositoryProvider).createTeam(
+        teamName: teamName,
+        managerId: _currentUser!.id,
+        memberId: _selectedMemberId!,
+        projectId: _selectedProjectId!,
+        managerName: managerName,
+        projectName: projectName,
+      );
 
       if (mounted) {
         _teamNameController.clear();
@@ -367,42 +324,24 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
     setState(() => _isLoading = true);
     
     try {
-      final supabase = Supabase.instance.client;
+      final profileRepo = ref.read(profileRepositoryProvider);
       
       // 1. Upload image if selected
       if (_selectedImageBytes != null) {
         final userId = _currentUser?.id ?? 'user';
-        final extension = _selectedImageName?.split('.').last ?? 'png';
-        final fileName = '$userId-${DateTime.now().millisecondsSinceEpoch}.$extension';
-        
-        // Ensure bucket exists
-        try {
-          await supabase.storage.createBucket('avatars', const BucketOptions(public: true));
-        } catch (_) {
-          // Bucket might already exist
-        }
-        
-        await supabase.storage.from('avatars').uploadBinary(
-          fileName,
+        _avatarUrl = await profileRepo.uploadAvatar(
+          userId,
           _selectedImageBytes!,
-          fileOptions: const FileOptions(
-            contentType: 'image/png',
-            upsert: true,
-          ),
+          _selectedImageName ?? 'avatar.png',
         );
-        
-        _avatarUrl = supabase.storage.from('avatars').getPublicUrl(fileName);
       }
       
       // 2. Update user metadata
-      final data = Map<String, dynamic>.from(_currentUser?.userMetadata ?? {});
-      data['nama'] = _nameController.text.trim();
-      if (_avatarUrl != null) {
-        data['avatar_url'] = _avatarUrl;
-      }
-      
-      final attributes = UserAttributes(data: data);
-      final response = await supabase.auth.updateUser(attributes);
+      final response = await profileRepo.updateUserProfile(
+        name: _nameController.text.trim(),
+        avatarUrl: _avatarUrl,
+        currentUserMetadata: _currentUser?.userMetadata ?? {},
+      );
       
       if (mounted) {
         setState(() {
@@ -1139,8 +1078,7 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
                 message: 'Apakah anda yakin ingin menghapus orang?',
                 onConfirm: () async {
                   try {
-                    final supabase = Supabase.instance.client;
-                    await supabase.from('invitations').delete().eq('id', invitationId);
+                    await ref.read(profileRepositoryProvider).deleteInvitation(invitationId);
                     await _loadInvitations();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1225,8 +1163,7 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
                 message: 'Apakah anda yakin ingin menghapus tim?',
                 onConfirm: () async {
                   try {
-                    final supabase = Supabase.instance.client;
-                    await supabase.from('teams').delete().eq('id', id);
+                    await ref.read(profileRepositoryProvider).deleteTeam(id);
                     await _loadTeams();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1367,12 +1304,8 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
     setState(() => _isLoadingInvitation = true);
 
     try {
-      final supabase = Supabase.instance.client;
-      final response = await supabase
-          .from('profiles')
-          .select()
-          .eq('email', email)
-          .maybeSingle();
+      final profileRepo = ref.read(profileRepositoryProvider);
+      final response = await profileRepo.getProfileByEmail(email);
 
       if (response == null) {
         if (mounted) {
@@ -1402,12 +1335,12 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
         return;
       }
 
-      await supabase.from('invitations').insert({
-        'invited_by': _currentUser!.id,
-        'user_id': profileId,
-        'role': 'Anggota',
-        'status': 'pending',
-      });
+      await profileRepo.inviteMember(
+        invitedBy: _currentUser!.id,
+        userId: profileId,
+        role: 'Anggota',
+        status: 'pending',
+      );
 
       if (mounted) {
         _emailController.clear();

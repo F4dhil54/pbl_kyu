@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
+import 'package:pbl_kyu/core/network/supabase_provider.dart';
+import '../providers/profile_provider.dart';
 
-class EditTeamScreen extends StatefulWidget {
+class EditTeamScreen extends ConsumerStatefulWidget {
   final String teamId;
   final String teamName;
 
   const EditTeamScreen({super.key, required this.teamId, required this.teamName});
 
   @override
-  State<EditTeamScreen> createState() => _EditTeamScreenState();
+  ConsumerState<EditTeamScreen> createState() => _EditTeamScreenState();
 }
 
-class _EditTeamScreenState extends State<EditTeamScreen> {
+class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   late TextEditingController _teamNameController;
@@ -39,15 +41,12 @@ class _EditTeamScreenState extends State<EditTeamScreen> {
 
   Future<void> _loadData() async {
     try {
-      final supabase = Supabase.instance.client;
-      final user = supabase.auth.currentUser;
+      final profileRepo = ref.read(profileRepositoryProvider);
+      final user = ref.read(supabaseClientProvider).auth.currentUser;
       if (user == null) return;
 
       // 1. Load team members
-      final teamMembersRes = await supabase
-          .from('team_members')
-          .select('user_id, profiles!inner(nama)')
-          .eq('team_id', widget.teamId);
+      final teamMembersRes = await profileRepo.getTeamMembers(widget.teamId);
 
       final List<Map<String, dynamic>> currentMembers = [];
       for (final tm in teamMembersRes) {
@@ -58,11 +57,7 @@ class _EditTeamScreenState extends State<EditTeamScreen> {
       }
 
       // 2. Load all colleagues to see who is available
-      final colleaguesRes = await supabase
-          .from('invitations')
-          .select('user_id, profiles!invitations_user_id_fkey(nama)')
-          .eq('invited_by', user.id)
-          .eq('status', 'aktif');
+      final colleaguesRes = await profileRepo.getActiveColleagues(user.id);
 
       final List<Map<String, dynamic>> availableMembers = [];
       for (final c in colleaguesRes) {
@@ -76,12 +71,9 @@ class _EditTeamScreenState extends State<EditTeamScreen> {
       }
 
       // 3. Load user's projects
-      final projectsRes = await supabase
-          .from('projects')
-          .select('id, nama_proyek')
-          .eq('pembuat_id', user.id);
+      final projectsRes = await profileRepo.getProjects(user.id);
 
-      final List<Map<String, dynamic>> loadedProjects = (projectsRes as List<dynamic>).map((p) => {
+      final List<Map<String, dynamic>> loadedProjects = projectsRes.map((p) => {
         'id': p['id'] as String,
         'name': p['nama_proyek'] as String,
       }).toList();
@@ -116,35 +108,25 @@ class _EditTeamScreenState extends State<EditTeamScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final supabase = Supabase.instance.client;
-      final currentUser = supabase.auth.currentUser!;
+      final profileRepo = ref.read(profileRepositoryProvider);
+      final currentUser = ref.read(supabaseClientProvider).auth.currentUser!;
 
       // 1. Update team name if changed
       if (teamName != widget.teamName) {
-        await supabase.from('teams').update({'nama_tim': teamName}).eq('id', widget.teamId);
+        await profileRepo.updateTeamName(widget.teamId, teamName);
       }
 
       // 2. Sync team_members (simplest way: delete all and insert current selection)
-      await supabase.from('team_members').delete().eq('team_id', widget.teamId);
-
-      if (_selectedMembers.isNotEmpty) {
-        final inserts = _selectedMembers.map((m) => {
-          'team_id': widget.teamId,
-          'user_id': m['id'],
-        }).toList();
-        await supabase.from('team_members').insert(inserts);
-      }
+      final memberIds = _selectedMembers.map((m) => m['id'] as String).toList();
+      await profileRepo.syncTeamMembers(widget.teamId, memberIds);
 
       // 3. If a project is selected, upsert members to project_members
       if (_selectedProjectId != null && _selectedMembers.isNotEmpty) {
-        for (final m in _selectedMembers) {
-          await supabase.from('project_members').upsert({
-            'project_id': _selectedProjectId!,
-            'user_id': m['id'],
-            'invited_by': currentUser.id,
-            'status_akses': 'aktif',
-          }, onConflict: 'project_id, user_id');
-        }
+        await profileRepo.upsertProjectMembers(
+          projectId: _selectedProjectId!,
+          memberIds: memberIds,
+          invitedBy: currentUser.id,
+        );
       }
 
       if (mounted) {

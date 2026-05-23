@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
+import '../providers/profile_provider.dart';
 
-class EditMemberScreen extends StatefulWidget {
+class EditMemberScreen extends ConsumerStatefulWidget {
   final String invitationId;
   final String name;
   final String email;
@@ -18,10 +19,10 @@ class EditMemberScreen extends StatefulWidget {
   });
 
   @override
-  State<EditMemberScreen> createState() => _EditMemberScreenState();
+  ConsumerState<EditMemberScreen> createState() => _EditMemberScreenState();
 }
 
-class _EditMemberScreenState extends State<EditMemberScreen> {
+class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
   late int _statusAkses; // 1 for Aktif, 0 for Nonaktif
   bool _isSaving = false;
 
@@ -34,13 +35,12 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   Future<void> _saveChanges() async {
     setState(() => _isSaving = true);
     try {
-      final supabase = Supabase.instance.client;
       final newStatus = _statusAkses == 1 ? 'aktif' : 'nonaktif';
       
-      await supabase
-          .from('invitations')
-          .update({'status': newStatus})
-          .eq('id', widget.invitationId);
+      await ref.read(profileRepositoryProvider).updateInvitationStatus(
+        widget.invitationId,
+        newStatus,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

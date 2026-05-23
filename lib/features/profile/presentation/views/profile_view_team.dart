@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,15 +11,17 @@ import 'package:pbl_kyu/core/theme/colors.dart';
 import 'package:pbl_kyu/core/theme/theme_mode.dart';
 import 'package:pbl_kyu/features/auth/presentation/views/onboarding_screen.dart';
 import 'package:pbl_kyu/core/services/github_status.dart';
+import 'package:pbl_kyu/core/network/supabase_provider.dart';
+import '../providers/profile_provider.dart';
 
-class ProfileViewTeam extends StatefulWidget {
+class ProfileViewTeam extends ConsumerStatefulWidget {
   const ProfileViewTeam({super.key});
 
   @override
-  State<ProfileViewTeam> createState() => _ProfileViewTeamState();
+  ConsumerState<ProfileViewTeam> createState() => _ProfileViewTeamState();
 }
 
-class _ProfileViewTeamState extends State<ProfileViewTeam> {
+class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
   bool _isConnecting = false;
   bool _isConnected = false;
   String? _githubAccessToken;
@@ -114,7 +117,7 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
   }
 
   void _subscribePomodoroRealtime() {
-    final supabase = Supabase.instance.client;
+    final supabase = ref.read(supabaseClientProvider);
     _pomodoroChannel = supabase.channel('pomodoro_stats_realtime')
       .onPostgresChanges(
         event: PostgresChangeEvent.insert,
@@ -138,7 +141,7 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
   }
 
   void _loadUserProfile() {
-    final supabase = Supabase.instance.client;
+    final supabase = ref.read(supabaseClientProvider);
     final user = supabase.auth.currentUser;
     if (user != null) {
       setState(() {
@@ -156,7 +159,7 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
   }
 
   Future<void> _loadFocusStats() async {
-    final supabase = Supabase.instance.client;
+    final supabase = ref.read(supabaseClientProvider);
     final user = supabase.auth.currentUser;
     if (user == null) return;
 
@@ -168,15 +171,13 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
       final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: currentWeekday - 1));
       final endOfWeek = startOfWeek.add(const Duration(days: 7));
 
-      final response = await supabase
-          .from('pomodoro_sessions')
-          .select('durasi_menit, started_at')
-          .eq('user_id', user.id)
-          .eq('status', 'completed')
-          .gte('started_at', startOfWeek.toIso8601String())
-          .lt('started_at', endOfWeek.toIso8601String());
+      final response = await ref.read(profileRepositoryProvider).getPomodoroSessions(
+        userId: user.id,
+        startOfWeek: startOfWeek,
+        endOfWeek: endOfWeek,
+      );
 
-      final List<dynamic> data = response as List<dynamic>;
+      final List<dynamic> data = response;
 
       final List<double> weeklyMinutes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
       double totalMinutes = 0.0;
@@ -280,42 +281,24 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
     setState(() => _isLoading = true);
     
     try {
-      final supabase = Supabase.instance.client;
+      final profileRepo = ref.read(profileRepositoryProvider);
       
       // 1. Upload image if selected
       if (_selectedImageBytes != null) {
         final userId = _currentUser?.id ?? 'user';
-        final extension = _selectedImageName?.split('.').last ?? 'png';
-        final fileName = '$userId-${DateTime.now().millisecondsSinceEpoch}.$extension';
-        
-        // Ensure bucket exists
-        try {
-          await supabase.storage.createBucket('avatars', const BucketOptions(public: true));
-        } catch (_) {
-          // Bucket might already exist
-        }
-        
-        await supabase.storage.from('avatars').uploadBinary(
-          fileName,
+        _avatarUrl = await profileRepo.uploadAvatar(
+          userId,
           _selectedImageBytes!,
-          fileOptions: const FileOptions(
-            contentType: 'image/png',
-            upsert: true,
-          ),
+          _selectedImageName ?? 'avatar.png',
         );
-        
-        _avatarUrl = supabase.storage.from('avatars').getPublicUrl(fileName);
       }
       
       // 2. Update user metadata
-      final data = Map<String, dynamic>.from(_currentUser?.userMetadata ?? {});
-      data['nama'] = _nameController.text.trim();
-      if (_avatarUrl != null) {
-        data['avatar_url'] = _avatarUrl;
-      }
-      
-      final attributes = UserAttributes(data: data);
-      final response = await supabase.auth.updateUser(attributes);
+      final response = await profileRepo.updateUserProfile(
+        name: _nameController.text.trim(),
+        avatarUrl: _avatarUrl,
+        currentUserMetadata: _currentUser?.userMetadata ?? {},
+      );
       
       if (mounted) {
         setState(() {
