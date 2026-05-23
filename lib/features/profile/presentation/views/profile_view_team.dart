@@ -1,7 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:pbl_kyu/core/theme/colors.dart';
 import 'package:pbl_kyu/core/theme/theme_mode.dart';
 import 'package:pbl_kyu/features/auth/presentation/views/onboarding_screen.dart';
@@ -19,6 +23,13 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
   bool _isConnected = false;
   String? _githubAccessToken;
   String? _githubUsername;
+
+  final _nameController = TextEditingController();
+  bool _isLoading = false;
+  String? _avatarUrl;
+  Uint8List? _selectedImageBytes;
+  String? _selectedImageName;
+  User? _currentUser;
 
   // Konfigurasi GitHub OAuth
   final String clientId = 'Ov23liyhzVvur2XKSlmg';
@@ -86,6 +97,13 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
   void initState() {
     super.initState();
     _loadData();
+    _loadUserProfile();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
   }
 
   void _loadData() {
@@ -94,6 +112,168 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
         _isConnected = GitHubStatus.isConnected;
         _githubUsername = GitHubStatus.username;
       });
+    }
+  }
+
+  void _loadUserProfile() {
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      setState(() {
+        _currentUser = user;
+        _nameController.text = user.userMetadata?['nama'] ?? 
+                               user.userMetadata?['name'] ?? 
+                               user.userMetadata?['full_name'] ?? 
+                               '';
+        _avatarUrl = user.userMetadata?['avatar_url'] ?? 
+                     user.userMetadata?['picture'] ?? 
+                     user.userMetadata?['avatar'];
+      });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 80,
+      );
+      
+      if (image != null && mounted) {
+        final croppedFile = await ImageCropper().cropImage(
+          sourcePath: image.path,
+          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+          uiSettings: [
+            AndroidUiSettings(
+              toolbarTitle: 'Pangkas Foto',
+              toolbarColor: const Color(0xFF1E3A8A),
+              toolbarWidgetColor: Colors.white,
+              cropStyle: CropStyle.circle,
+              initAspectRatio: CropAspectRatioPreset.square,
+              lockAspectRatio: true,
+            ),
+            IOSUiSettings(
+              title: 'Pangkas Foto',
+              cropStyle: CropStyle.circle,
+              aspectRatioLockEnabled: true,
+              resetAspectRatioEnabled: false,
+            ),
+            WebUiSettings(
+              context: context,
+              presentStyle: WebPresentStyle.dialog,
+              size: const CropperSize(
+                width: 320,
+                height: 320,
+              ),
+            ),
+          ],
+        );
+
+        if (croppedFile != null) {
+          final bytes = await croppedFile.readAsBytes();
+          setState(() {
+            _selectedImageBytes = bytes;
+            _selectedImageName = image.name;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memilih gambar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nama lengkap tidak boleh kosong'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      final supabase = Supabase.instance.client;
+      
+      // 1. Upload image if selected
+      if (_selectedImageBytes != null) {
+        final userId = _currentUser?.id ?? 'user';
+        final extension = _selectedImageName?.split('.').last ?? 'png';
+        final fileName = '$userId-${DateTime.now().millisecondsSinceEpoch}.$extension';
+        
+        // Ensure bucket exists
+        try {
+          await supabase.storage.createBucket('avatars', const BucketOptions(public: true));
+        } catch (_) {
+          // Bucket might already exist
+        }
+        
+        await supabase.storage.from('avatars').uploadBinary(
+          fileName,
+          _selectedImageBytes!,
+          fileOptions: const FileOptions(
+            contentType: 'image/png',
+            upsert: true,
+          ),
+        );
+        
+        _avatarUrl = supabase.storage.from('avatars').getPublicUrl(fileName);
+      }
+      
+      // 2. Update user metadata
+      final data = Map<String, dynamic>.from(_currentUser?.userMetadata ?? {});
+      data['nama'] = _nameController.text.trim();
+      if (_avatarUrl != null) {
+        data['avatar_url'] = _avatarUrl;
+      }
+      
+      final attributes = UserAttributes(data: data);
+      final response = await supabase.auth.updateUser(attributes);
+      
+      if (mounted) {
+        setState(() {
+          _currentUser = response.user;
+          _selectedImageBytes = null; // Clear local preview since it's uploaded
+          if (response.user != null) {
+            _avatarUrl = response.user!.userMetadata?['avatar_url'] ?? 
+                         response.user!.userMetadata?['picture'] ?? 
+                         response.user!.userMetadata?['avatar'];
+          }
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profil berhasil diperbarui!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memperbarui profil: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -126,7 +306,25 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
               CircleAvatar(
                 radius: 16,
                 backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                child: Icon(Icons.person, color: isDark ? AppDarkColors.textMain : AppColors.textMain, size: 24),
+                child: ClipOval(
+                  child: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                      ? Image.network(
+                          _avatarUrl!,
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.person,
+                            color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                            size: 24,
+                          ),
+                        )
+                      : Icon(
+                          Icons.person,
+                          color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                          size: 24,
+                        ),
+                ),
               ),
               const SizedBox(width: 20),
             ],
@@ -210,49 +408,71 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Edit Profil',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                            ),
-                          ),
-                          Icon(Icons.person_add_alt_1_outlined, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 24),
-                        ],
+                      Text(
+                        'Edit Profil',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                        ),
                       ),
                       const SizedBox(height: 24),
                       // Avatar with camera icon
                       Center(
-                        child: Stack(
-                          children: [
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isDark ? AppDarkColors.background : AppColors.inputBackground,
-                                border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 1),
-                              ),
-                              child: Icon(Icons.person_outline, size: 48, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
+                        child: GestureDetector(
+                          onTap: _pickImage,
+                          child: Stack(
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
                                 decoration: BoxDecoration(
-                                  color: isDark ? Colors.white : AppColors.textMain,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: isDark ? AppDarkColors.surface : Colors.white, width: 2),
+                                  color: isDark ? AppDarkColors.background : AppColors.inputBackground,
+                                  border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 1),
                                 ),
-                                child: Icon(Icons.camera_alt, size: 14, color: isDark ? AppDarkColors.surface : Colors.white),
+                                child: ClipOval(
+                                  child: _selectedImageBytes != null
+                                      ? Image.memory(
+                                          _selectedImageBytes!,
+                                          width: 80,
+                                          height: 80,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                                          ? Image.network(
+                                              _avatarUrl!,
+                                              width: 80,
+                                              height: 80,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => Icon(
+                                                Icons.person_outline,
+                                                size: 48,
+                                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                              ),
+                                            )
+                                          : Icon(
+                                              Icons.person_outline,
+                                              size: 48,
+                                              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                            ),
+                                ),
                               ),
-                            ),
-                          ],
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white : AppColors.textMain,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: isDark ? AppDarkColors.surface : Colors.white, width: 2),
+                                  ),
+                                  child: Icon(Icons.camera_alt, size: 14, color: isDark ? AppDarkColors.surface : Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -269,32 +489,10 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                           border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
                         ),
                         child: TextField(
+                          controller: _nameController,
                           style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
                           decoration: InputDecoration(
                             hintText: 'Nama Lengkap',
-                            hintStyle: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 14),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Alamat Email',
-                        style: TextStyle(fontSize: 12, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: isDark ? AppDarkColors.background : Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
-                        ),
-                        child: TextField(
-                          style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
-                          decoration: InputDecoration(
-                            hintText: 'Alamat Email',
                             hintStyle: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 14),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -306,14 +504,20 @@ class _ProfileViewTeamState extends State<ProfileViewTeam> {
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
-                          onPressed: () {},
+                          onPressed: _isLoading ? null : _saveProfile,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isDark ? AppColors.primary : AppColors.buttonDark,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             elevation: 0,
                           ),
-                          child: const Text('Simpan Perubahan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text('Simpan Perubahan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],

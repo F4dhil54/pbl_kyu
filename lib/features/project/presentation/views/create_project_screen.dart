@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
-import '../../../profile/presentation/views/profile_view_manager.dart';
+import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
 import '../../data/models/project_model.dart';
 import '../providers/project_provider.dart';
 
@@ -22,8 +22,9 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
   final List<String> _availableLabels = ['Urgent', 'Backend', 'Design System', 'Frontend', 'DevOps'];
   final List<String> _selectedLabels = ['Urgent'];
 
-  String _selectedCategory = 'IT INFRA';
-  final List<String> _categories = ['MARKETING', 'IT INFRA', 'FINANCE', 'OPERATIONS'];
+  String _selectedCategory = 'Teknologi';
+  final List<String> _categories = ['Teknologi', 'Pemasaran', 'Operasional', 'Keuangan', 'Kreatif/Media', 'Lainnya'];
+  final TextEditingController _customCategoryController = TextEditingController();
 
   bool _isLoading = false;
 
@@ -32,6 +33,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
     _nameController.dispose();
     _descController.dispose();
     _githubController.dispose();
+    _customCategoryController.dispose();
     super.dispose();
   }
 
@@ -87,6 +89,16 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
       return;
     }
 
+    if (_selectedCategory == 'Lainnya' && _customCategoryController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kategori kustom tidak boleh kosong!'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -94,6 +106,9 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
     try {
       final now = DateTime.now();
       final dateStr = '${now.day} ${_getMonthName(now.month)}';
+      final finalCategory = _selectedCategory == 'Lainnya' 
+          ? _customCategoryController.text.trim() 
+          : _selectedCategory;
 
       final newProject = ProjectModel(
         id: '', // Supabase will auto-generate or repository mock
@@ -102,8 +117,10 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
         labels: _selectedLabels,
         githubRepo: _githubController.text.trim(),
         progress: 0.0,
-        category: _selectedCategory,
+        category: finalCategory,
         date: dateStr,
+        creatorId: '',
+        statusAktif: true,
       );
 
       await ref.read(projectListProvider.notifier).addProject(newProject);
@@ -172,29 +189,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
               ),
             ),
             actions: [
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProfileViewManager(),
-                    ),
-                  );
-                },
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                  child: Image.asset(
-                    'image/ic_profile.png',
-                    width: 24,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.person,
-                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
+              const ProfileAvatarButton(),
               const SizedBox(width: 20),
             ],
           ),
@@ -285,6 +280,10 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
 
                         _buildInputLabel('KATEGORI PROYEK', isDark: isDark),
                         _buildCategoryDropdown(isDark: isDark),
+                        if (_selectedCategory == 'Lainnya') ...[
+                          const SizedBox(height: 12),
+                          _buildTextField(_customCategoryController, 'Tulis kategori kustom Anda...', isDark: isDark),
+                        ],
                         const SizedBox(height: 20),
 
                         _buildInputLabel('PILIH LABEL', isDark: isDark),

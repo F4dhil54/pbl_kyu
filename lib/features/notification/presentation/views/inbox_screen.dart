@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
-import '../../../profile/presentation/views/profile_view_manager.dart';
+import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
+import 'package:pbl_kyu/shared/widgets/app_sidebar.dart';
 import 'message_detail_screen.dart' as message_detail;
 
 class InboxScreen extends StatelessWidget {
@@ -154,8 +155,8 @@ class InboxScreen extends StatelessWidget {
                             Text(
                               time,
                               style: TextStyle(
-                                fontSize: 10, 
-                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
+                                  fontSize: 10, 
+                                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
                               ),
                             ),
                             if (isUnread) ...[
@@ -212,9 +213,16 @@ class InboxScreen extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+          drawer: const AppSidebar(),
           appBar: AppBar(
             backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
             elevation: 0,
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
             title: Text(
               'KYU',
               style: TextStyle(
@@ -235,27 +243,7 @@ class InboxScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ProfileViewManager()),
-                  );
-                },
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                  child: Image.asset(
-                    'image/ic_profile.png',
-                    width: 24,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.person, 
-                      color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
-                      size: 24
-                    ),
-                  ),
-                ),
-              ),
+              const ProfileAvatarButton(),
               const SizedBox(width: 20),
             ],
           ),

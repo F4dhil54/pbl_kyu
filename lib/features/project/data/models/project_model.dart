@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'package:intl/intl.dart'; // Pastikan sudah menambahkan package intl di pubspec.yaml
 
 class ProjectModel {
   final String id;
@@ -8,7 +8,10 @@ class ProjectModel {
   final String githubRepo;
   final double progress;
   final String category;
-  final String date;
+  final String date; // Menyimpan string tanggal dari UI
+  final String creatorId;
+  final bool statusAktif;
+  final DateTime? createdAt;
 
   ProjectModel({
     required this.id,
@@ -19,46 +22,132 @@ class ProjectModel {
     required this.progress,
     required this.category,
     required this.date,
+    required this.creatorId,
+    required this.statusAktif,
+    this.createdAt,
   });
 
   factory ProjectModel.fromJson(Map<String, dynamic> json) {
+    final progressVal =
+        (json['progress_persen'] as num?)?.toDouble() ??
+        (json['progress'] as num?)?.toDouble() ??
+        0.0;
+
+    // Map integer percentage (e.g. 75) to double 0.75 if it is greater than 1.0
+    final double doubleProgress = progressVal > 1.0
+        ? progressVal / 100.0
+        : progressVal;
+
+    // Ambil string dari database, lalu buat agar tampil rapi di UI jika perlu
+    String rawDate =
+        json['deadline'] as String? ??
+        json['date_deadline'] as String? ??
+        json['date'] as String? ??
+        '';
+
+    // Jika format dari Supabase adalah ISO String (ada huruf T atau Z), kita bersihkan atau biarkan berupa String
+    if (rawDate.contains('T')) {
+      try {
+        DateTime parsed = DateTime.parse(rawDate).toLocal();
+        rawDate = DateFormat(
+          'yyyy-MM-dd',
+        ).format(parsed); // Diubah ke format string standar standar
+      } catch (_) {}
+    }
+
     return ProjectModel(
       id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      labels: json['labels'] is List 
+      name: json['nama_proyek'] as String? ?? json['name'] as String? ?? '',
+      description:
+          json['deskripsi'] as String? ?? json['description'] as String? ?? '',
+      labels: json['labels'] is List
           ? (json['labels'] as List<dynamic>).map((e) => e.toString()).toList()
           : [],
-      githubRepo: json['github_repo'] as String? ?? '',
-      progress: (json['progress'] as num?)?.toDouble() ?? 0.0,
-      category: json['category'] as String? ?? '',
-      date: json['date_deadline'] as String? ?? '',
+      githubRepo:
+          json['tautan_github'] as String? ??
+          json['github_repo'] as String? ??
+          '',
+      progress: doubleProgress,
+      category:
+          json['kategori'] as String? ?? json['category'] as String? ?? '',
+      date: rawDate,
+      creatorId:
+          json['pembuat_id'] as String? ?? json['creatorId'] as String? ?? '',
+      statusAktif:
+          json['status_aktif'] as bool? ?? json['statusAktif'] as bool? ?? true,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
     );
+  }
+
+  /// Menangani konversi String Tanggal dari UI ke format ISO yang dimengerti PostgreSQL
+  String? _formatToPostgresTimestamp(String dateStr) {
+    if (dateStr.isEmpty) return null;
+
+    try {
+      // 1. Jika formatnya sudah valid standar (YYYY-MM-DD), langsung parsing aman
+      return DateTime.parse(dateStr).toIso8601String();
+    } catch (_) {
+      try {
+        // 2. Jika formatnya kustom seperti "23 Mei" atau "23 Mei 2026"
+        // Kita paksa parse menggunakan bantuan DateFormat locale Indonesia/English
+        int currentYear = DateTime.now().year;
+        DateTime parsed;
+
+        if (!dateStr.contains(currentYear.toString())) {
+          // Jika tidak ada tahunnya (misal cuma "23 Mei"), tambahkan tahun sekarang otomatis
+          parsed = DateFormat(
+            "d MMMM yyyy",
+            "id",
+          ).parse("$dateStr $currentYear");
+        } else {
+          parsed = DateFormat("d MMMM yyyy", "id").parse(dateStr);
+        }
+        return parsed.toIso8601String();
+      } catch (e) {
+        // Fallback terakhir: Coba format 'yyyy-MM-dd' manual jika library intl mendeteksi variasi lain
+        try {
+          return DateFormat('yyyy-MM-dd').parse(dateStr).toIso8601String();
+        } catch (_) {
+          return null; // Jika benar-benar acak-acakan, kembalikan null agar tidak crash
+        }
+      }
+    }
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'name': name,
-      'description': description,
-      'labels': labels,
-      'github_repo': githubRepo,
-      'progress': progress,
-      'category': category,
-      'date_deadline': date,
+      'nama_proyek': name,
+      'deskripsi': description,
+      'tautan_github': githubRepo,
+      'progress_persen': (progress * 100).toInt(),
+      'kategori': category,
+      'deadline': _formatToPostgresTimestamp(
+        date,
+      ), // Di-formatting otomatis di sini
+      'pembuat_id': creatorId.isNotEmpty && !creatorId.startsWith('local-')
+          ? creatorId
+          : null,
+      'status_aktif': statusAktif,
     };
   }
 
-  // toJsonWithId is useful for updates or local database mocks
   Map<String, dynamic> toJsonWithId() {
     return {
-      'id': id,
-      'name': name,
-      'description': description,
-      'labels': labels,
-      'github_repo': githubRepo,
-      'progress': progress,
-      'category': category,
-      'date_deadline': date,
+      if (id.isNotEmpty && !id.startsWith('local-')) 'id': id,
+      'nama_proyek': name,
+      'deskripsi': description,
+      'tautan_github': githubRepo,
+      'progress_persen': (progress * 100).toInt(),
+      'kategori': category,
+      'deadline': _formatToPostgresTimestamp(
+        date,
+      ), // Di-formatting otomatis di sini
+      'pembuat_id': creatorId.isNotEmpty && !creatorId.startsWith('local-')
+          ? creatorId
+          : null,
+      'status_aktif': statusAktif,
     };
   }
 
@@ -71,6 +160,9 @@ class ProjectModel {
     double? progress,
     String? category,
     String? date,
+    String? creatorId,
+    bool? statusAktif,
+    DateTime? createdAt,
   }) {
     return ProjectModel(
       id: id ?? this.id,
@@ -81,6 +173,9 @@ class ProjectModel {
       progress: progress ?? this.progress,
       category: category ?? this.category,
       date: date ?? this.date,
+      creatorId: creatorId ?? this.creatorId,
+      statusAktif: statusAktif ?? this.statusAktif,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }

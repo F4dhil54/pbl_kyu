@@ -15,7 +15,9 @@ class ProjectRepository {
       githubRepo: 'https://github.com/kampanye-brand-q4',
       progress: 0.75,
       category: 'MARKETING',
-      date: '24 Okt',
+      date: '2026-10-24',
+      creatorId: 'local-manager',
+      statusAktif: true,
     ),
     ProjectModel(
       id: 'local-2',
@@ -25,7 +27,9 @@ class ProjectRepository {
       githubRepo: 'https://github.com/cloud-migration-fase2',
       progress: 0.32,
       category: 'IT INFRA',
-      date: '12 Nov',
+      date: '2026-11-12',
+      creatorId: 'local-manager',
+      statusAktif: true,
     ),
     ProjectModel(
       id: 'local-3',
@@ -35,7 +39,9 @@ class ProjectRepository {
       githubRepo: 'https://github.com/finance-audit-preparation',
       progress: 0.90,
       category: 'FINANCE',
-      date: 'Minggu Depan',
+      date: '2026-06-01',
+      creatorId: 'local-manager',
+      statusAktif: false,
     ),
     ProjectModel(
       id: 'local-4',
@@ -45,26 +51,67 @@ class ProjectRepository {
       githubRepo: 'https://github.com/supply-chain-optimization',
       progress: 0.55,
       category: 'OPERATIONS',
-      date: '01 Des',
+      date: '2026-12-01',
+      creatorId: 'local-manager',
+      statusAktif: true,
     ),
   ];
 
   ProjectRepository(this._supabaseClient);
 
-  /// Fetch all projects
+  /// Fetch projects depending on role
   Future<List<ProjectModel>> getProjects() async {
     try {
-      debugPrint("=== INFO: [Supabase] Fetching projects ===");
-      final response = await _supabaseClient
-          .from('projects')
-          .select()
-          .order('name', ascending: true);
-      
-      final data = response as List<dynamic>;
-      return data.map((json) => ProjectModel.fromJson(json)).toList();
+      final user = _supabaseClient.auth.currentUser;
+      if (user == null) {
+        return List.of(_localProjects);
+      }
+      final userId = user.id;
+      final role = user.userMetadata?['role'] ?? 'Tim';
+
+      debugPrint("=== INFO: [Supabase] Fetching projects for user: $userId, role: $role ===");
+
+      if (role == 'Manajer') {
+        final response = await _supabaseClient
+            .from('projects')
+            .select()
+            .eq('pembuat_id', userId)
+            .order('nama_proyek', ascending: true);
+        
+        final data = response as List<dynamic>;
+        return data.map((json) => ProjectModel.fromJson(json)).toList();
+      } else {
+        // Team member sees only active projects they are joined in
+        final memberResponse = await _supabaseClient
+            .from('project_members')
+            .select('project_id')
+            .eq('user_id', userId)
+            .eq('status_akses', 'aktif');
+        
+        final memberData = memberResponse as List<dynamic>;
+        final projectIds = memberData.map((m) => m['project_id'] as String).toList();
+
+        if (projectIds.isEmpty) {
+          return [];
+        }
+
+        final response = await _supabaseClient
+            .from('projects')
+            .select()
+            .inFilter('id', projectIds)
+            .eq('status_aktif', true)
+            .order('nama_proyek', ascending: true);
+
+        final data = response as List<dynamic>;
+        return data.map((json) => ProjectModel.fromJson(json)).toList();
+      }
     } catch (e) {
       debugPrint("=== WARNING: Supabase query failed, using local fallback. Error: $e ===");
-      // Return local fallback list
+      final user = _supabaseClient.auth.currentUser;
+      final role = user?.userMetadata?['role'] ?? 'Tim';
+      if (role == 'Tim') {
+        return _localProjects.where((p) => p.statusAktif).toList();
+      }
       return List.of(_localProjects);
     }
   }
@@ -72,10 +119,15 @@ class ProjectRepository {
   /// Create a new project
   Future<ProjectModel> createProject(ProjectModel project) async {
     try {
-      debugPrint("=== INFO: [Supabase] Creating project: ${project.name} ===");
+      final user = _supabaseClient.auth.currentUser;
+      final projectWithCreator = project.copyWith(
+        creatorId: user?.id ?? 'local-manager',
+        statusAktif: true,
+      );
+      debugPrint("=== INFO: [Supabase] Creating project: ${projectWithCreator.name} ===");
       final response = await _supabaseClient
           .from('projects')
-          .insert(project.toJson())
+          .insert(projectWithCreator.toJson())
           .select()
           .single();
       
@@ -84,6 +136,8 @@ class ProjectRepository {
       debugPrint("=== WARNING: Supabase insert failed, inserting locally. Error: $e ===");
       final newProject = project.copyWith(
         id: 'local-${DateTime.now().millisecondsSinceEpoch}',
+        creatorId: 'local-manager',
+        statusAktif: true,
       );
       _localProjects.add(newProject);
       return newProject;
@@ -92,6 +146,13 @@ class ProjectRepository {
 
   /// Update an existing project
   Future<ProjectModel> updateProject(ProjectModel project) async {
+    if (project.id.startsWith('local-')) {
+      final index = _localProjects.indexWhere((p) => p.id == project.id);
+      if (index != -1) {
+        _localProjects[index] = project;
+      }
+      return project;
+    }
     try {
       debugPrint("=== INFO: [Supabase] Updating project: ${project.id} ===");
       final response = await _supabaseClient
@@ -112,8 +173,36 @@ class ProjectRepository {
     }
   }
 
+  /// Update project active/inactive status
+  Future<void> updateProjectStatus(String id, bool statusAktif) async {
+    if (id.startsWith('local-')) {
+      final index = _localProjects.indexWhere((p) => p.id == id);
+      if (index != -1) {
+        _localProjects[index] = _localProjects[index].copyWith(statusAktif: statusAktif);
+      }
+      return;
+    }
+    try {
+      debugPrint("=== INFO: [Supabase] Updating project status: $id to $statusAktif ===");
+      await _supabaseClient
+          .from('projects')
+          .update({'status_aktif': statusAktif})
+          .eq('id', id);
+    } catch (e) {
+      debugPrint("=== WARNING: Supabase status update failed. Error: $e ===");
+      final index = _localProjects.indexWhere((p) => p.id == id);
+      if (index != -1) {
+        _localProjects[index] = _localProjects[index].copyWith(statusAktif: statusAktif);
+      }
+    }
+  }
+
   /// Delete a project by ID
   Future<void> deleteProject(String id) async {
+    if (id.startsWith('local-')) {
+      _localProjects.removeWhere((p) => p.id == id);
+      return;
+    }
     try {
       debugPrint("=== INFO: [Supabase] Deleting project: $id ===");
       await _supabaseClient

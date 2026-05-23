@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
-import '../../../profile/presentation/views/profile_view_team.dart';
+import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
+import 'package:pbl_kyu/shared/widgets/app_sidebar.dart';
 import '../../../task/presentation/views/task_detail_team_screen.dart' as task_detail;
 import '../../../task/presentation/views/team_task_list_screen.dart' as team_task_list;
 
@@ -17,9 +19,16 @@ class TeamDashboard extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+          drawer: const AppSidebar(),
           appBar: AppBar(
             backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
             elevation: 0,
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
             title: Text(
               'KYU',
               style: TextStyle(
@@ -30,27 +39,7 @@ class TeamDashboard extends StatelessWidget {
               ),
             ),
             actions: [
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ProfileViewTeam()),
-                  );
-                },
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                  child: Image.asset(
-                    'image/ic_profile.png',
-                    width: 24,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.person,
-                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
+              const ProfileAvatarButton(),
               const SizedBox(width: 20),
             ],
           ),
@@ -59,13 +48,23 @@ class TeamDashboard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Selamat Pagi, Tim.',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                  ),
+                StreamBuilder<AuthState>(
+                  stream: Supabase.instance.client.auth.onAuthStateChange,
+                  builder: (context, snapshot) {
+                    final user = Supabase.instance.client.auth.currentUser;
+                    final name = user?.userMetadata?['nama'] ??
+                                 user?.userMetadata?['name'] ??
+                                 user?.userMetadata?['full_name'] ??
+                                 'Tim';
+                    return Text(
+                      'Selamat Datang, $name.',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 4),
                 Text(

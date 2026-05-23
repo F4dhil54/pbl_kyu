@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
-import '../../../profile/presentation/views/profile_view_manager.dart';
+import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
+import 'package:pbl_kyu/shared/widgets/app_sidebar.dart';
 import '../../../profile/presentation/views/all_members_screen.dart';
-import 'create_project_screen.dart';
 
 class ManagerDashboard extends StatelessWidget {
   const ManagerDashboard({super.key});
@@ -17,9 +18,16 @@ class ManagerDashboard extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+          drawer: const AppSidebar(),
           appBar: AppBar(
             backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
             elevation: 0,
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
             title: Text(
               'KYU',
               style: TextStyle(
@@ -30,32 +38,8 @@ class ManagerDashboard extends StatelessWidget {
               ),
             ),
             actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 20.0),
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ProfileViewManager(),
-                      ),
-                    );
-                  },
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                    child: Image.asset(
-                      'image/ic_profile.png',
-                      width: 24,
-                      errorBuilder: (context, error, stackTrace) => Icon(
-                        Icons.person,
-                        color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              const ProfileAvatarButton(),
+              const SizedBox(width: 20),
             ],
           ),
           body: SingleChildScrollView(
@@ -63,14 +47,24 @@ class ManagerDashboard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Selamat datang kembali,\nManajer',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                    height: 1.2,
-                  ),
+                StreamBuilder<AuthState>(
+                  stream: Supabase.instance.client.auth.onAuthStateChange,
+                  builder: (context, snapshot) {
+                    final user = Supabase.instance.client.auth.currentUser;
+                    final name = user?.userMetadata?['nama'] ??
+                                 user?.userMetadata?['name'] ??
+                                 user?.userMetadata?['full_name'] ??
+                                 'Manajer';
+                    return Text(
+                      'Selamat Datang,\n$name',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                        height: 1.2,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
                 Text(

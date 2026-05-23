@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
-import '../../../profile/presentation/views/profile_view_manager.dart';
+import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
+import 'package:pbl_kyu/shared/widgets/app_sidebar.dart';
 import '../../data/models/project_model.dart';
 import '../providers/project_provider.dart';
 import 'create_project_screen.dart';
+import 'edit_project_screen.dart';
 import 'project_detail_screen.dart';
 
 class ProjectListScreen extends ConsumerStatefulWidget {
@@ -18,6 +21,16 @@ class ProjectListScreen extends ConsumerStatefulWidget {
 class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+  bool _showActiveOnly = true; // For Manager filter tab
+
+  String _formatIndonesianDate(DateTime? date) {
+    if (date == null) return 'Diposting -';
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return 'Diposting ${date.day} ${months[date.month - 1]} ${date.year}';
+  }
 
   @override
   void dispose() {
@@ -29,6 +42,11 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
   Widget build(BuildContext context) {
     final projectsState = ref.watch(projectListProvider);
     final searchQuery = ref.watch(projectSearchQueryProvider);
+    
+    // Fetch logged in user role
+    final user = Supabase.instance.client.auth.currentUser;
+    final role = user?.userMetadata?['role'] ?? 'Tim';
+    final isManager = role == 'Manajer';
 
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeControl.themeNotifier,
@@ -37,9 +55,18 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
 
         return Scaffold(
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+          drawer: const AppSidebar(),
           appBar: AppBar(
             backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
             elevation: 0,
+            leading: _isSearching
+                ? null
+                : Builder(
+                    builder: (context) => IconButton(
+                      icon: const Icon(Icons.menu),
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                    ),
+                  ),
             title: _isSearching
                 ? TextField(
                     controller: _searchController,
@@ -81,29 +108,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                   color: isDark ? AppDarkColors.textMain : AppColors.textMain,
                 ),
               ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProfileViewManager(),
-                    ),
-                  );
-                },
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                  child: Image.asset(
-                    'image/ic_profile.png',
-                    width: 24,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.person,
-                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
+              const ProfileAvatarButton(),
               const SizedBox(width: 20),
             ],
           ),
@@ -137,38 +142,25 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                 ),
               ),
               data: (projects) {
-                // Filter projects by search query
-                final filteredProjects = projects.where((project) {
-                  final nameLower = project.name.toLowerCase();
-                  final descLower = project.description.toLowerCase();
-                  final searchLower = searchQuery.toLowerCase();
-                  return nameLower.contains(searchLower) || descLower.contains(searchLower);
-                }).toList();
+                // 1. Role and status filtering
+                List<ProjectModel> filteredProjects = projects;
+                
+                if (isManager) {
+                  // Manager: Filter by active vs inactive tab
+                  filteredProjects = projects.where((p) => p.statusAktif == _showActiveOnly).toList();
+                } else {
+                  // Team: Only active projects
+                  filteredProjects = projects.where((p) => p.statusAktif).toList();
+                }
 
-                if (filteredProjects.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.folder_open_outlined,
-                          size: 64,
-                          color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          searchQuery.isNotEmpty
-                              ? 'Proyek tidak ditemukan'
-                              : 'Belum ada proyek aktif',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                // 2. Search filtering
+                if (searchQuery.isNotEmpty) {
+                  final searchLower = searchQuery.toLowerCase();
+                  filteredProjects = filteredProjects.where((project) {
+                    final nameLower = project.name.toLowerCase();
+                    final descLower = project.description.toLowerCase();
+                    return nameLower.contains(searchLower) || descLower.contains(searchLower);
+                  }).toList();
                 }
 
                 return SingleChildScrollView(
@@ -178,7 +170,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Proyek Aktif',
+                        isManager ? 'Daftar Proyek' : 'Proyek Kolaborasi',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -187,28 +179,85 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Pantau progres dan kolaborasi tim pada ${filteredProjects.length} proyek aktif Anda.',
+                        isManager
+                            ? 'Kelola proyek, atur tugas, dan pantau progres kerja tim Anda.'
+                            : 'Akses proyek aktif untuk berkolaborasi dan menyelesaikan tugas.',
                         style: TextStyle(
                           fontSize: 14,
                           color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
                           height: 1.5,
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: filteredProjects.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 16),
-                        itemBuilder: (context, index) {
-                          final project = filteredProjects[index];
-                          return _buildProjectCard(
-                            context,
-                            project: project,
-                            isDark: isDark,
-                          );
-                        },
-                      ),
+                      const SizedBox(height: 20),
+
+                      // Manager Filter Tabs (Active vs Inactive)
+                      if (isManager) ...[
+                        Row(
+                          children: [
+                            _buildFilterTab(
+                              context,
+                              'Proyek Aktif',
+                              _showActiveOnly,
+                              () => setState(() => _showActiveOnly = true),
+                              isDark,
+                            ),
+                            const SizedBox(width: 12),
+                            _buildFilterTab(
+                              context,
+                              'Proyek Nonaktif',
+                              !_showActiveOnly,
+                              () => setState(() => _showActiveOnly = false),
+                              isDark,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      if (filteredProjects.isEmpty) ...[
+                        const SizedBox(height: 60),
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.folder_open_outlined,
+                                size: 64,
+                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                searchQuery.isNotEmpty
+                                    ? 'Proyek tidak ditemukan'
+                                    : (isManager
+                                        ? (_showActiveOnly ? 'Belum ada proyek aktif' : 'Tidak ada proyek nonaktif')
+                                        : 'Belum ada proyek aktif yang ditugaskan kepada Anda'),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: filteredProjects.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 16),
+                          itemBuilder: (context, index) {
+                            final project = filteredProjects[index];
+                            return _buildProjectCard(
+                              context,
+                              project: project,
+                              isDark: isDark,
+                              isManager: isManager,
+                            );
+                          },
+                        ),
+                      ],
                       const SizedBox(height: 80),
                     ],
                   ),
@@ -216,22 +265,61 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
               },
             ),
           ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CreateProjectScreen(),
-                ),
-              );
-            },
-            backgroundColor: isDark ? AppColors.primary : Colors.black,
-            elevation: 4,
-            shape: const CircleBorder(),
-            child: const Icon(Icons.add, color: Colors.white, size: 28),
-          ),
+          floatingActionButton: isManager
+              ? FloatingActionButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CreateProjectScreen(),
+                      ),
+                    );
+                  },
+                  backgroundColor: isDark ? AppColors.primary : Colors.black,
+                  elevation: 4,
+                  shape: const CircleBorder(),
+                  child: const Icon(Icons.add, color: Colors.white, size: 28),
+                )
+              : null,
         );
       },
+    );
+  }
+
+  Widget _buildFilterTab(
+    BuildContext context,
+    String text,
+    bool isSelected,
+    VoidCallback onTap,
+    bool isDark,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? Colors.white : AppColors.textMain)
+              : (isDark ? AppDarkColors.surface : Colors.white),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? (isDark ? Colors.white : AppColors.textMain)
+                : (isDark ? AppDarkColors.border : AppColors.border),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isSelected
+                ? (isDark ? AppDarkColors.background : Colors.white)
+                : (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 
@@ -239,6 +327,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
     BuildContext context, {
     required ProjectModel project,
     required bool isDark,
+    required bool isManager,
   }) {
     // Map category to styles dynamically
     Color categoryBgColor;
@@ -246,21 +335,30 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
 
     switch (project.category.toUpperCase()) {
       case 'MARKETING':
+      case 'PEMASARAN':
         categoryBgColor = isDark ? const Color(0xFF065F46).withOpacity(0.3) : const Color(0xFFD1FAE5);
         categoryTextColor = isDark ? const Color(0xFF34D399) : const Color(0xFF065F46);
         break;
+      case 'TEKNOLOGI':
       case 'IT INFRA':
       case 'IT':
         categoryBgColor = isDark ? const Color(0xFF1E3A8A).withOpacity(0.4) : const Color(0xFFDBEAFE);
         categoryTextColor = isDark ? Colors.blue[200]! : const Color(0xFF1E3A8A);
         break;
+      case 'KEUANGAN':
       case 'FINANCE':
         categoryBgColor = isDark ? const Color(0xFF451A03).withOpacity(0.4) : const Color(0xFFFEF3C7);
         categoryTextColor = isDark ? Colors.orange[300]! : const Color(0xFF92400E);
         break;
+      case 'OPERASIONAL':
       case 'OPERATIONS':
         categoryBgColor = isDark ? const Color(0xFF78350F).withOpacity(0.4) : const Color(0xFFFEE2E2);
         categoryTextColor = isDark ? Colors.red[300]! : const Color(0xFF991B1B);
+        break;
+      case 'KREATIF/MEDIA':
+      case 'CREATIVE':
+        categoryBgColor = isDark ? const Color(0xFF581C87).withOpacity(0.4) : const Color(0xFFF3E8FF);
+        categoryTextColor = isDark ? Colors.purple[300]! : const Color(0xFF6B21A8);
         break;
       default:
         categoryBgColor = isDark ? AppDarkColors.surface : const Color(0xFFF1F5F9);
@@ -306,7 +404,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    project.category,
+                    project.category.toUpperCase(),
                     style: TextStyle(
                       color: categoryTextColor,
                       fontSize: 10,
@@ -315,11 +413,121 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                     ),
                   ),
                 ),
-                Icon(
-                  Icons.more_vert,
-                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                  size: 20,
-                ),
+                // 3-dot Menu (Only for Manager)
+                if (isManager)
+                  PopupMenuButton<String>(
+                    elevation: 3,
+                    color: isDark ? AppDarkColors.surface : Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EditProjectScreen(project: project),
+                          ),
+                        );
+                      } else if (value == 'deactivate') {
+                        await ref.read(projectListProvider.notifier).updateProjectStatus(project.id, false);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Proyek "${project.name}" dinonaktifkan'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        }
+                      } else if (value == 'activate') {
+                        await ref.read(projectListProvider.notifier).updateProjectStatus(project.id, true);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Proyek "${project.name}" diaktifkan kembali'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } else if (value == 'delete') {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+                            title: Text(
+                              'Hapus Proyek',
+                              style: TextStyle(
+                                color: isDark ? Colors.white : Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            content: Text(
+                              'Apakah Anda yakin ingin menghapus proyek "${project.name}" secara permanen?',
+                              style: TextStyle(
+                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Batal'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.alertText,
+                                  elevation: 0,
+                                ),
+                                child: const Text(
+                                  'Hapus',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          await ref.read(projectListProvider.notifier).deleteProject(project.id);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Proyek berhasil dihapus'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    icon: Icon(
+                      Icons.more_vert,
+                      color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                      size: 20,
+                    ),
+                    itemBuilder: (context) => project.statusAktif
+                        ? [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit Proyek'),
+                            ),
+                            const PopupMenuItem(
+                              value: 'deactivate',
+                              child: Text('Nonaktifkan Proyek'),
+                            ),
+                          ]
+                        : [
+                            const PopupMenuItem(
+                              value: 'activate',
+                              child: Text('Aktifkan Proyek'),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Text(
+                                'Hapus Proyek',
+                                style: TextStyle(color: AppColors.alertText, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -331,103 +539,122 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                 color: isDark ? AppDarkColors.textMain : AppColors.textMain,
               ),
             ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Progress',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                  ),
+            
+            // Team card: show description
+            if (!isManager) ...[
+              const SizedBox(height: 8),
+              Text(
+                project.description.isNotEmpty ? project.description : 'Tidak ada deskripsi proyek.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                  height: 1.4,
                 ),
-                Text(
-                  '${(project.progress * 100).toInt()}%',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: project.progress,
-                backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
-                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                minHeight: 6,
               ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Fallback project member avatars based on project name length
-                Row(
-                  children: [
-                    for (int i = 0; i < (project.name.length % 3 + 1); i++)
-                      Align(
-                        widthFactor: 0.6,
-                        child: CircleAvatar(
-                          radius: 14,
-                          backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+            ],
+
+            // Manager card: show progress, avatars and date
+            if (isManager) ...[
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Progress',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    '${(project.progress * 100).toInt()}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: project.progress,
+                  backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  minHeight: 6,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Fallback project member avatars based on project name length
+                  Row(
+                    children: [
+                      for (int i = 0; i < (project.name.length % 3 + 1); i++)
+                        Align(
+                          widthFactor: 0.6,
                           child: CircleAvatar(
-                            radius: 12,
-                            backgroundColor: isDark ? AppDarkColors.background : AppColors.inputBackground,
-                            child: Icon(
-                              Icons.account_circle,
-                              size: 24,
-                              color: _getFallbackColor(i),
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (project.name.length > 15)
-                      Align(
-                        widthFactor: 0.6,
-                        child: CircleAvatar(
-                          radius: 14,
-                          backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
-                          child: CircleAvatar(
-                            radius: 12,
-                            backgroundColor: isDark ? AppDarkColors.background : const Color(0xFFF1F5F9),
-                            child: Text(
-                              '+${project.name.length % 5 + 1}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                            radius: 14,
+                            backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+                            child: CircleAvatar(
+                              radius: 12,
+                              backgroundColor: isDark ? AppDarkColors.background : AppColors.inputBackground,
+                              child: Icon(
+                                Icons.account_circle,
+                                size: 24,
+                                color: _getFallbackColor(i),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                // Date
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today_outlined,
-                      size: 14,
-                      color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      project.date,
-                      style: TextStyle(
-                        fontSize: 12,
+                      if (project.name.length > 15)
+                        Align(
+                          widthFactor: 0.6,
+                          child: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+                            child: CircleAvatar(
+                              radius: 12,
+                              backgroundColor: isDark ? AppDarkColors.background : const Color(0xFFF1F5F9),
+                              child: Text(
+                                '+${project.name.length % 5 + 1}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  // Date
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 14,
                         color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatIndonesianDate(project.createdAt ?? DateTime.now()),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

@@ -1,4 +1,8 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:pbl_kyu/features/auth/presentation/views/onboarding_screen.dart';
 import 'package:pbl_kyu/core/theme/colors.dart';
 import 'package:pbl_kyu/core/theme/theme_mode.dart';
@@ -6,9 +10,228 @@ import 'edit_team_screen.dart';
 import 'edit_member_screen.dart';
 import 'create_team_screen.dart';
 
-
-class ProfileViewManager extends StatelessWidget {
+class ProfileViewManager extends StatefulWidget {
   const ProfileViewManager({super.key});
+
+  @override
+  State<ProfileViewManager> createState() => _ProfileViewManagerState();
+}
+
+class _ProfileViewManagerState extends State<ProfileViewManager> {
+  final _nameController = TextEditingController();
+  bool _isLoading = false;
+  String? _avatarUrl;
+  Uint8List? _selectedImageBytes;
+  String? _selectedImageName;
+  User? _currentUser;
+  final _emailController = TextEditingController();
+  bool _isLoadingInvitation = false;
+
+  // New state variables to support dynamic edit and delete
+  final List<Map<String, dynamic>> _members = [
+    {
+      'id': '1',
+      'name': 'Sukma Ananda',
+      'role': 'Project Lead',
+      'initial': 's',
+      'color': Colors.blue,
+    },
+    {
+      'id': '2',
+      'name': 'Dian Paramitha',
+      'role': 'Designer',
+      'initial': 'd',
+      'color': Colors.red,
+    },
+  ];
+
+  final List<Map<String, dynamic>> _teams = [
+    {
+      'id': '1',
+      'name': 'Tim Projek Brand Q4',
+      'color': Colors.blue,
+    },
+    {
+      'id': '2',
+      'name': 'Tim Projek Persiapan Audit Tahunan',
+      'color': Colors.red,
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  void _loadUserProfile() {
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      setState(() {
+        _currentUser = user;
+        _nameController.text = user.userMetadata?['nama'] ?? 
+                               user.userMetadata?['name'] ?? 
+                               user.userMetadata?['full_name'] ?? 
+                               '';
+        _avatarUrl = user.userMetadata?['avatar_url'] ?? 
+                     user.userMetadata?['picture'] ?? 
+                     user.userMetadata?['avatar'];
+      });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 80,
+      );
+      
+      if (image != null && mounted) {
+        final croppedFile = await ImageCropper().cropImage(
+          sourcePath: image.path,
+          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+          uiSettings: [
+            AndroidUiSettings(
+              toolbarTitle: 'Pangkas Foto',
+              toolbarColor: const Color(0xFF1E3A8A),
+              toolbarWidgetColor: Colors.white,
+              cropStyle: CropStyle.circle,
+              initAspectRatio: CropAspectRatioPreset.square,
+              lockAspectRatio: true,
+            ),
+            IOSUiSettings(
+              title: 'Pangkas Foto',
+              cropStyle: CropStyle.circle,
+              aspectRatioLockEnabled: true,
+              resetAspectRatioEnabled: false,
+            ),
+            WebUiSettings(
+              context: context,
+              presentStyle: WebPresentStyle.dialog,
+              size: const CropperSize(
+                width: 320,
+                height: 320,
+              ),
+            ),
+          ],
+        );
+
+        if (croppedFile != null) {
+          final bytes = await croppedFile.readAsBytes();
+          setState(() {
+            _selectedImageBytes = bytes;
+            _selectedImageName = image.name;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memilih gambar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nama lengkap tidak boleh kosong'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      final supabase = Supabase.instance.client;
+      
+      // 1. Upload image if selected
+      if (_selectedImageBytes != null) {
+        final userId = _currentUser?.id ?? 'user';
+        final extension = _selectedImageName?.split('.').last ?? 'png';
+        final fileName = '$userId-${DateTime.now().millisecondsSinceEpoch}.$extension';
+        
+        // Ensure bucket exists
+        try {
+          await supabase.storage.createBucket('avatars', const BucketOptions(public: true));
+        } catch (_) {
+          // Bucket might already exist
+        }
+        
+        await supabase.storage.from('avatars').uploadBinary(
+          fileName,
+          _selectedImageBytes!,
+          fileOptions: const FileOptions(
+            contentType: 'image/png',
+            upsert: true,
+          ),
+        );
+        
+        _avatarUrl = supabase.storage.from('avatars').getPublicUrl(fileName);
+      }
+      
+      // 2. Update user metadata
+      final data = Map<String, dynamic>.from(_currentUser?.userMetadata ?? {});
+      data['nama'] = _nameController.text.trim();
+      if (_avatarUrl != null) {
+        data['avatar_url'] = _avatarUrl;
+      }
+      
+      final attributes = UserAttributes(data: data);
+      final response = await supabase.auth.updateUser(attributes);
+      
+      if (mounted) {
+        setState(() {
+          _currentUser = response.user;
+          _selectedImageBytes = null; // Clear local preview since it's uploaded
+          if (response.user != null) {
+            _avatarUrl = response.user!.userMetadata?['avatar_url'] ?? 
+                         response.user!.userMetadata?['picture'] ?? 
+                         response.user!.userMetadata?['avatar'];
+          }
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profil berhasil diperbarui!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memperbarui profil: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,14 +262,24 @@ class ProfileViewManager extends StatelessWidget {
               CircleAvatar(
                 radius: 16,
                 backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                child: Image.asset(
-                  'image/ic_profile.png',
-                  width: 24,
-                  errorBuilder: (context, error, stackTrace) => Icon(
-                    Icons.person,
-                    color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                    size: 24,
-                  ),
+                child: ClipOval(
+                  child: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                      ? Image.network(
+                          _avatarUrl!,
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.person,
+                            color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                            size: 24,
+                          ),
+                        )
+                      : Icon(
+                          Icons.person,
+                          color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                          size: 24,
+                        ),
                 ),
               ),
               const SizedBox(width: 20),
@@ -85,48 +318,72 @@ class ProfileViewManager extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Center(
-                        child: Stack(
-                          children: [
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isDark ? AppDarkColors.background : AppColors.inputBackground,
-                                border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 1),
-                              ),
-                              child: Icon(Icons.person_outline, size: 48, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
+                        child: GestureDetector(
+                          onTap: _pickImage,
+                          child: Stack(
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
                                 decoration: BoxDecoration(
-                                  color: isDark ? Colors.white : AppColors.textMain,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: isDark ? AppDarkColors.surface : Colors.white, width: 2),
+                                  color: isDark ? AppDarkColors.background : AppColors.inputBackground,
+                                  border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 1),
                                 ),
-                                child: Icon(Icons.camera_alt, size: 14, color: isDark ? AppDarkColors.surface : Colors.white),
+                                child: ClipOval(
+                                  child: _selectedImageBytes != null
+                                      ? Image.memory(
+                                          _selectedImageBytes!,
+                                          width: 80,
+                                          height: 80,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                                          ? Image.network(
+                                              _avatarUrl!,
+                                              width: 80,
+                                              height: 80,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => Icon(
+                                                Icons.person_outline,
+                                                size: 48,
+                                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                              ),
+                                            )
+                                          : Icon(
+                                              Icons.person_outline,
+                                              size: 48,
+                                              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                            ),
+                                ),
                               ),
-                            ),
-                          ],
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white : AppColors.textMain,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: isDark ? AppDarkColors.surface : Colors.white, width: 2),
+                                  ),
+                                  child: Icon(Icons.camera_alt, size: 14, color: isDark ? AppDarkColors.surface : Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
                       Text('Nama Lengkap', style: TextStyle(fontSize: 12, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary)),
                       const SizedBox(height: 8),
-                      _buildTextField('Fadhil Syahidan', isDark: isDark),
-                      const SizedBox(height: 16),
-                      Text('Alamat Email', style: TextStyle(fontSize: 12, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary)),
-                      const SizedBox(height: 8),
-                      _buildTextField('fadhil@kyu-corp.com', isDark: isDark),
+                      _buildTextField('Nama Lengkap', isDark: isDark, controller: _nameController),
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
-                          onPressed: () {},
+                          onPressed: _isLoading ? null : _saveProfile,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isDark ? AppColors.primary : AppColors.buttonDark,
                             foregroundColor: Colors.white,
@@ -135,7 +392,13 @@ class ProfileViewManager extends StatelessWidget {
                             ),
                             elevation: 0,
                           ),
-                          child: const Text('Simpan Perubahan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text('Simpan Perubahan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
@@ -161,22 +424,15 @@ class ProfileViewManager extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Tambah Orang',
-                              style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 16),
-                            _buildTextField('Nama anggota baru...', isDark: isDark),
+                            _buildTextField('Email anggota baru...', isDark: isDark, controller: _emailController),
                             const SizedBox(height: 12),
-                            _buildTextField('Email anggota baru...', isDark: isDark),
-                            const SizedBox(height: 12),
-                            _buildDropdown('Jabatan: Anggota', isDark: isDark),
+                            _buildDropdown('Jabatan: Anggota', isDark: isDark, showArrow: false),
                             const SizedBox(height: 16),
                             SizedBox(
                               width: double.infinity,
                               height: 44,
                               child: ElevatedButton(
-                                onPressed: () {},
+                                onPressed: _isLoadingInvitation ? null : _inviteMember,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: isDark ? AppColors.primary : AppColors.buttonDark,
                                   foregroundColor: Colors.white,
@@ -185,16 +441,32 @@ class ProfileViewManager extends StatelessWidget {
                                   ),
                                   elevation: 0,
                                 ),
-                                child: const Text('Kirim Undangan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                child: _isLoadingInvitation
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      )
+                                    : const Text('Kirim Undangan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                               ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 24),
-                      _buildMemberListItem(context, 'Sukma Ananda', 'Project Lead', 's', isDark: isDark),
-                      Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
-                      _buildMemberListItem(context, 'Dian Paramitha', 'Designer', 'd', iconColor: Colors.red, isDark: isDark),
+                      for (int i = 0; i < _members.length; i++) ...[
+                        _buildMemberListItem(
+                          context,
+                          _members[i]['id'] as String,
+                          _members[i]['name'] as String,
+                          _members[i]['role'] as String,
+                          _members[i]['initial'] as String,
+                          iconColor: _members[i]['color'] as Color,
+                          isDark: isDark,
+                        ),
+                        if (i < _members.length - 1)
+                          Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
+                      ],
                     ],
                   ),
                 ),
@@ -261,9 +533,17 @@ class ProfileViewManager extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      _buildTeamListItem(context, 'Tim Projek Brand Q4', Colors.blue, isDark: isDark),
-                      Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
-                      _buildTeamListItem(context, 'Tim Projek Persiapan Audit Tahunan', Colors.red, isDark: isDark),
+                      for (int i = 0; i < _teams.length; i++) ...[
+                        _buildTeamListItem(
+                          context,
+                          _teams[i]['id'] as String,
+                          _teams[i]['name'] as String,
+                          _teams[i]['color'] as Color,
+                          isDark: isDark,
+                        ),
+                        if (i < _teams.length - 1)
+                          Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
+                      ],
                     ],
                   ),
                 ),
@@ -382,19 +662,13 @@ class ProfileViewManager extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                ),
-              ),
-              Icon(iconData, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 24),
-            ],
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+            ),
           ),
           const SizedBox(height: 16),
           child,
@@ -403,7 +677,7 @@ class ProfileViewManager extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(String hint, {double height = 48, required bool isDark}) {
+  Widget _buildTextField(String hint, {double height = 48, required bool isDark, TextEditingController? controller}) {
     return Container(
       height: height,
       decoration: BoxDecoration(
@@ -412,6 +686,7 @@ class ProfileViewManager extends StatelessWidget {
         border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
       ),
       child: TextField(
+        controller: controller,
         style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
         decoration: InputDecoration(
           hintText: hint,
@@ -423,7 +698,7 @@ class ProfileViewManager extends StatelessWidget {
     );
   }
 
-  Widget _buildDropdown(String hint, {double height = 48, required bool isDark}) {
+  Widget _buildDropdown(String hint, {double height = 48, required bool isDark, bool showArrow = true}) {
     return Container(
       height: height,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -436,13 +711,14 @@ class ProfileViewManager extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(hint, style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontSize: 14)),
-          Icon(Icons.keyboard_arrow_down, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+          if (showArrow)
+            Icon(Icons.keyboard_arrow_down, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
         ],
       ),
     );
   }
 
-  Widget _buildMemberListItem(BuildContext context, String name, String role, String initial, {Color iconColor = Colors.blue, required bool isDark}) {
+  Widget _buildMemberListItem(BuildContext context, String id, String name, String role, String initial, {Color iconColor = Colors.blue, required bool isDark}) {
     return Row(
       children: [
         Container(
@@ -466,20 +742,52 @@ class ProfileViewManager extends StatelessWidget {
             ],
           ),
         ),
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const EditMemberScreen()),
-            );
+        PopupMenuButton<String>(
+          icon: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          color: isDark ? AppDarkColors.surface : Colors.white,
+          onSelected: (value) {
+            if (value == 'edit') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EditMemberScreen()),
+              );
+            } else if (value == 'delete') {
+              _showDeleteConfirmation(
+                context,
+                isDark: isDark,
+                title: 'Konfirmasi Hapus',
+                message: 'Apakah anda yakin ingin menghapus orang?',
+                onConfirm: () {
+                  setState(() {
+                    _members.removeWhere((m) => m['id'] == id);
+                  });
+                },
+              );
+            }
           },
-          child: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 20),
+          itemBuilder: (BuildContext context) => [
+            PopupMenuItem<String>(
+              value: 'edit',
+              child: Text(
+                'Edit',
+                style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'delete',
+              child: Text(
+                'Hapus',
+                style: const TextStyle(color: AppColors.alertText),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildTeamListItem(BuildContext context, String name, Color iconColor, {required bool isDark}) {
+  Widget _buildTeamListItem(BuildContext context, String id, String name, Color iconColor, {required bool isDark}) {
     return Row(
       children: [
         Container(
@@ -497,16 +805,205 @@ class ProfileViewManager extends StatelessWidget {
         Expanded(
           child: Text(name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
         ),
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const EditTeamScreen()),
-            );
+        PopupMenuButton<String>(
+          icon: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          color: isDark ? AppDarkColors.surface : Colors.white,
+          onSelected: (value) {
+            if (value == 'edit') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EditTeamScreen()),
+              );
+            } else if (value == 'delete') {
+              _showDeleteConfirmation(
+                context,
+                isDark: isDark,
+                title: 'Konfirmasi Hapus',
+                message: 'Apakah anda yakin ingin menghapus tim?',
+                onConfirm: () {
+                  setState(() {
+                    _teams.removeWhere((t) => t['id'] == id);
+                  });
+                },
+              );
+            }
           },
-          child: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 20),
+          itemBuilder: (BuildContext context) => [
+            PopupMenuItem<String>(
+              value: 'edit',
+              child: Text(
+                'Edit',
+                style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'delete',
+              child: Text(
+                'Hapus',
+                style: const TextStyle(color: AppColors.alertText),
+              ),
+            ),
+          ],
         ),
       ],
     );
+  }
+
+  void _showDeleteConfirmation(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required bool isDark,
+    required VoidCallback onConfirm,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          content: Text(
+            message,
+            style: TextStyle(
+              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Tidak',
+                style: TextStyle(
+                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                onConfirm();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.alertText,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              child: const Text('Ya'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _inviteMember() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email tidak boleh kosong'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Format email tidak valid'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoadingInvitation = true);
+
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('profiles')
+          .select()
+          .eq('email', email)
+          .maybeSingle();
+
+      if (response == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email tidak ditemukan. Pastikan pengguna sudah terdaftar.'),
+              backgroundColor: AppColors.alertText,
+            ),
+          );
+        }
+        return;
+      }
+
+      final profile = response;
+      final profileId = profile['id'] as String;
+      final profileName = profile['nama'] as String;
+
+      final alreadyExists = _members.any((member) => member['id'] == profileId);
+      if (alreadyExists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Anggota sudah ada di daftar.'),
+              backgroundColor: AppColors.alertText,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _members.add({
+            'id': profileId,
+            'name': profileName,
+            'role': 'Anggota',
+            'initial': profileName.isNotEmpty ? profileName[0].toLowerCase() : 'u',
+            'color': Colors.blue,
+          });
+          _emailController.clear();
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Undangan berhasil dikirim!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengundang anggota: $e'),
+            backgroundColor: AppColors.alertText,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingInvitation = false);
+      }
+    }
   }
 }

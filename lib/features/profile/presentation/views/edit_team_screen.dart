@@ -35,22 +35,6 @@ class EditTeamScreen extends StatelessWidget {
                 ),
               ],
             ),
-            actions: [
-              Container(
-                margin: const EdgeInsets.only(right: 20),
-                decoration: BoxDecoration(
-                  color: isDark ? AppDarkColors.surface : const Color(0xFF020617),
-                  shape: BoxShape.circle,
-                  border: isDark ? Border.all(color: AppDarkColors.border) : null,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 20),
-                  onPressed: () => Navigator.pop(context),
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(8),
-                ),
-              ),
-            ],
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -120,29 +104,6 @@ class EditTeamScreen extends StatelessWidget {
                       const SizedBox(height: 24),
 
                       // Action Buttons
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFB91C1C),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            'Hapus',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
