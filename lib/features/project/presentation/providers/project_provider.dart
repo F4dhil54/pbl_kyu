@@ -50,6 +50,19 @@ class ProjectListNotifier extends StateNotifier<AsyncValue<List<ProjectModel>>> 
     }
   }
 
+  Future<void> updateProjectStatus(String id, bool statusAktif) async {
+    try {
+      await _repository.updateProjectStatus(id, statusAktif);
+      state.whenData((projects) {
+        state = AsyncValue.data(
+          projects.map((p) => p.id == id ? p.copyWith(statusAktif: statusAktif) : p).toList()
+        );
+      });
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+
   Future<void> deleteProject(String id) async {
     try {
       await _repository.deleteProject(id);
@@ -69,3 +82,80 @@ final projectListProvider = StateNotifierProvider<ProjectListNotifier, AsyncValu
 
 // A provider for search query
 final projectSearchQueryProvider = StateProvider<String>((ref) => '');
+
+// Provider to fetch members of a project
+final projectMembersProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, projectId) async {
+  if (projectId.startsWith('local-')) {
+    return [
+      {
+        'member_id': 'mock-1',
+        'user_id': 'mock-user-1',
+        'nama': 'Ahmad Fauzi',
+        'email': 'ahmad@example.com',
+        'avatar_url': '',
+        'role': 'Tim',
+      },
+      {
+        'member_id': 'mock-2',
+        'user_id': 'mock-user-2',
+        'nama': 'Siti Aminah',
+        'email': 'siti@example.com',
+        'avatar_url': '',
+        'role': 'Tim',
+      }
+    ];
+  }
+  final supabase = ref.watch(supabaseClientProvider);
+  try {
+    final response = await supabase
+        .from('project_members')
+        .select('id, user_id, profiles(id, nama, email, avatar_url, role)')
+        .eq('project_id', projectId)
+        .eq('status_akses', 'aktif');
+    
+    final list = response as List<dynamic>;
+    return list.map((item) {
+      final profile = item['profiles'] as Map<String, dynamic>? ?? {};
+      return {
+        'member_id': item['id'] as String,
+        'user_id': item['user_id'] as String,
+        'nama': profile['nama'] ?? 'Anggota',
+        'email': profile['email'] ?? '',
+        'avatar_url': profile['avatar_url'] ?? '',
+        'role': profile['role'] ?? 'Tim',
+      };
+    }).toList();
+  } catch (e) {
+    // Return empty list or local mock
+    return [
+      {
+        'member_id': 'mock-1',
+        'user_id': 'mock-user-1',
+        'nama': 'Ahmad Fauzi',
+        'email': 'ahmad@example.com',
+        'avatar_url': '',
+        'role': 'Tim',
+      },
+      {
+        'member_id': 'mock-2',
+        'user_id': 'mock-user-2',
+        'nama': 'Siti Aminah',
+        'email': 'siti@example.com',
+        'avatar_url': '',
+        'role': 'Tim',
+      }
+    ];
+  }
+});
+
+// Provider to fetch all registered user profiles
+final allProfilesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final supabase = ref.watch(supabaseClientProvider);
+  try {
+    final response = await supabase.from('profiles').select();
+    final list = response as List<dynamic>;
+    return list.map((e) => Map<String, dynamic>.from(e)).toList();
+  } catch (e) {
+    return [];
+  }
+});

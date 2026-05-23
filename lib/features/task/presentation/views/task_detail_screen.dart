@@ -108,7 +108,7 @@ class TaskDetailScreen extends StatelessWidget {
             ),
           ),
           floatingActionButton: FloatingActionButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateTaskScreen())),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateTaskScreen(projectId: ""))),
             backgroundColor: isDark ? Colors.white : Colors.black,
             child: Icon(Icons.add, color: isDark ? Colors.black : Colors.white, size: 28),
           ),
