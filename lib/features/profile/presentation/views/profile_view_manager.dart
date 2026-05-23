@@ -24,6 +24,39 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
   Uint8List? _selectedImageBytes;
   String? _selectedImageName;
   User? _currentUser;
+  final _emailController = TextEditingController();
+  bool _isLoadingInvitation = false;
+
+  // New state variables to support dynamic edit and delete
+  final List<Map<String, dynamic>> _members = [
+    {
+      'id': '1',
+      'name': 'Sukma Ananda',
+      'role': 'Project Lead',
+      'initial': 's',
+      'color': Colors.blue,
+    },
+    {
+      'id': '2',
+      'name': 'Dian Paramitha',
+      'role': 'Designer',
+      'initial': 'd',
+      'color': Colors.red,
+    },
+  ];
+
+  final List<Map<String, dynamic>> _teams = [
+    {
+      'id': '1',
+      'name': 'Tim Projek Brand Q4',
+      'color': Colors.blue,
+    },
+    {
+      'id': '2',
+      'name': 'Tim Projek Persiapan Audit Tahunan',
+      'color': Colors.red,
+    },
+  ];
 
   @override
   void initState() {
@@ -34,6 +67,7 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -390,22 +424,15 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Tambah Orang',
-                              style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 16),
-                            _buildTextField('Nama anggota baru...', isDark: isDark),
+                            _buildTextField('Email anggota baru...', isDark: isDark, controller: _emailController),
                             const SizedBox(height: 12),
-                            _buildTextField('Email anggota baru...', isDark: isDark),
-                            const SizedBox(height: 12),
-                            _buildDropdown('Jabatan: Anggota', isDark: isDark),
+                            _buildDropdown('Jabatan: Anggota', isDark: isDark, showArrow: false),
                             const SizedBox(height: 16),
                             SizedBox(
                               width: double.infinity,
                               height: 44,
                               child: ElevatedButton(
-                                onPressed: () {},
+                                onPressed: _isLoadingInvitation ? null : _inviteMember,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: isDark ? AppColors.primary : AppColors.buttonDark,
                                   foregroundColor: Colors.white,
@@ -414,16 +441,32 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
                                   ),
                                   elevation: 0,
                                 ),
-                                child: const Text('Kirim Undangan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                child: _isLoadingInvitation
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      )
+                                    : const Text('Kirim Undangan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                               ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 24),
-                      _buildMemberListItem(context, 'Sukma Ananda', 'Project Lead', 's', isDark: isDark),
-                      Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
-                      _buildMemberListItem(context, 'Dian Paramitha', 'Designer', 'd', iconColor: Colors.red, isDark: isDark),
+                      for (int i = 0; i < _members.length; i++) ...[
+                        _buildMemberListItem(
+                          context,
+                          _members[i]['id'] as String,
+                          _members[i]['name'] as String,
+                          _members[i]['role'] as String,
+                          _members[i]['initial'] as String,
+                          iconColor: _members[i]['color'] as Color,
+                          isDark: isDark,
+                        ),
+                        if (i < _members.length - 1)
+                          Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
+                      ],
                     ],
                   ),
                 ),
@@ -490,9 +533,17 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      _buildTeamListItem(context, 'Tim Projek Brand Q4', Colors.blue, isDark: isDark),
-                      Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
-                      _buildTeamListItem(context, 'Tim Projek Persiapan Audit Tahunan', Colors.red, isDark: isDark),
+                      for (int i = 0; i < _teams.length; i++) ...[
+                        _buildTeamListItem(
+                          context,
+                          _teams[i]['id'] as String,
+                          _teams[i]['name'] as String,
+                          _teams[i]['color'] as Color,
+                          isDark: isDark,
+                        ),
+                        if (i < _teams.length - 1)
+                          Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
+                      ],
                     ],
                   ),
                 ),
@@ -647,7 +698,7 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
     );
   }
 
-  Widget _buildDropdown(String hint, {double height = 48, required bool isDark}) {
+  Widget _buildDropdown(String hint, {double height = 48, required bool isDark, bool showArrow = true}) {
     return Container(
       height: height,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -660,13 +711,14 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(hint, style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontSize: 14)),
-          Icon(Icons.keyboard_arrow_down, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+          if (showArrow)
+            Icon(Icons.keyboard_arrow_down, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
         ],
       ),
     );
   }
 
-  Widget _buildMemberListItem(BuildContext context, String name, String role, String initial, {Color iconColor = Colors.blue, required bool isDark}) {
+  Widget _buildMemberListItem(BuildContext context, String id, String name, String role, String initial, {Color iconColor = Colors.blue, required bool isDark}) {
     return Row(
       children: [
         Container(
@@ -690,20 +742,52 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
             ],
           ),
         ),
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const EditMemberScreen()),
-            );
+        PopupMenuButton<String>(
+          icon: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          color: isDark ? AppDarkColors.surface : Colors.white,
+          onSelected: (value) {
+            if (value == 'edit') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EditMemberScreen()),
+              );
+            } else if (value == 'delete') {
+              _showDeleteConfirmation(
+                context,
+                isDark: isDark,
+                title: 'Konfirmasi Hapus',
+                message: 'Apakah anda yakin ingin menghapus orang?',
+                onConfirm: () {
+                  setState(() {
+                    _members.removeWhere((m) => m['id'] == id);
+                  });
+                },
+              );
+            }
           },
-          child: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 20),
+          itemBuilder: (BuildContext context) => [
+            PopupMenuItem<String>(
+              value: 'edit',
+              child: Text(
+                'Edit',
+                style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'delete',
+              child: Text(
+                'Hapus',
+                style: const TextStyle(color: AppColors.alertText),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildTeamListItem(BuildContext context, String name, Color iconColor, {required bool isDark}) {
+  Widget _buildTeamListItem(BuildContext context, String id, String name, Color iconColor, {required bool isDark}) {
     return Row(
       children: [
         Container(
@@ -721,16 +805,205 @@ class _ProfileViewManagerState extends State<ProfileViewManager> {
         Expanded(
           child: Text(name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
         ),
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const EditTeamScreen()),
-            );
+        PopupMenuButton<String>(
+          icon: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          color: isDark ? AppDarkColors.surface : Colors.white,
+          onSelected: (value) {
+            if (value == 'edit') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EditTeamScreen()),
+              );
+            } else if (value == 'delete') {
+              _showDeleteConfirmation(
+                context,
+                isDark: isDark,
+                title: 'Konfirmasi Hapus',
+                message: 'Apakah anda yakin ingin menghapus tim?',
+                onConfirm: () {
+                  setState(() {
+                    _teams.removeWhere((t) => t['id'] == id);
+                  });
+                },
+              );
+            }
           },
-          child: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 20),
+          itemBuilder: (BuildContext context) => [
+            PopupMenuItem<String>(
+              value: 'edit',
+              child: Text(
+                'Edit',
+                style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'delete',
+              child: Text(
+                'Hapus',
+                style: const TextStyle(color: AppColors.alertText),
+              ),
+            ),
+          ],
         ),
       ],
     );
+  }
+
+  void _showDeleteConfirmation(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required bool isDark,
+    required VoidCallback onConfirm,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          content: Text(
+            message,
+            style: TextStyle(
+              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Tidak',
+                style: TextStyle(
+                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                onConfirm();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.alertText,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              child: const Text('Ya'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _inviteMember() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email tidak boleh kosong'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Format email tidak valid'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoadingInvitation = true);
+
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('profiles')
+          .select()
+          .eq('email', email)
+          .maybeSingle();
+
+      if (response == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email tidak ditemukan. Pastikan pengguna sudah terdaftar.'),
+              backgroundColor: AppColors.alertText,
+            ),
+          );
+        }
+        return;
+      }
+
+      final profile = response;
+      final profileId = profile['id'] as String;
+      final profileName = profile['nama'] as String;
+
+      final alreadyExists = _members.any((member) => member['id'] == profileId);
+      if (alreadyExists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Anggota sudah ada di daftar.'),
+              backgroundColor: AppColors.alertText,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _members.add({
+            'id': profileId,
+            'name': profileName,
+            'role': 'Anggota',
+            'initial': profileName.isNotEmpty ? profileName[0].toLowerCase() : 'u',
+            'color': Colors.blue,
+          });
+          _emailController.clear();
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Undangan berhasil dikirim!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengundang anggota: $e'),
+            backgroundColor: AppColors.alertText,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingInvitation = false);
+      }
+    }
   }
 }
