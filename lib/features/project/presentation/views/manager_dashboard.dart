@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
+import 'package:pbl_kyu/shared/widgets/app_sidebar.dart';
 import '../../../profile/presentation/views/all_members_screen.dart';
 
 class ManagerDashboard extends StatelessWidget {
@@ -17,9 +18,16 @@ class ManagerDashboard extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+          drawer: const AppSidebar(),
           appBar: AppBar(
             backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
             elevation: 0,
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
             title: Text(
               'KYU',
               style: TextStyle(

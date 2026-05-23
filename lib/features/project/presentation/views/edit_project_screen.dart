@@ -25,7 +25,8 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
   late final List<String> _selectedLabels;
 
   late String _selectedCategory;
-  final List<String> _categories = ['MARKETING', 'IT INFRA', 'FINANCE', 'OPERATIONS'];
+  final List<String> _categories = ['Teknologi', 'Pemasaran', 'Operasional', 'Keuangan', 'Kreatif/Media', 'Lainnya'];
+  final TextEditingController _customCategoryController = TextEditingController();
 
   bool _isLoading = false;
 
@@ -35,7 +36,16 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
     _nameController = TextEditingController(text: widget.project.name);
     _descController = TextEditingController(text: widget.project.description);
     _githubController = TextEditingController(text: widget.project.githubRepo);
-    _selectedCategory = widget.project.category.toUpperCase();
+    
+    // Find matching category or set as "Lainnya"
+    final matchingCat = _categories.firstWhere(
+      (c) => c.toLowerCase() == widget.project.category.toLowerCase(),
+      orElse: () => 'Lainnya',
+    );
+    _selectedCategory = matchingCat;
+    if (_selectedCategory == 'Lainnya') {
+      _customCategoryController.text = widget.project.category;
+    }
     _selectedLabels = List.from(widget.project.labels);
 
     // Ensure initial label is in available list
@@ -51,6 +61,7 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
     _nameController.dispose();
     _descController.dispose();
     _githubController.dispose();
+    _customCategoryController.dispose();
     super.dispose();
   }
 
@@ -106,17 +117,31 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
       return;
     }
 
+    if (_selectedCategory == 'Lainnya' && _customCategoryController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kategori kustom tidak boleh kosong!'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
+      final finalCategory = _selectedCategory == 'Lainnya'
+          ? _customCategoryController.text.trim()
+          : _selectedCategory;
+
       final updatedProject = widget.project.copyWith(
         name: _nameController.text.trim(),
         description: _descController.text.trim(),
         labels: _selectedLabels,
         githubRepo: _githubController.text.trim(),
-        category: _selectedCategory,
+        category: finalCategory,
       );
 
       await ref.read(projectListProvider.notifier).updateProject(updatedProject);
@@ -262,6 +287,10 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
 
                         _buildInputLabel('KATEGORI PROYEK', isDark: isDark),
                         _buildCategoryDropdown(isDark: isDark),
+                        if (_selectedCategory == 'Lainnya') ...[
+                          const SizedBox(height: 12),
+                          _buildTextField(_customCategoryController, isDark: isDark),
+                        ],
                         const SizedBox(height: 20),
 
                         _buildInputLabel('PILIH LABEL', isDark: isDark),

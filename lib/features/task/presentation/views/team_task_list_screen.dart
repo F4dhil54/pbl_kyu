@@ -263,7 +263,7 @@ class TeamTaskListScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    if (bottomRightWidget != null) bottomRightWidget,
+                    ?bottomRightWidget,
                   ],
                 ),
               ],
