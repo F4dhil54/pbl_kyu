@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pbl_kyu/core/network/supabase_provider.dart';
+import 'package:pbl_kyu/core/theme/theme_mode.dart';
 
 // Notifier Status Loading
 class AuthLoadingNotifier extends Notifier<bool> {
@@ -88,10 +89,13 @@ class AuthController {
   }) async {
     _ref.read(authLoadingProvider.notifier).setWith(true);
     try {
-      await _supabase.auth.signInWithPassword(
+      final response = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
       );
+      if (response.user != null) {
+        await ThemeControl.loadTheme(response.user!.id);
+      }
       return true;
     } on AuthException catch (e) {
       if (context.mounted) {
@@ -168,5 +172,6 @@ class AuthController {
   // Fungsi Keluar Sistem
   Future<void> signOut() async {
     await _supabase.auth.signOut();
+    ThemeControl.resetTheme();
   }
 }
