@@ -200,6 +200,7 @@ class TaskViewManager extends StatelessWidget {
             ),
           ),
           floatingActionButton: FloatingActionButton(
+            heroTag: 'task_view_manager_fab',
             onPressed: () {},
             backgroundColor: AppColors.primary,
             child: const Icon(Icons.add, color: Colors.white),

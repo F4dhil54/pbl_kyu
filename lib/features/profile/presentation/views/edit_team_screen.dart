@@ -22,9 +22,6 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
 
   List<Map<String, dynamic>> _selectedMembers = [];
   List<Map<String, dynamic>> _availableMembers = [];
-  List<Map<String, dynamic>> _projects = [];
-  
-  String? _selectedProjectId;
 
   @override
   void initState() {
@@ -70,19 +67,10 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
         }
       }
 
-      // 3. Load user's projects
-      final projectsRes = await profileRepo.getProjects(user.id);
-
-      final List<Map<String, dynamic>> loadedProjects = projectsRes.map((p) => {
-        'id': p['id'] as String,
-        'name': p['nama_proyek'] as String,
-      }).toList();
-
       if (mounted) {
         setState(() {
           _selectedMembers = currentMembers;
           _availableMembers = availableMembers;
-          _projects = loadedProjects;
           _isLoading = false;
         });
       }
@@ -120,14 +108,7 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
       final memberIds = _selectedMembers.map((m) => m['id'] as String).toList();
       await profileRepo.syncTeamMembers(widget.teamId, memberIds);
 
-      // 3. If a project is selected, upsert members to project_members
-      if (_selectedProjectId != null && _selectedMembers.isNotEmpty) {
-        await profileRepo.upsertProjectMembers(
-          projectId: _selectedProjectId!,
-          memberIds: memberIds,
-          invitedBy: currentUser.id,
-        );
-      }
+
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -257,8 +238,6 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
                       _buildTagsInput(isDark: isDark),
                       const SizedBox(height: 20),
 
-                      _buildInputLabel('Pilih Proyek', isDark: isDark),
-                      _buildProjectDropdown(isDark: isDark),
                       const SizedBox(height: 32),
                       Divider(color: isDark ? AppDarkColors.border : AppColors.border),
                       const SizedBox(height: 24),
@@ -360,40 +339,7 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
     );
   }
 
-  Widget _buildProjectDropdown({required bool isDark}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.background : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedProjectId,
-          hint: Text(
-            'Opsional: Terapkan ke Proyek',
-            style: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 14),
-          ),
-          dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
-          isExpanded: true,
-          style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontSize: 14),
-          icon: Icon(Icons.keyboard_arrow_down, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
-          onChanged: (String? newValue) {
-            setState(() {
-              _selectedProjectId = newValue;
-            });
-          },
-          items: _projects.map<DropdownMenuItem<String>>((Map<String, dynamic> project) {
-            return DropdownMenuItem<String>(
-              value: project['id'] as String,
-              child: Text(project['name'] as String),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildTagsInput({required bool isDark}) {
     return Container(

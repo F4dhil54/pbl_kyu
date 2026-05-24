@@ -267,6 +267,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
           ),
           floatingActionButton: isManager
               ? FloatingActionButton(
+                  heroTag: 'project_list_fab',
                   onPressed: () {
                     Navigator.push(
                       context,

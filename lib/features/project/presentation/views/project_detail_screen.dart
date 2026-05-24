@@ -31,125 +31,287 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        return Consumer(
-          builder: (context, ref, child) {
-            final allProfilesAsync = ref.watch(allProfilesProvider);
-            final currentMembersAsync = ref.watch(projectMembersProvider(project.id));
-            final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
+        bool showTeamsTab = false;
 
-            return AlertDialog(
-              backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
-              title: Text(
-                'Undang Anggota Baru',
-                style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: SizedBox(
-                width: double.maxFinite,
-                height: 300,
-                child: allProfilesAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('Gagal memuat profil: $err')),
-                  data: (allProfiles) {
-                    return currentMembersAsync.when(
-                      loading: () => const Center(child: CircularProgressIndicator()),
-                      error: (err, stack) => Center(child: Text('Error: $err')),
-                      data: (members) {
-                        final memberUserIds = members.map((m) => m['user_id'] as String).toList();
-                        // Filter out users who are already in the project
-                        final nonMembers = allProfiles.where((p) => !memberUserIds.contains(p['id'])).toList();
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Consumer(
+              builder: (context, ref, child) {
+                final activeColleaguesAsync = ref.watch(managerActiveColleaguesProvider);
+                final currentMembersAsync = ref.watch(projectMembersProvider(project.id));
+                
+                final managerTeamsAsync = ref.watch(managerTeamsProvider);
+                final projectTeamsAsync = ref.watch(projectTeamsProvider(project.id));
 
-                        if (nonMembers.isEmpty) {
-                          return const Center(
-                            child: Text(
-                              'Semua pengguna sudah bergabung dalam proyek.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 14, color: Colors.grey),
+                final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
+
+                return AlertDialog(
+                  backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+                  title: Text(
+                    'Undang ke Proyek',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    height: 380,
+                    child: Column(
+                      children: [
+                        // Tab Selector
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => showTeamsTab = false),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: !showTeamsTab ? AppColors.primary : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Anggota',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: !showTeamsTab ? FontWeight.bold : FontWeight.normal,
+                                      color: !showTeamsTab ? AppColors.primary : Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          );
-                        }
-
-                        return ListView.builder(
-                          itemCount: nonMembers.length,
-                          itemBuilder: (context, index) {
-                            final profile = nonMembers[index];
-                            final nama = profile['nama'] ?? 'User';
-                            final email = profile['email'] ?? '';
-                            final role = profile['role'] ?? 'Tim';
-
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                                child: Text(nama.isNotEmpty ? nama[0].toUpperCase() : 'U', style: const TextStyle(color: AppColors.primary)),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => showTeamsTab = true),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: showTeamsTab ? AppColors.primary : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Tim',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: showTeamsTab ? FontWeight.bold : FontWeight.normal,
+                                      color: showTeamsTab ? AppColors.primary : Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              title: Text(nama, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
-                              subtitle: Text('$email • $role', style: const TextStyle(fontSize: 12)),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.person_add_alt_1, color: AppColors.primary),
-                                onPressed: () async {
-                                  try {
-                                    if (project.id.startsWith('local-')) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('$nama berhasil ditambahkan ke proyek (Lokal)!'),
-                                            backgroundColor: AppColors.successText,
-                                          ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // List View content
+                        Expanded(
+                          child: !showTeamsTab
+                              ? activeColleaguesAsync.when(
+                                  loading: () => const Center(child: CircularProgressIndicator()),
+                                  error: (err, stack) => Center(child: Text('Gagal memuat relasi: $err')),
+                                  data: (colleagues) {
+                                    return currentMembersAsync.when(
+                                      loading: () => const Center(child: CircularProgressIndicator()),
+                                      error: (err, stack) => Center(child: Text('Error: $err')),
+                                      data: (members) {
+                                        final memberUserIds = members.map((m) => m['user_id'] as String).toList();
+                                        final nonMembers = colleagues.where((c) => !memberUserIds.contains(c['id'])).toList();
+
+                                        if (nonMembers.isEmpty) {
+                                          return const Center(
+                                            child: Text(
+                                              'Semua relasi aktif Anda sudah bergabung dalam proyek.',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(fontSize: 13, color: Colors.grey),
+                                            ),
+                                          );
+                                        }
+
+                                        return ListView.builder(
+                                          itemCount: nonMembers.length,
+                                          itemBuilder: (context, index) {
+                                            final colleague = nonMembers[index];
+                                            final nama = colleague['nama'] ?? 'User';
+                                            final email = colleague['email'] ?? '';
+                                            final role = colleague['role'] ?? 'Tim';
+
+                                            return ListTile(
+                                              contentPadding: EdgeInsets.zero,
+                                              leading: CircleAvatar(
+                                                backgroundColor: AppColors.primary.withOpacity(0.1),
+                                                child: Text(nama.isNotEmpty ? nama[0].toUpperCase() : 'U', style: const TextStyle(color: AppColors.primary)),
+                                              ),
+                                              title: Text(nama, style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 14)),
+                                              subtitle: Text('$email • $role', style: const TextStyle(fontSize: 11)),
+                                              trailing: IconButton(
+                                                icon: const Icon(Icons.person_add_alt_1, color: AppColors.primary),
+                                                onPressed: () async {
+                                                  try {
+                                                    final supabase = ref.read(supabaseClientProvider);
+                                                    final user = supabase.auth.currentUser;
+                                                    await supabase.from('project_members').insert({
+                                                      'project_id': project.id,
+                                                      'user_id': colleague['id'],
+                                                      'invited_by': user?.id,
+                                                      'status_akses': 'aktif',
+                                                    });
+
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text('$nama berhasil ditambahkan ke proyek!'),
+                                                          backgroundColor: AppColors.successText,
+                                                        ),
+                                                      );
+                                                    }
+                                                    ref.invalidate(projectMembersProvider(project.id));
+                                                    if (dialogContext.mounted) {
+                                                      Navigator.pop(dialogContext);
+                                                    }
+                                                  } catch (e) {
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text('Gagal menambahkan anggota: $e'),
+                                                          backgroundColor: AppColors.alertText,
+                                                        ),
+                                                      );
+                                                    }
+                                                  }
+                                                },
+                                              ),
+                                            );
+                                          },
                                         );
-                                      }
-                                      if (dialogContext.mounted) {
-                                       Navigator.pop(dialogContext);
-                                     }
-                                      return;
-                                    }
-                                    final supabase = ref.read(supabaseClientProvider);
-                                    await supabase.from('project_members').insert({
-                                      'project_id': project.id,
-                                      'user_id': profile['id'],
-                                      'status_akses': 'aktif',
-                                    });
+                                      },
+                                    );
+                                  },
+                                )
+                              : managerTeamsAsync.when(
+                                  loading: () => const Center(child: CircularProgressIndicator()),
+                                  error: (err, stack) => Center(child: Text('Gagal memuat tim: $err')),
+                                  data: (teams) {
+                                    return projectTeamsAsync.when(
+                                      loading: () => const Center(child: CircularProgressIndicator()),
+                                      error: (err, stack) => Center(child: Text('Error: $err')),
+                                      data: (pTeams) {
+                                        final projectTeamIds = pTeams.map((pt) => pt['team_id'] as String).toList();
+                                        final nonProjectTeams = teams.where((t) => !projectTeamIds.contains(t['id'])).toList();
 
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('$nama berhasil ditambahkan ke proyek!'),
-                                          backgroundColor: AppColors.successText,
-                                        ),
-                                      );
-                                    }
-                                     ref.invalidate(projectMembersProvider(project.id));
-                                     if (dialogContext.mounted) {
-                                       Navigator.pop(dialogContext);
-                                     }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Gagal menambahkan anggota: $e'),
-                                          backgroundColor: AppColors.alertText,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-                ),
-              ],
+                                        if (nonProjectTeams.isEmpty) {
+                                          return const Center(
+                                            child: Text(
+                                              'Semua tim Anda sudah diundang ke proyek.',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(fontSize: 13, color: Colors.grey),
+                                            ),
+                                          );
+                                        }
+
+                                        return ListView.builder(
+                                          itemCount: nonProjectTeams.length,
+                                          itemBuilder: (context, index) {
+                                            final team = nonProjectTeams[index];
+                                            final namaTim = team['nama_tim'] ?? 'Grup Tim';
+                                            final deskripsi = team['deskripsi'] ?? '';
+
+                                            return ListTile(
+                                              contentPadding: EdgeInsets.zero,
+                                              leading: CircleAvatar(
+                                                backgroundColor: Colors.amber.withOpacity(0.1),
+                                                child: const Icon(Icons.group, color: Colors.amber),
+                                              ),
+                                              title: Text(namaTim, style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 14)),
+                                              subtitle: Text(deskripsi, style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                              trailing: IconButton(
+                                                icon: const Icon(Icons.group_add, color: AppColors.primary),
+                                                onPressed: () async {
+                                                  try {
+                                                    final supabase = ref.read(supabaseClientProvider);
+                                                    final user = supabase.auth.currentUser;
+                                                    if (user == null) return;
+
+                                                    // 1. Fetch team members
+                                                    final teamMembersRes = await supabase
+                                                        .from('team_members')
+                                                        .select('user_id')
+                                                        .eq('team_id', team['id']);
+                                                    
+                                                    final teamMembersList = teamMembersRes as List<dynamic>;
+
+                                                    // 2. Insert each team member to project_members
+                                                    for (final tm in teamMembersList) {
+                                                      await supabase.from('project_members').upsert({
+                                                        'project_id': project.id,
+                                                        'user_id': tm['user_id'],
+                                                        'invited_by': user.id,
+                                                        'status_akses': 'aktif',
+                                                      }, onConflict: 'project_id, user_id');
+                                                    }
+
+                                                    // 3. Insert relationship into project_teams
+                                                    await supabase.from('project_teams').insert({
+                                                      'project_id': project.id,
+                                                      'team_id': team['id'],
+                                                    });
+
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text('Tim $namaTim berhasil diundang ke proyek!'),
+                                                          backgroundColor: AppColors.successText,
+                                                        ),
+                                                      );
+                                                    }
+                                                    ref.invalidate(projectMembersProvider(project.id));
+                                                    ref.invalidate(projectTeamsProvider(project.id));
+                                                    if (dialogContext.mounted) {
+                                                      Navigator.pop(dialogContext);
+                                                    }
+                                                  } catch (e) {
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text('Gagal mengundang tim: $e'),
+                                                          backgroundColor: AppColors.alertText,
+                                                        ),
+                                                      );
+                                                    }
+                                                  }
+                                                },
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
@@ -170,7 +332,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 Navigator.pop(dialogContext);
                 try {
                   await ref.read(projectTaskListProvider(task.projectId).notifier)
-                      .approveOrRejectTask(task.id, 'Tidak Setujui', 'draft');
+                      .approveOrRejectTask(task.id, 'Tidak Setujui', 'Ditinjau');
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -232,8 +394,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         widget.project;
 
     final user = Supabase.instance.client.auth.currentUser;
-    final role = user?.userMetadata?['role'] ?? 'Tim';
-    final isManager = role == 'Manajer';
+    final isManager = project.creatorId == user?.id;
+    final role = isManager ? 'Manajer' : 'Tim';
 
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeControl.themeNotifier,
@@ -336,7 +498,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'Tenggat: ${project.date}',
+                                  'Diposting: ${project.date}',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
@@ -427,12 +589,14 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           ),
           floatingActionButton: _activeTabIndex == 0
               ? FloatingActionButton(
+                  heroTag: 'project_detail_fab',
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => CreateTaskScreen(
                           projectId: project.id,
+                          isManager: isManager,
                         ),
                       ),
                     );
@@ -461,7 +625,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Tugas Aktif Proyek',
+                activeFilter == 'Draft Tugas Saya' ? 'Draft Tugas Saya' : 'Tugas Aktif Proyek',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -528,9 +692,9 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                     value: 'Tugas Aktif',
                     child: Row(
                       children: [
-                        Icon(Icons.play_arrow_outlined, color: activeFilter == 'Tugas Aktif' ? AppColors.primary : Colors.grey),
+                        Icon(Icons.play_arrow_outlined, color: (activeFilter == 'Tugas Aktif' || activeFilter == 'Tugas Aktif Proyek' || activeFilter == 'Draft Tugas Saya') ? AppColors.primary : Colors.grey),
                         const SizedBox(width: 8),
-                        Text('Tugas Aktif', style: TextStyle(color: activeFilter == 'Tugas Aktif' ? AppColors.primary : null)),
+                        Text('Tugas Aktif', style: TextStyle(color: (activeFilter == 'Tugas Aktif' || activeFilter == 'Tugas Aktif Proyek' || activeFilter == 'Draft Tugas Saya') ? AppColors.primary : null)),
                       ],
                     ),
                   ),
@@ -566,6 +730,40 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   ),
                 ],
               ),
+            ] else ...[
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.filter_alt_outlined,
+                  color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                ),
+                tooltip: 'Filter Status Tugas',
+                onSelected: (value) {
+                  ref.read(taskFilterProvider.notifier).state = value;
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'Tugas Aktif Proyek',
+                    child: Row(
+                      children: [
+                        Icon(Icons.play_arrow_outlined, color: (activeFilter != 'Draft Tugas Saya') ? AppColors.primary : Colors.grey),
+                        const SizedBox(width: 8),
+                        Text('Tugas Aktif Proyek', style: TextStyle(color: (activeFilter != 'Draft Tugas Saya') ? AppColors.primary : null)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'Draft Tugas Saya',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_document, color: activeFilter == 'Draft Tugas Saya' ? AppColors.primary : Colors.grey),
+                        const SizedBox(width: 8),
+                        Text('Draft Tugas Saya', style: TextStyle(color: activeFilter == 'Draft Tugas Saya' ? AppColors.primary : null)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
           ],
         ),
@@ -576,21 +774,71 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => Center(child: Text('Gagal memuat tugas: $err')),
           data: (allTasks) {
-            // Apply Manager role filters
+            // Apply strict Gembok Hak Akses for Tim members on the raw list
+            final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+            List<TaskModel> visibleTasks = allTasks;
+            if (!isManager) {
+              final now = DateTime.now();
+              visibleTasks = allTasks.where((t) {
+                // 1. Tugas aktif yang sudah di-acc manajer
+                if (t.statusTugas == 'Akan Dikerjakan') return true;
+                // 2. Tugas yang sudah selesai
+                if (t.statusTugas == 'Selesai') return true;
+                // 3. Tugas terjadwal yang sudah tiba waktunya
+                if (t.statusTugas == 'Dijadwalkan' && t.scheduledFor != null && t.scheduledFor!.isBefore(now)) {
+                  return true;
+                }
+                // 4. Tugas review (usulan Tim) yang dibuat oleh anggota ini sendiri
+                if (t.statusTugas == 'Ditinjau' && t.createdBy == currentUserId) {
+                  return true;
+                }
+                return false;
+              }).toList();
+            }
+
+            // Apply Manager vs Team filters
             List<TaskModel> filteredList = [];
             if (isManager) {
-              if (activeFilter == 'Tugas Aktif') {
-                filteredList = allTasks.where((t) => t.statusTugas == 'Akan Dikerjakan' || t.statusTugas == 'Sedang Dikerjakan').toList();
+              if (activeFilter == 'Tugas Aktif' || activeFilter == 'Tugas Aktif Proyek') {
+                // Manajer: tampilkan tugas aktif (accept) dan selesai
+                filteredList = visibleTasks.where((t) => t.statusTugas == 'Akan Dikerjakan' || t.statusTugas == 'Selesai').toList();
               } else if (activeFilter == 'Draft Manajer') {
-                filteredList = allTasks.where((t) => t.dibuatOlehRole == 'Manajer' && t.statusTugas == 'draft').toList();
+                // Manajer: draft privat yang dibuat manajer
+                filteredList = visibleTasks.where((t) =>
+                  t.dibuatOlehRole == 'Manajer' &&
+                  t.statusTugas == 'Draft' &&
+                  t.scheduledFor == null
+                ).toList();
               } else if (activeFilter == 'Draft Tim') {
-                filteredList = allTasks.where((t) => t.dibuatOlehRole == 'Tim' && t.statusTugas == 'draft').toList();
+                // Manajer: usulan dari anggota Tim yang menunggu persetujuan
+                filteredList = visibleTasks.where((t) =>
+                  t.dibuatOlehRole == 'Tim' &&
+                  t.statusTugas == 'Ditinjau' &&
+                  t.keputusanManajer == 'Menunggu'
+                ).toList();
               } else if (activeFilter == 'Dijadwalkan') {
-                filteredList = allTasks.where((t) => t.statusTugas == 'scheduled').toList();
+                filteredList = visibleTasks.where((t) => t.statusTugas == 'Dijadwalkan').toList();
+              } else {
+                // Default fallback
+                filteredList = visibleTasks.where((t) => t.statusTugas == 'Akan Dikerjakan' || t.statusTugas == 'Selesai').toList();
               }
             } else {
-              // Team members only see active tasks
-              filteredList = allTasks.where((t) => t.statusTugas == 'Akan Dikerjakan' || t.statusTugas == 'Sedang Dikerjakan' || t.statusTugas == 'Selesai').toList();
+              if (activeFilter == 'Draft Tugas Saya') {
+                // Anggota Tim: usulan tugas yang dibuat oleh diri sendiri (menunggu / ditolak)
+                filteredList = visibleTasks.where((t) =>
+                  t.dibuatOlehRole == 'Tim' &&
+                  t.statusTugas == 'Ditinjau' &&
+                  t.createdBy == currentUserId
+                ).toList();
+              } else {
+                // Default: hanya tugas aktif (sudah disetujui manajer)
+                final now = DateTime.now();
+                filteredList = visibleTasks.where((t) =>
+                  t.statusTugas == 'Akan Dikerjakan' ||
+                  t.statusTugas == 'Selesai' ||
+                  (t.statusTugas == 'Dijadwalkan' && t.scheduledFor != null && t.scheduledFor!.isBefore(now))
+                ).toList();
+              }
             }
 
             // Apply Eisenhower priority visual classifications
@@ -719,6 +967,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             : (task.prioritas == 'Schedule' ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6)));
 
     final String visualCategory = isDone ? 'Done' : task.prioritas;
+    final String? currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
     return GestureDetector(
       onTap: () {
@@ -742,20 +991,59 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    visualCategory.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: categoryColor,
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: categoryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        visualCategory.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: categoryColor,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (task.dibuatOlehRole == 'Tim') ...[
+                      const SizedBox(width: 8),
+                      if (task.statusTugas == 'Ditinjau' && task.keputusanManajer == 'Menunggu')
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'DITINJAU',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber,
+                            ),
+                          ),
+                        )
+                      else if (task.keputusanManajer == 'Tidak Setujui')
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'TIDAK DISETUJUI',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ],
                 ),
                 // Option edit/delete or draft actions
                 if (isManager && task.dibuatOlehRole == 'Tim' && task.keputusanManajer == 'Menunggu')
@@ -778,7 +1066,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => CreateTaskScreen(projectId: task.projectId, taskToEdit: task),
+                                builder: (context) => CreateTaskScreen(projectId: task.projectId, taskToEdit: task, isManager: isManager),
                               ),
                             );
                           } else if (val == 'hapus') {
@@ -798,7 +1086,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                       ),
                     ],
                   )
-                else if (isManager)
+                else if (isManager || (!isManager && task.dibuatOlehRole == 'Tim' && task.statusTugas == 'Ditinjau' && task.createdBy == currentUserId))
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert, size: 18),
                     onSelected: (val) {
@@ -806,7 +1094,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => CreateTaskScreen(projectId: task.projectId, taskToEdit: task),
+                            builder: (context) => CreateTaskScreen(projectId: task.projectId, taskToEdit: task, isManager: isManager),
                           ),
                         );
                       } else if (val == 'hapus') {
@@ -880,11 +1168,6 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 color: isDark ? AppDarkColors.textMain : AppColors.textMain,
               ),
             ),
-            if (isManager)
-              IconButton(
-                onPressed: () => _showInviteMemberDialog(context, project),
-                icon: const Icon(Icons.person_add_rounded, color: AppColors.primary),
-              ),
           ],
         ),
         const SizedBox(height: 8),
@@ -913,13 +1196,23 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        Text(
-          'Anggota Tim Tergabung',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Anggota Tim Tergabung',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+              ),
+            ),
+            if (isManager)
+              IconButton(
+                onPressed: () => _showInviteMemberDialog(context, project),
+                icon: const Icon(Icons.person_add_rounded, color: AppColors.primary),
+              ),
+          ],
         ),
         const SizedBox(height: 12),
         membersAsync.when(

@@ -37,13 +37,9 @@ class CollabView extends StatelessWidget {
               ),
             ),
             actions: [
-              Image.asset(
-                'image/ic_search.png',
-                width: 24,
-                errorBuilder: (context, error, stackTrace) => Icon(
-                  Icons.search, 
-                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
-                ),
+              Icon(
+                Icons.search_rounded,
+                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
               ),
               const SizedBox(width: 16),
               const ProfileAvatarButton(),
@@ -210,6 +206,7 @@ class CollabView extends StatelessWidget {
             ),
           ),
           floatingActionButton: FloatingActionButton(
+            heroTag: 'collab_view_fab',
             onPressed: () {
               Navigator.push(
                 context,

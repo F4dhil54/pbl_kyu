@@ -19,6 +19,8 @@ class TaskModel {
   // Custom relations
   final List<String> assignees; // User IDs
   final List<AttachmentModel> attachments;
+  final String? projectTeamId;
+  final String? projectMemberId;
 
   TaskModel({
     required this.id,
@@ -37,9 +39,16 @@ class TaskModel {
     this.scheduledFor,
     required this.assignees,
     required this.attachments,
+    this.projectTeamId,
+    this.projectMemberId,
   });
 
-  factory TaskModel.fromJson(Map<String, dynamic> json, {List<String>? assignees, List<AttachmentModel>? attachments}) {
+  factory TaskModel.fromJson(Map<String, dynamic> json, {
+    List<String>? assignees,
+    List<AttachmentModel>? attachments,
+    String? projectTeamId,
+    String? projectMemberId,
+  }) {
     DateTime? dl;
     if (json['deadline'] != null) {
       dl = DateTime.tryParse(json['deadline'] as String);
@@ -50,14 +59,27 @@ class TaskModel {
     }
 
     // KONVERSI DARI DATABASE (lowercase) KE TEKS UI INDONESIA
-    String rawStatus = json['status_tugas'] as String? ?? 'draft';
+    String rawStatus = (json['status_tugas'] as String? ?? 'draft').toLowerCase().trim();
     String uiStatus;
     switch (rawStatus) {
-      case 'draft': uiStatus = 'Draft'; break;
-      case 'review': uiStatus = 'Sedang Direview'; break;
-      case 'accept': uiStatus = 'Akan Dikerjakan'; break;
-      case 'done': uiStatus = 'Selesai'; break;
-      default: uiStatus = 'Akan Dikerjakan';
+      case 'draft':
+      case 'draf':
+        uiStatus = 'Draft';
+        break;
+      case 'review':
+        uiStatus = 'Ditinjau';
+        break;
+      case 'accept':
+        uiStatus = 'Akan Dikerjakan';
+        break;
+      case 'done':
+        uiStatus = 'Selesai';
+        break;
+      case 'scheduled':
+        uiStatus = 'Dijadwalkan';
+        break;
+      default:
+        uiStatus = 'Akan Dikerjakan';
     }
 
     return TaskModel(
@@ -77,22 +99,37 @@ class TaskModel {
       scheduledFor: sf,
       assignees: assignees ?? [],
       attachments: attachments ?? [],
+      projectTeamId: projectTeamId,
+      projectMemberId: projectMemberId,
     );
   }
 
   Map<String, dynamic> toJson() {
     // KONVERSI DARI TEKS UI INDONESIA KE KEYWORD DATABASE (lowercase)
     String dbStatus;
-    switch (statusTugas) {
-      case 'Draft':
-      case 'draft': dbStatus = 'draft'; break;
-      case 'Sedang Direview':
-      case 'review': dbStatus = 'review'; break;
-      case 'Akan Dikerjakan':
-      case 'accept': dbStatus = 'accept'; break;
-      case 'Selesai':
-      case 'done': dbStatus = 'done'; break;
-      default: dbStatus = 'draft'; // Fallback aman sesuai default struktur tabel
+    switch (statusTugas.toLowerCase().trim()) {
+      case 'draft':
+      case 'draf':
+        dbStatus = 'draft';
+        break;
+      case 'ditinjau':
+      case 'review':
+        dbStatus = 'review';
+        break;
+      case 'akan dikerjakan':
+      case 'accept':
+        dbStatus = 'accept';
+        break;
+      case 'selesai':
+      case 'done':
+        dbStatus = 'done';
+        break;
+      case 'dijadwalkan':
+      case 'scheduled':
+        dbStatus = 'scheduled';
+        break;
+      default:
+        dbStatus = 'draft'; // Fallback aman sesuai default struktur tabel
     }
 
     return {
@@ -129,6 +166,8 @@ class TaskModel {
     DateTime? scheduledFor,
     List<String>? assignees,
     List<AttachmentModel>? attachments,
+    String? projectTeamId,
+    String? projectMemberId,
   }) {
     return TaskModel(
       id: id ?? this.id,
@@ -147,6 +186,8 @@ class TaskModel {
       scheduledFor: scheduledFor ?? this.scheduledFor,
       assignees: assignees ?? this.assignees,
       attachments: attachments ?? this.attachments,
+      projectTeamId: projectTeamId ?? this.projectTeamId,
+      projectMemberId: projectMemberId ?? this.projectMemberId,
     );
   }
 }

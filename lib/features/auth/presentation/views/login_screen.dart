@@ -8,6 +8,8 @@ import '../../../../core/theme/theme_mode.dart';
 import '../../../../core/network/supabase_provider.dart';
 import 'package:pbl_kyu/features/auth/providers/auth_provider.dart';
 
+import 'package:pbl_kyu/shared/providers/navigation_provider.dart';
+
 import 'register_screen.dart';
 import 'onboarding_screen.dart';
 import 'forgot_password_screen.dart';
@@ -38,6 +40,50 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isGoogleAuthFlowActive = false; 
   StreamSubscription<AuthState>? _authStateSubscription;
 
+  Future<void> _fetchRoleAndNavigate(String userId) async {
+    setState(() {
+      _isGoogleLoading = true;
+    });
+
+    try {
+      final supabase = ref.read(supabaseClientProvider);
+      final response = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+      
+      final dbRole = response['role'] as String? ?? 'Tim';
+
+      // Reset navigation index to 0 (Task 8)
+      ref.read(navigationIndexProvider.notifier).state = 0;
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MainLayout(role: dbRole),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengambil data profil dari database: $e'),
+            backgroundColor: AppColors.alertText ?? Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGoogleLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -45,20 +91,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _passwordController.clear();
 
     // Dengarkan perubahan sesi untuk menangani kembalinya pengguna dari halaman Google OAuth
-    _authStateSubscription = ref.read(supabaseClientProvider).auth.onAuthStateChange.listen((data) {
+    _authStateSubscription = ref.read(supabaseClientProvider).auth.onAuthStateChange.listen((data) async {
       final AuthChangeEvent event = data.event;
       final Session? session = data.session;
 
       if (event == AuthChangeEvent.signedIn && session != null) {
-        // Hanya arahkan langsung jika login dipicu oleh alur Google dan peran sudah dipilih
-        if (mounted && selectedRole != null && _isGoogleAuthFlowActive) {
+        // Hanya arahkan langsung jika login dipicu oleh alur Google
+        if (mounted && _isGoogleAuthFlowActive) {
           _isGoogleAuthFlowActive = false;
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MainLayout(role: selectedRole!),
-            ),
-          );
+          await _fetchRoleAndNavigate(session.user.id);
         }
       }
     });
@@ -80,6 +121,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       final authController = ref.read(authControllerProvider);
       
+      setState(() {
+        _isGoogleLoading = true;
+      });
+      
       final success = await authController.loginWithEmail(
         context: context,
         email: _emailController.text.trim(),
@@ -88,12 +133,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       // Jika login sukses, arahkan ke halaman Layout Utama sesuai Role
       if (success && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MainLayout(role: selectedRole!),
-          ),
-        );
+        final supabase = ref.read(supabaseClientProvider);
+        final user = supabase.auth.currentUser;
+        if (user != null) {
+          await _fetchRoleAndNavigate(user.id);
+        } else {
+          ref.read(navigationIndexProvider.notifier).state = 0;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MainLayout(role: selectedRole ?? 'Tim'),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isGoogleLoading = false;
+          });
+        }
       }
     }
   }
