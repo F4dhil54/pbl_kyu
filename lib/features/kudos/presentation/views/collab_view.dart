@@ -245,7 +245,7 @@ class CollabView extends StatelessWidget {
         border: isFirst ? null : Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -263,7 +263,7 @@ class CollabView extends StatelessWidget {
                 height: 56,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isFirst ? Colors.white.withOpacity(0.1) : (isDark ? AppDarkColors.background : AppColors.inputBackground),
+                  color: isFirst ? Colors.white.withValues(alpha: 0.1) : (isDark ? AppDarkColors.background : AppColors.inputBackground),
                   border: Border.all(color: avatarColor, width: 2),
                 ),
                 child: Center(
@@ -355,7 +355,7 @@ class CollabView extends StatelessWidget {
         border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.1 : 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

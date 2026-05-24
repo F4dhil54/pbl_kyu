@@ -584,7 +584,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                             decoration: BoxDecoration(
                               color: isDark ? AppDarkColors.background : Colors.white,
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: _isHoliday ? AppColors.alertText.withOpacity(0.5) : (isDark ? AppDarkColors.border : AppColors.border)),
+                              border: Border.all(color: _isHoliday ? AppColors.alertText.withValues(alpha: 0.5) : (isDark ? AppDarkColors.border : AppColors.border)),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -608,7 +608,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                             decoration: BoxDecoration(
                               color: isDark ? const Color(0xFF4A1D1D) : const Color(0xFFFFF5F5),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.alertText.withOpacity(0.3)),
+                              border: Border.all(color: AppColors.alertText.withValues(alpha: 0.3)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -828,7 +828,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
           });
         }
       },
-      selectedColor: color.withOpacity(0.2),
+      selectedColor: color.withValues(alpha: 0.2),
       backgroundColor: isDark ? AppDarkColors.background : Colors.grey[100],
       labelStyle: TextStyle(
         color: isSelected ? color : (isDark ? AppDarkColors.textMain : AppColors.textMain),

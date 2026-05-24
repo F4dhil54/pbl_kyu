@@ -488,8 +488,8 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
             Chip(
               label: Text(_activeTask.prioritas.toUpperCase()),
               backgroundColor: _activeTask.prioritas == 'Do' 
-                  ? Colors.red.withOpacity(0.1) 
-                  : (_activeTask.prioritas == 'Schedule' ? Colors.orange.withOpacity(0.1) : Colors.blue.withOpacity(0.1)),
+                  ? Colors.red.withValues(alpha: 0.1) 
+                  : (_activeTask.prioritas == 'Schedule' ? Colors.orange.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1)),
               labelStyle: TextStyle(
                 color: _activeTask.prioritas == 'Do' 
                     ? Colors.red 
@@ -524,7 +524,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
               children: assignedMembers.map((m) {
                 return Chip(
                   avatar: CircleAvatar(
-                    backgroundColor: AppColors.primary.withOpacity(0.2),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.2),
                     child: Text(m['nama'][0].toUpperCase(), style: const TextStyle(color: AppColors.primary, fontSize: 10)),
                   ),
                   label: Text(m['nama']),
@@ -624,7 +624,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         CircleAvatar(
-                          backgroundColor: AppColors.primary.withOpacity(0.1),
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                           child: Text(name[0].toUpperCase(), style: const TextStyle(color: AppColors.primary)),
                         ),
                         const SizedBox(width: 12),
@@ -708,9 +708,9 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: priorityColor.withOpacity(0.1),
+                color: priorityColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: priorityColor.withOpacity(0.3)),
+                border: Border.all(color: priorityColor.withValues(alpha: 0.3)),
               ),
               child: Text(
                 isDone ? 'DONE' : _activeTask.prioritas.toUpperCase(),
@@ -737,7 +737,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                 child: Icon(
                   _isFocusSession ? Icons.timer_outlined : Icons.coffee_outlined,
                   size: 120,
-                  color: Colors.white.withOpacity(0.06),
+                  color: Colors.white.withValues(alpha: 0.06),
                 ),
               ),
               Column(

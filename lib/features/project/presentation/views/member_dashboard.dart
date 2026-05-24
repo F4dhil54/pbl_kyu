@@ -94,7 +94,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.pendingText.withOpacity(0.2) : AppColors.pending,
+                        color: isDark ? AppColors.pendingText.withValues(alpha: 0.2) : AppColors.pending,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Text(

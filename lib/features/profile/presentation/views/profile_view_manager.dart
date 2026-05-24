@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'notification_preference_item.dart';
 import 'package:pbl_kyu/features/auth/presentation/views/onboarding_screen.dart';
 import 'package:pbl_kyu/core/theme/colors.dart';
 import 'package:pbl_kyu/core/theme/theme_mode.dart';
@@ -741,73 +742,66 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                 ),
                 const SizedBox(height: 16),
 
-                // Mode Terang & Notifikasi
-                Row(
-                  children: [
-                    // Tema
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          ThemeControl.toggleTheme();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppDarkColors.surface : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                isDark ? Icons.dark_mode : Icons.light_mode,
-                                color: isDark ? Colors.amberAccent : Colors.orange,
-                                size: 28,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                isDark ? 'Mode Gelap' : 'Mode Terang',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    
-                    // Notifikasi
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppDarkColors.surface : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                // Bagian Pengaturan Aplikasi
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'PENGATURAN APLIKASI', 
+                    style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 10)
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppDarkColors.surface : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
+                  ),
+                  child: Column(
+                    children: [
+                      // Theme Toggle
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
                           children: [
-                            Icon(Icons.notifications_none, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 28),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Notifikasi',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: isDark ? AppDarkColors.background : AppColors.inputBackground,
+                              child: Icon(isDark ? Icons.dark_mode : Icons.light_mode, color: isDark ? Colors.amberAccent : Colors.orange, size: 20),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isDark ? 'Mode Gelap' : 'Mode Terang',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Sesuaikan tema visual aplikasi',
+                                    style: TextStyle(fontSize: 12, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+                                  ),
+                                ],
                               ),
+                            ),
+                            Switch.adaptive(
+                              value: isDark,
+                              onChanged: (val) {
+                                ThemeControl.toggleTheme();
+                              },
+                              activeTrackColor: AppColors.primary,
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ],
+                      Divider(height: 1, indent: 72, endIndent: 16, color: isDark ? AppDarkColors.border : AppColors.border),
+                      
+                      // Notifikasi Suara
+                      NotificationPreferenceItem(isDark: isDark),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 32),
 
@@ -1033,7 +1027,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: iconColor.withOpacity(0.15),
+                      color: iconColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: iconColor, width: 0.5),
                     ),

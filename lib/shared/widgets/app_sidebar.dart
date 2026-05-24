@@ -47,7 +47,7 @@ class AppSidebar extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -184,7 +184,7 @@ class AppSidebar extends ConsumerWidget {
                         ),
                         trailing: Switch.adaptive(
                           value: isDark,
-                          activeColor: AppColors.primary,
+                          activeTrackColor: AppColors.primary,
                           onChanged: (val) {
                             ThemeControl.toggleTheme();
                           },
@@ -286,7 +286,7 @@ class AppSidebar extends ConsumerWidget {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: isSelected ? activeColor.withOpacity(0.08) : Colors.transparent,
+        color: isSelected ? activeColor.withValues(alpha: 0.08) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(

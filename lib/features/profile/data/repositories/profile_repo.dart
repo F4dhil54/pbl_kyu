@@ -140,6 +140,16 @@ class ProfileRepository {
       'role': role,
       'status': status,
     });
+
+    // Send Notification
+    await _supabaseClient.from('notifications').insert({
+      'user_id': userId,
+      'sender_id': invitedBy,
+      'tipe_notifikasi': 'undangan',
+      'judul': 'Undangan Bergabung',
+      'pesan': 'Anda telah diundang untuk bergabung sebagai $role.',
+      'is_read': false,
+    });
   }
 
   // Delete invitation/member
