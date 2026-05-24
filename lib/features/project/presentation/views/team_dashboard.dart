@@ -212,7 +212,7 @@ class TeamDashboard extends StatelessWidget {
           border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
           boxShadow: isDark ? null : [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

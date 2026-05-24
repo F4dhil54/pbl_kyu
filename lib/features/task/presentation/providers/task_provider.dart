@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import '../../../../core/network/supabase_provider.dart';
@@ -127,7 +128,7 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
       );
     } catch (e) {
       // Log error internally, do not set state error since it doesn't affect list UI directly
-      print("Failed logging pomodoro session: $e");
+      debugPrint("Failed logging pomodoro session: $e");
     }
   }
 

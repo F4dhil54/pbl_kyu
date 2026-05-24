@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import '../../../auth/presentation/views/login_screen.dart';
+import 'notification_preference_item.dart';
 
 class ProfileViewMember extends StatelessWidget {
   const ProfileViewMember({super.key});
@@ -147,7 +148,7 @@ class ProfileViewMember extends StatelessWidget {
                                     color: isDark ? AppDarkColors.surface : Colors.white,
                                     borderRadius: BorderRadius.circular(16),
                                     boxShadow: isDark ? null : [
-                                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)
+                                      BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)
                                     ],
                                   ),
                                   child: Text('WEEKLY', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
@@ -275,13 +276,24 @@ class ProfileViewMember extends StatelessWidget {
                 const SizedBox(height: 16),
                 
                 // Account Control Items
-                _buildControlItem(Icons.edit, 'Edit Profil', 'Update identity and role\ninformation', isDark: isDark),
-                const SizedBox(height: 12),
-                _buildControlItem(Icons.security, 'Security & Privacy', 'Manage passwords and 2FA', isDark: isDark),
-                const SizedBox(height: 12),
-                _buildControlItem(Icons.notifications, 'Preferences', 'Customize alert and\nworkspace theme', isDark: isDark),
-                const SizedBox(height: 12),
-                _buildControlItem(Icons.credit_card, 'Billing & Usage', 'Manage subscription and focus\ncredits', isDark: isDark),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppDarkColors.surface : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildControlItem(Icons.edit, 'Edit Profil', 'Update identity and role\ninformation', isDark: isDark),
+                      Divider(height: 1, indent: 72, endIndent: 16, color: isDark ? AppDarkColors.border : AppColors.border),
+                      _buildControlItem(Icons.security, 'Security & Privacy', 'Manage passwords and 2FA', isDark: isDark),
+                      Divider(height: 1, indent: 72, endIndent: 16, color: isDark ? AppDarkColors.border : AppColors.border),
+                      NotificationPreferenceItem(isDark: isDark),
+                      Divider(height: 1, indent: 72, endIndent: 16, color: isDark ? AppDarkColors.border : AppColors.border),
+                      _buildControlItem(Icons.credit_card, 'Billing & Usage', 'Manage subscription and focus\ncredits', isDark: isDark),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 32),
 
                 // Sign Out
@@ -324,13 +336,8 @@ class ProfileViewMember extends StatelessWidget {
   }
 
   Widget _buildControlItem(IconData icon, String title, String subtitle, {required bool isDark}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.surface : AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           CircleAvatar(
@@ -355,7 +362,7 @@ class ProfileViewMember extends StatelessWidget {
                 Text(
                   subtitle, 
                   style: TextStyle(
-                    fontSize: 10, 
+                    fontSize: 12, 
                     color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
                   )
                 ),

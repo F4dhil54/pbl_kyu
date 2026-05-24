@@ -86,7 +86,7 @@ class ManagerDashboard extends StatelessWidget {
                     border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
                     boxShadow: isDark ? null : [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
+                        color: Colors.black.withValues(alpha: 0.02),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -135,7 +135,7 @@ class ManagerDashboard extends StatelessWidget {
                     border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
                     boxShadow: isDark ? null : [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
+                        color: Colors.black.withValues(alpha: 0.02),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -189,7 +189,7 @@ class ManagerDashboard extends StatelessWidget {
                         'Lead Designer',
                         'Aktif',
                         AppColors.successText,
-                        isDark ? AppColors.successText.withOpacity(0.15) : AppColors.successBackground,
+                        isDark ? AppColors.successText.withValues(alpha: 0.15) : AppColors.successBackground,
                         isDark: isDark,
                       ),
                       Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
@@ -198,7 +198,7 @@ class ManagerDashboard extends StatelessWidget {
                         'Frontend Dev',
                         'Sedang Rapat',
                         AppColors.warningText,
-                        isDark ? AppColors.warningText.withOpacity(0.15) : AppColors.warningBackground,
+                        isDark ? AppColors.warningText.withValues(alpha: 0.15) : AppColors.warningBackground,
                         isDark: isDark,
                       ),
                       Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
@@ -207,7 +207,7 @@ class ManagerDashboard extends StatelessWidget {
                         'DevOps Engineer',
                         'Offline',
                         AppColors.offlineText,
-                        isDark ? AppColors.offlineText.withOpacity(0.15) : AppColors.offlineBackground,
+                        isDark ? AppColors.offlineText.withValues(alpha: 0.15) : AppColors.offlineBackground,
                         isDark: isDark,
                       ),
                     ],
@@ -224,7 +224,7 @@ class ManagerDashboard extends StatelessWidget {
                     border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
                     boxShadow: isDark ? null : [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
+                        color: Colors.black.withValues(alpha: 0.02),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),

@@ -158,4 +158,4 @@ final allProfilesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asy
   } catch (e) {
     return [];
   }
-});
+});

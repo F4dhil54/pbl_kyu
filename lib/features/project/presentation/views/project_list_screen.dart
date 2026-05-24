@@ -336,28 +336,28 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
     switch (project.category.toUpperCase()) {
       case 'MARKETING':
       case 'PEMASARAN':
-        categoryBgColor = isDark ? const Color(0xFF065F46).withOpacity(0.3) : const Color(0xFFD1FAE5);
+        categoryBgColor = isDark ? const Color(0xFF065F46).withValues(alpha: 0.3) : const Color(0xFFD1FAE5);
         categoryTextColor = isDark ? const Color(0xFF34D399) : const Color(0xFF065F46);
         break;
       case 'TEKNOLOGI':
       case 'IT INFRA':
       case 'IT':
-        categoryBgColor = isDark ? const Color(0xFF1E3A8A).withOpacity(0.4) : const Color(0xFFDBEAFE);
+        categoryBgColor = isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.4) : const Color(0xFFDBEAFE);
         categoryTextColor = isDark ? Colors.blue[200]! : const Color(0xFF1E3A8A);
         break;
       case 'KEUANGAN':
       case 'FINANCE':
-        categoryBgColor = isDark ? const Color(0xFF451A03).withOpacity(0.4) : const Color(0xFFFEF3C7);
+        categoryBgColor = isDark ? const Color(0xFF451A03).withValues(alpha: 0.4) : const Color(0xFFFEF3C7);
         categoryTextColor = isDark ? Colors.orange[300]! : const Color(0xFF92400E);
         break;
       case 'OPERASIONAL':
       case 'OPERATIONS':
-        categoryBgColor = isDark ? const Color(0xFF78350F).withOpacity(0.4) : const Color(0xFFFEE2E2);
+        categoryBgColor = isDark ? const Color(0xFF78350F).withValues(alpha: 0.4) : const Color(0xFFFEE2E2);
         categoryTextColor = isDark ? Colors.red[300]! : const Color(0xFF991B1B);
         break;
       case 'KREATIF/MEDIA':
       case 'CREATIVE':
-        categoryBgColor = isDark ? const Color(0xFF581C87).withOpacity(0.4) : const Color(0xFFF3E8FF);
+        categoryBgColor = isDark ? const Color(0xFF581C87).withValues(alpha: 0.4) : const Color(0xFFF3E8FF);
         categoryTextColor = isDark ? Colors.purple[300]! : const Color(0xFF6B21A8);
         break;
       default:
@@ -382,7 +382,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
           border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
           boxShadow: isDark ? null : [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

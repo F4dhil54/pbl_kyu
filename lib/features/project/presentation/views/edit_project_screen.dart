@@ -268,7 +268,7 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
                       border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
                       boxShadow: isDark ? null : [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
+                          color: Colors.black.withValues(alpha: 0.02),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -536,7 +536,7 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected 
-              ? (isDark ? AppColors.primary.withOpacity(0.2) : AppColors.lightBlueSelection) 
+              ? (isDark ? AppColors.primary.withValues(alpha: 0.2) : AppColors.lightBlueSelection) 
               : (isDark ? AppDarkColors.background : Colors.white),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(

@@ -82,7 +82,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
 
                             return ListTile(
                               leading: CircleAvatar(
-                                backgroundColor: AppColors.primary.withOpacity(0.1),
+                                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                                 child: Text(nama.isNotEmpty ? nama[0].toUpperCase() : 'U', style: const TextStyle(color: AppColors.primary)),
                               ),
                               title: Text(nama, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
@@ -323,7 +323,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withOpacity(0.1),
+                                    color: AppColors.primary.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
@@ -644,7 +644,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withOpacity(0.2)
+              ? AppColors.primary.withValues(alpha: 0.2)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
@@ -745,7 +745,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: categoryColor.withOpacity(0.1),
+                    color: categoryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -951,7 +951,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   child: Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: AppColors.primary.withOpacity(0.1),
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                         child: Text(nama[0].toUpperCase(), style: const TextStyle(color: AppColors.primary)),
                       ),
                       const SizedBox(width: 12),
