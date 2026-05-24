@@ -85,31 +85,12 @@ final projectSearchQueryProvider = StateProvider<String>((ref) => '');
 
 // Provider to fetch members of a project
 final projectMembersProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, projectId) async {
-  if (projectId.startsWith('local-')) {
-    return [
-      {
-        'member_id': 'mock-1',
-        'user_id': 'mock-user-1',
-        'nama': 'Ahmad Fauzi',
-        'email': 'ahmad@example.com',
-        'avatar_url': '',
-        'role': 'Tim',
-      },
-      {
-        'member_id': 'mock-2',
-        'user_id': 'mock-user-2',
-        'nama': 'Siti Aminah',
-        'email': 'siti@example.com',
-        'avatar_url': '',
-        'role': 'Tim',
-      }
-    ];
-  }
+  if (projectId.startsWith('local-')) return [];
   final supabase = ref.watch(supabaseClientProvider);
   try {
     final response = await supabase
         .from('project_members')
-        .select('id, user_id, profiles(id, nama, email, avatar_url, role)')
+        .select('id, user_id, profiles:profiles!project_members_user_id_fkey(id, nama, email, avatar_url, role)')
         .eq('project_id', projectId)
         .eq('status_akses', 'aktif');
     
@@ -126,27 +107,11 @@ final projectMembersProvider = FutureProvider.family<List<Map<String, dynamic>>,
       };
     }).toList();
   } catch (e) {
-    // Return empty list or local mock
-    return [
-      {
-        'member_id': 'mock-1',
-        'user_id': 'mock-user-1',
-        'nama': 'Ahmad Fauzi',
-        'email': 'ahmad@example.com',
-        'avatar_url': '',
-        'role': 'Tim',
-      },
-      {
-        'member_id': 'mock-2',
-        'user_id': 'mock-user-2',
-        'nama': 'Siti Aminah',
-        'email': 'siti@example.com',
-        'avatar_url': '',
-        'role': 'Tim',
-      }
-    ];
+    print("Error fetching project members for project $projectId: $e");
+    rethrow;
   }
 });
+
 
 // Provider to fetch all registered user profiles
 final allProfilesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
@@ -155,6 +120,79 @@ final allProfilesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asy
     final response = await supabase.from('profiles').select();
     final list = response as List<dynamic>;
     return list.map((e) => Map<String, dynamic>.from(e)).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+// Provider to fetch active colleagues of the manager
+final managerActiveColleaguesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final supabase = ref.watch(supabaseClientProvider);
+  final user = supabase.auth.currentUser;
+  if (user == null) return [];
+  
+  try {
+    final response = await supabase
+        .from('invitations')
+        .select('user_id, profiles!invitations_user_id_fkey(id, nama, email, avatar_url, role)')
+        .eq('invited_by', user.id)
+        .eq('status', 'aktif');
+    
+    final list = response as List<dynamic>;
+    return list.map((item) {
+      final profile = item['profiles'] as Map<String, dynamic>? ?? {};
+      return {
+        'id': item['user_id'] as String,
+        'nama': profile['nama'] ?? 'Anggota',
+        'email': profile['email'] ?? '',
+        'avatar_url': profile['avatar_url'] ?? '',
+        'role': profile['role'] ?? 'Tim',
+      };
+    }).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+// Provider to fetch teams created by the manager
+final managerTeamsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final supabase = ref.watch(supabaseClientProvider);
+  final user = supabase.auth.currentUser;
+  if (user == null) return [];
+  
+  try {
+    final response = await supabase
+        .from('teams')
+        .select('id, nama_tim, deskripsi')
+        .eq('manajer_id', user.id);
+    
+    final list = response as List<dynamic>;
+    return list.map((item) => Map<String, dynamic>.from(item)).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+// Provider to fetch teams associated with a specific project
+final projectTeamsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, projectId) async {
+  if (projectId.startsWith('local-')) return [];
+  final supabase = ref.watch(supabaseClientProvider);
+  
+  try {
+    final response = await supabase
+        .from('project_teams')
+        .select('id, team_id, teams(id, nama_tim)')
+        .eq('project_id', projectId);
+        
+    final list = response as List<dynamic>;
+    return list.map((item) {
+      final team = item['teams'] as Map<String, dynamic>? ?? {};
+      return {
+        'id': item['id'] as String,
+        'team_id': item['team_id'] as String,
+        'nama_tim': team['nama_tim'] ?? 'Tim',
+      };
+    }).toList();
   } catch (e) {
     return [];
   }

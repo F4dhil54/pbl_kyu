@@ -33,20 +33,18 @@ class ProfileRepository {
     return response as List<dynamic>;
   }
 
-  // Create team, assign member, upsert project member, and send notification
+  // Create team, assign member
   Future<void> createTeam({
     required String teamName,
     required String managerId,
     required String memberId,
-    required String projectId,
     required String managerName,
-    required String projectName,
   }) async {
     // 1. Insert team
     final teamResponse = await _supabaseClient.from('teams').insert({
       'nama_tim': teamName,
       'manajer_id': managerId,
-      'deskripsi': 'Tim Proyek',
+      'deskripsi': 'Tim Kerja',
     }).select('id').single();
 
     final teamId = teamResponse['id'] as String;
@@ -55,27 +53,6 @@ class ProfileRepository {
     await _supabaseClient.from('team_members').insert({
       'team_id': teamId,
       'user_id': memberId,
-    });
-
-    // 3. Upsert project member
-    await _supabaseClient.from('project_members').upsert({
-      'project_id': projectId,
-      'user_id': memberId,
-      'invited_by': managerId,
-      'status_akses': 'aktif',
-    }, onConflict: 'project_id, user_id');
-
-    // 4. Send notification to the member
-    await _supabaseClient.from('notifications').insert({
-      'user_id': memberId,
-      'project_id': projectId,
-      'tipe_notifikasi': 'project_invite',
-      'judul': 'Ditambahkan ke Proyek',
-      'pesan': '$managerName menambahkan Anda ke proyek "$projectName" melalui tim "$teamName".',
-      'peran_penerima': 'member',
-      'link_type': 'project',
-      'link_id': projectId,
-      'is_read': false,
     });
   }
 

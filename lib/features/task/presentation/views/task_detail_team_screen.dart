@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
@@ -14,6 +16,8 @@ import '../../data/models/attachment_model.dart';
 import '../../../project/data/models/project_model.dart';
 import '../providers/task_provider.dart';
 import '../../../project/presentation/providers/project_provider.dart';
+import 'team_progress_screen.dart';
+
 
 class TaskDetailTeamScreen extends ConsumerStatefulWidget {
   final TaskModel? task;
@@ -37,7 +41,9 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
   String _attachmentType = 'link'; // 'foto' | 'file' | 'link'
   final _attachmentNameController = TextEditingController();
   final _attachmentPathController = TextEditingController();
+  final _hambatanController = TextEditingController();
   bool _isUpdatingStatus = false;
+  Uint8List? _pickedAttachmentBytes;
 
   // Fallback mock task if null
   late TaskModel _activeTask;
@@ -277,14 +283,22 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
     try {
       AttachmentModel? attachment;
       if (_attachmentPathController.text.trim().isNotEmpty) {
+        String finalPathOrUrl = _attachmentPathController.text.trim();
+        final name = _attachmentNameController.text.trim().isNotEmpty 
+            ? _attachmentNameController.text.trim() 
+            : (_attachmentType == 'link' ? 'Link URL' : 'File Lampiran');
+
+        if (_pickedAttachmentBytes != null) {
+          finalPathOrUrl = await ref.read(projectTaskListProvider(_activeTask.projectId).notifier)
+              .uploadAttachmentFile(_pickedAttachmentBytes!, name);
+        }
+
         attachment = AttachmentModel(
           id: '',
           taskId: _activeTask.id,
           tipeLampiran: _attachmentType,
-          filePathOrUrl: _attachmentPathController.text.trim(),
-          namaFile: _attachmentNameController.text.trim().isNotEmpty 
-              ? _attachmentNameController.text.trim() 
-              : (_attachmentType == 'link' ? 'Link URL' : 'File Lampiran'),
+          filePathOrUrl: finalPathOrUrl,
+          namaFile: name,
         );
       }
 
@@ -294,10 +308,13 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
         catatan: 'Mengubah status tugas menjadi $_selectedStatus',
         persenSelesai: _selectedStatus == 'Selesai' ? 100 : (_selectedStatus == 'Sedang Dikerjakan' ? 50 : 0),
         attachment: attachment,
+        hambatan: _hambatanController.text.trim().isNotEmpty ? _hambatanController.text.trim() : null,
       );
 
       _attachmentNameController.clear();
       _attachmentPathController.clear();
+      _hambatanController.clear();
+      _pickedAttachmentBytes = null;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -346,32 +363,92 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.camera_alt, color: AppColors.primary),
-                title: const Text('Ambil Foto'),
+                title: const Text('Ambil Foto (Kamera)'),
                 onTap: () async {
                   Navigator.pop(context);
                   final picker = ImagePicker();
                   final pickedFile = await picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    final size = await pickedFile.length();
+                    if (size > 5 * 1024 * 1024) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Ukuran foto melebihi batas 5MB!'),
+                            backgroundColor: AppColors.alertText,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    final bytes = await pickedFile.readAsBytes();
                     setState(() {
                       _attachmentType = 'foto';
                       _attachmentPathController.text = pickedFile.path;
                       _attachmentNameController.text = pickedFile.name;
+                      _pickedAttachmentBytes = bytes;
                     });
                   }
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.file_upload, color: AppColors.primary),
-                title: const Text('Upload File'),
+                leading: const Icon(Icons.photo_library, color: AppColors.primary),
+                title: const Text('Galeri Foto'),
                 onTap: () async {
                   Navigator.pop(context);
                   final picker = ImagePicker();
                   final pickedFile = await picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    final size = await pickedFile.length();
+                    if (size > 5 * 1024 * 1024) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Ukuran foto melebihi batas 5MB!'),
+                            backgroundColor: AppColors.alertText,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    final bytes = await pickedFile.readAsBytes();
                     setState(() {
-                      _attachmentType = 'file';
+                      _attachmentType = 'foto';
                       _attachmentPathController.text = pickedFile.path;
                       _attachmentNameController.text = pickedFile.name;
+                      _pickedAttachmentBytes = bytes;
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.file_present_rounded, color: AppColors.primary),
+                title: const Text('Pilih Dokumen (PDF, Word, dll.)'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'],
+                  );
+                  if (result != null) {
+                    final size = result.files.single.size;
+                    if (size > 5 * 1024 * 1024) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Ukuran dokumen melebihi batas 5MB!'),
+                            backgroundColor: AppColors.alertText,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    final bytes = result.files.single.bytes ?? await XFile(result.files.single.path!).readAsBytes();
+                    setState(() {
+                      _attachmentType = 'file';
+                      _attachmentPathController.text = result.files.single.path ?? result.files.single.name;
+                      _attachmentNameController.text = result.files.single.name;
+                      _pickedAttachmentBytes = bytes;
                     });
                   }
                 },
@@ -381,6 +458,9 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                 title: const Text('Sisipkan Link'),
                 onTap: () {
                   Navigator.pop(context);
+                  setState(() {
+                    _pickedAttachmentBytes = null;
+                  });
                   _showLinkInputDialogTim();
                 },
               ),
@@ -435,6 +515,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
     _timer?.cancel();
     _attachmentNameController.dispose();
     _attachmentPathController.dispose();
+    _hambatanController.dispose();
     super.dispose();
   }
 
@@ -538,11 +619,13 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
 
         // Initial attachments
         _buildSectionLabel('Lampiran Tugas Awal', isDark),
-        if (_activeTask.attachments.isEmpty)
-          Text('Tidak ada lampiran tugas awal.', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13))
-        else
-          Column(
-            children: _activeTask.attachments.map((att) {
+        () {
+          final initialAttachments = _activeTask.attachments.where((att) => att.logId == null).toList();
+          if (initialAttachments.isEmpty) {
+            return Text('Tidak ada lampiran tugas awal.', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13));
+          }
+          return Column(
+            children: initialAttachments.map((att) {
               return Card(
                 color: isDark ? AppDarkColors.surface : Colors.white,
                 child: ListTile(
@@ -553,13 +636,34 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                     color: AppColors.primary,
                   ),
                   title: Text(att.namaFile, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
-                  subtitle: Text(att.tipeLampiran.toUpperCase(), style: const TextStyle(fontSize: 10)),
+                  subtitle: Row(
+                    children: [
+                      Text(att.tipeLampiran.toUpperCase(), style: const TextStyle(fontSize: 10)),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'TUGAS',
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                   onTap: () => _bukaTautan(att.filePathOrUrl),
                 ),
               );
             }).toList(),
-          ),
+          );
+        }(),
 
         // GitHub repository
         if (project != null && project.githubRepo.isNotEmpty) ...[
@@ -591,7 +695,35 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
         ],
 
         // Riwayat Progress Tim
-        _buildSectionLabel('Riwayat Progress Tim', isDark),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _buildSectionLabel('Riwayat Progress Tim', isDark),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TeamProgressScreen(task: _activeTask),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.history, size: 16, color: AppColors.primary),
+                label: const Text(
+                  'Lihat Progress Tim',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         FutureBuilder<List<Map<String, dynamic>>>(
           future: ref.read(taskRepositoryProvider).getTaskProgressLogs(_activeTask.id),
           builder: (context, snapshot) {
@@ -617,15 +749,119 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                 final dateStr = date != null ? DateFormat('dd MMMM yyyy HH:mm').format(date) : '-';
                 final attachments = log['task_attachments'] as List<dynamic>? ?? [];
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                return InkWell(
+                  onTap: () => _showProgressLogDetailDialog(context, log, isDark),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: AppColors.primary.withOpacity(0.1),
+                              child: Text(name[0].toUpperCase(), style: const TextStyle(color: AppColors.primary)),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  Text('$email • $roleStr', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                  const SizedBox(height: 6),
+                                  Text(log['catatan'] ?? '', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13)),
+                                  Text('Progress Selesai: ${log['persen_selesai']}%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                  Text(dateStr, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (attachments.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 52),
+                            child: Column(
+                              children: attachments.map<Widget>((att) {
+                                return Card(
+                                  color: isDark ? AppDarkColors.surface : Colors.grey[100],
+                                  child: ListTile(
+                                    leading: Icon(
+                                      att['tipe_lampiran'] == 'foto'
+                                          ? Icons.camera_alt_outlined
+                                          : (att['tipe_lampiran'] == 'file' ? Icons.file_present_outlined : Icons.link),
+                                      color: AppColors.primary,
+                                      size: 18,
+                                    ),
+                                    title: Text(att['nama_file'] ?? '', style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    trailing: const Icon(Icons.arrow_forward_ios, size: 12),
+                                    onTap: () => _bukaTautan(att['file_path_or_url'] ?? ''),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showProgressLogDetailDialog(BuildContext context, Map<String, dynamic> log, bool isDark) {
+    final profile = log['profiles'] as Map<String, dynamic>? ?? {};
+    final name = profile['nama'] ?? 'Anggota';
+    final email = profile['email'] ?? '';
+    final roleStr = profile['role'] ?? 'Tim';
+    final date = DateTime.tryParse(log['created_at'] as String? ?? '')?.toLocal();
+    final dateStr = date != null ? DateFormat('dd MMMM yyyy HH:mm').format(date) : '-';
+    final attachments = log['task_attachments'] as List<dynamic>? ?? [];
+    final hambatan = log['hambatan'] as String?;
+    final statusProgress = log['status_progress'] as String? ?? 'Sedang Dikerjakan';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.assignment_turned_in_outlined, color: AppColors.primary, size: 22),
+              const SizedBox(width: 8),
+              const Text(
+                'Detail Progress Tugas',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppDarkColors.background : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
                         CircleAvatar(
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                          child: Text(name[0].toUpperCase(), style: const TextStyle(color: AppColors.primary)),
+                          backgroundColor: AppColors.primary.withOpacity(0.15),
+                          child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'U', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -634,47 +870,115 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                             children: [
                               Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                               Text('$email • $roleStr', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                              const SizedBox(height: 6),
-                              Text(log['catatan'] ?? '', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13)),
-                              Text('Progress Selesai: ${log['persen_selesai']}%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                              Text(dateStr, style: const TextStyle(fontSize: 11, color: Colors.grey)),
                             ],
                           ),
                         ),
                       ],
                     ),
-                    if (attachments.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 52),
-                        child: Column(
-                          children: attachments.map<Widget>((att) {
-                            return Card(
-                              color: isDark ? AppDarkColors.surface : Colors.grey[100],
-                              child: ListTile(
-                                leading: Icon(
-                                  att['tipe_lampiran'] == 'foto'
-                                      ? Icons.camera_alt_outlined
-                                      : (att['tipe_lampiran'] == 'file' ? Icons.file_present_outlined : Icons.link),
-                                  color: AppColors.primary,
-                                  size: 18,
-                                ),
-                                title: Text(att['nama_file'] ?? '', style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                trailing: const Icon(Icons.arrow_forward_ios, size: 12),
-                                onTap: () => _bukaTautan(att['file_path_or_url'] ?? ''),
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSectionLabel('Catatan Progress', isDark),
+                  Text(
+                    log['catatan'] ?? '-',
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 13, height: 1.5),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionLabel('Status', isDark),
+                          Text(statusProgress, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionLabel('Persen Selesai', isDark),
+                          Text('${log['persen_selesai']}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ],
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildSectionLabel('Tanggal Submit', isDark),
+                  Text(dateStr, style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 12)),
+                  const SizedBox(height: 16),
+                  _buildSectionLabel('Lampiran Progress', isDark),
+                  if (attachments.isEmpty)
+                    const Text('Tidak ada lampiran.', style: TextStyle(color: Colors.grey, fontSize: 12))
+                  else
+                    ...attachments.map<Widget>((att) {
+                      return Card(
+                        color: isDark ? AppDarkColors.background : Colors.grey[50],
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(
+                            att['tipe_lampiran'] == 'foto'
+                                ? Icons.camera_alt_outlined
+                                : (att['tipe_lampiran'] == 'file' ? Icons.file_present_outlined : Icons.link),
+                            color: AppColors.primary,
+                            size: 16,
+                          ),
+                          title: Text(att['nama_file'] ?? '', style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 10),
+                          onTap: () {
+                            Navigator.pop(context);
+                            _bukaTautan(att['file_path_or_url'] ?? '');
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  if (hambatan != null && hambatan.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF4A1D1D) : const Color(0xFFFFF5F5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: const [
+                              Icon(Icons.warning_amber_rounded, color: Colors.red, size: 16),
+                              SizedBox(width: 6),
+                              Text(
+                                'Hambatan / Kendala',
+                                style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            hambatan,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFFFCA5A5) : Colors.red[900],
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
-                );
-              },
-            );
-          },
-        ),
-      ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -715,6 +1019,22 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
               child: Text(
                 isDone ? 'DONE' : _activeTask.prioritas.toUpperCase(),
                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: priorityColor),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Icon(Icons.calendar_today, size: 14, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+            const SizedBox(width: 6),
+            Text(
+              _activeTask.deadlineDate != null 
+                  ? 'Tenggat: ${DateFormat('dd MMMM yyyy').format(_activeTask.deadlineDate!)}'
+                  : 'Tanpa Tenggat',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
               ),
             ),
           ],
@@ -852,13 +1172,15 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
           ),
         ],
 
-        // Task attachments
+        // Initial attachments
         _buildSectionLabel('Lampiran Tugas Awal', isDark),
-        if (_activeTask.attachments.isEmpty)
-          Text('Tidak ada lampiran tugas awal.', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13))
-        else
-          Column(
-            children: _activeTask.attachments.map((att) {
+        () {
+          final initialAttachments = _activeTask.attachments.where((att) => att.logId == null).toList();
+          if (initialAttachments.isEmpty) {
+            return Text('Tidak ada lampiran tugas awal.', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13));
+          }
+          return Column(
+            children: initialAttachments.map((att) {
               return Card(
                 color: isDark ? AppDarkColors.surface : Colors.white,
                 child: ListTile(
@@ -869,14 +1191,68 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                     color: AppColors.primary,
                   ),
                   title: Text(att.namaFile, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
-                  subtitle: Text(att.tipeLampiran.toUpperCase(), style: const TextStyle(fontSize: 10)),
+                  subtitle: Row(
+                    children: [
+                      Text(att.tipeLampiran.toUpperCase(), style: const TextStyle(fontSize: 10)),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'TUGAS',
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                   onTap: () => _bukaTautan(att.filePathOrUrl),
                 ),
               );
             }).toList(),
-          ),
+          );
+        }(),
 
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Riwayat Progress Tim',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TeamProgressScreen(task: _activeTask),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.history, size: 16, color: AppColors.primary),
+              label: const Text(
+                'Lihat Progress',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 16),
         const Divider(),
 
@@ -894,7 +1270,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
             children: [
               _buildSectionLabel('Status Tugas', isDark),
               DropdownButtonFormField<String>(
-                initialValue: _selectedStatus,
+                value: _selectedStatus,
                 dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
                 style: TextStyle(color: isDark ? Colors.white : Colors.black),
                 decoration: const InputDecoration(
@@ -913,6 +1289,22 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                     });
                   }
                 },
+              ),
+              const SizedBox(height: 16),
+
+              _buildSectionLabel('Hambatan / Kendala (Opsional)', isDark),
+              TextField(
+                controller: _hambatanController,
+                maxLines: 2,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Tulis kendala jika ada...',
+                  hintStyle: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 13),
+                  fillColor: isDark ? AppDarkColors.background : Colors.grey[50],
+                  filled: true,
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -1033,6 +1425,11 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
               ),
             ),
             actions: [
+              Icon(
+                Icons.search_rounded,
+                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 16),
               const ProfileAvatarButton(),
               const SizedBox(width: 20),
             ],

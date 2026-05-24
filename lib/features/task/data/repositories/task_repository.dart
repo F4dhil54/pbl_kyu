@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/task_model.dart';
@@ -31,15 +32,26 @@ class TaskRepository {
       // FETCH DARI TASK_ASSIGNEES (MENGGANTIKAN TASK_ASSIGNMENTS)
       final assigneesResponse = await _supabaseClient
           .from('task_assignees')
-          .select('task_id, user_id')
+          .select('task_id, user_id, project_member_id, project_team_id')
           .inFilter('task_id', taskIds);
       
       final assigneesData = assigneesResponse as List<dynamic>;
       final Map<String, List<String>> taskAssigneesMap = {};
+      final Map<String, String?> taskProjectTeamIdMap = {};
+      final Map<String, String?> taskProjectMemberIdMap = {};
+
       for (final item in assigneesData) {
         final taskId = item['task_id'] as String;
-        final userId = item['user_id'] as String;
-        taskAssigneesMap.putIfAbsent(taskId, () => []).add(userId);
+        final userId = item['user_id'] as String?;
+        if (userId != null) {
+          taskAssigneesMap.putIfAbsent(taskId, () => []).add(userId);
+        }
+        if (item['project_team_id'] != null) {
+          taskProjectTeamIdMap[taskId] = item['project_team_id'] as String;
+        }
+        if (item['project_member_id'] != null) {
+          taskProjectMemberIdMap[taskId] = item['project_member_id'] as String;
+        }
       }
 
       // Fetch attachments
@@ -61,6 +73,8 @@ class TaskRepository {
           json,
           assignees: taskAssigneesMap[taskId],
           attachments: taskAttachmentsMap[taskId],
+          projectTeamId: taskProjectTeamIdMap[taskId],
+          projectMemberId: taskProjectMemberIdMap[taskId],
         );
       }).toList();
 
@@ -70,113 +84,157 @@ class TaskRepository {
     }
   }
 
-  Future<TaskModel> createTask(TaskModel task, List<String> assignees) async {
+  Future<TaskModel> createTask(TaskModel task, List<Map<String, dynamic>> assignees) async {
     if (task.projectId.startsWith('local-')) {
       final localId = 'local-task-${DateTime.now().millisecondsSinceEpoch}';
       final newTask = task.copyWith(
         id: localId,
         createdBy: 'local-manager',
-        assignees: assignees,
+        assignees: assignees.map((a) => (a['user_id'] ?? '') as String).toList(),
       );
       _localTasks.add(newTask);
       return newTask;
     }
-    try {
-      final user = _supabaseClient.auth.currentUser;
-      final taskWithCreator = task.copyWith(
-        createdBy: user?.id ?? 'local-manager',
-      );
 
-      final response = await _supabaseClient
-          .from('tasks')
-          .insert(taskWithCreator.toJson())
-          .select()
-          .single();
+    final user = _supabaseClient.auth.currentUser;
+    final taskWithCreator = task.copyWith(
+      createdBy: user?.id ?? '',
+    );
 
-      final createdTask = TaskModel.fromJson(response);
+    // Timeout 10 detik: jika Supabase hang (misal trigger/constraint DB live),
+    // langsung gagal dan tampilkan error ke user — tidak stuck loading selamanya.
+    final response = await _supabaseClient
+        .from('tasks')
+        .insert(taskWithCreator.toJson())
+        .select()
+        .single()
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => throw Exception(
+            'Koneksi ke server timeout. Pastikan koneksi internet stabil dan coba lagi.'
+          ),
+        );
 
-      // INSERT KE TASK_ASSIGNEES (DENGAN CO-CREATOR/ASSIGNED_BY)
-      if (assignees.isNotEmpty) {
-        final List<Map<String, dynamic>> assignments = assignees.map((userId) {
-          return {
-            'task_id': createdTask.id,
-            'user_id': userId,
-            'assigned_by': user?.id, // Mencatat manajer yang menugaskan
-          };
-        }).toList();
-        await _supabaseClient.from('task_assignees').insert(assignments);
-      }
+    final createdTask = TaskModel.fromJson(response);
 
-      // Create initial attachments
-      if (task.attachments.isNotEmpty) {
-        final List<Map<String, dynamic>> attachments = task.attachments.map((att) {
-          return {
-            'task_id': createdTask.id,
-            'tipe_lampiran': att.tipeLampiran,
-            'file_path_or_url': att.filePathOrUrl,
-            'nama_file': att.namaFile,
-          };
-        }).toList();
-        await _supabaseClient.from('task_attachments').insert(attachments);
-      }
-
-      return createdTask.copyWith(assignees: assignees, attachments: task.attachments);
-    } catch (e) {
-      debugPrint("=== WARNING: Task Supabase insert failed. Error: $e ===");
-      final localId = 'local-task-${DateTime.now().millisecondsSinceEpoch}';
-      final newTask = task.copyWith(
-        id: localId,
-        createdBy: 'local-manager',
-        assignees: assignees,
-      );
-      _localTasks.add(newTask);
-      return newTask;
+    // INSERT KE TASK_ASSIGNEES (DENGAN CO-CREATOR/ASSIGNED_BY)
+    if (assignees.isNotEmpty) {
+      final List<Map<String, dynamic>> assignments = assignees.map((a) {
+        return {
+          'task_id': createdTask.id,
+          'user_id': a['user_id'],
+          'project_member_id': a['project_member_id'],
+          'project_team_id': a['project_team_id'],
+          'assigned_by': user?.id,
+        };
+      }).toList();
+      await _supabaseClient.from('task_assignees').insert(assignments)
+          .timeout(const Duration(seconds: 10));
     }
+
+    // Create initial attachments
+    if (task.attachments.isNotEmpty) {
+      final List<Map<String, dynamic>> attachments = task.attachments.map((att) {
+        return {
+          'task_id': createdTask.id,
+          'tipe_lampiran': att.tipeLampiran,
+          'file_path_or_url': att.filePathOrUrl,
+          'nama_file': att.namaFile,
+        };
+      }).toList();
+      await _supabaseClient.from('task_attachments').insert(attachments)
+          .timeout(const Duration(seconds: 10));
+    }
+
+    String? resolvedTeamId;
+    for (final a in assignees) {
+      if (a['project_team_id'] != null) {
+        resolvedTeamId = a['project_team_id'] as String?;
+        break;
+      }
+    }
+
+    String? resolvedMemberId;
+    for (final a in assignees) {
+      if (a['project_member_id'] != null) {
+        resolvedMemberId = a['project_member_id'] as String?;
+        break;
+      }
+    }
+
+    return createdTask.copyWith(
+      assignees: assignees.map((a) => (a['user_id'] ?? '') as String).where((uid) => uid.isNotEmpty).toList(),
+      attachments: task.attachments,
+      projectTeamId: resolvedTeamId,
+      projectMemberId: resolvedMemberId,
+    );
   }
 
-  Future<TaskModel> updateTask(TaskModel task, List<String> assignees) async {
+  Future<TaskModel> updateTask(TaskModel task, List<Map<String, dynamic>> assignees) async {
     if (task.id.startsWith('local-') || task.projectId.startsWith('local-')) {
       final index = _localTasks.indexWhere((t) => t.id == task.id);
       if (index != -1) {
-        final updatedTask = task.copyWith(assignees: assignees);
+        final updatedTask = task.copyWith(assignees: assignees.map((a) => (a['user_id'] ?? '') as String).toList());
         _localTasks[index] = updatedTask;
         return updatedTask;
       }
       return task;
     }
-    try {
-      final user = _supabaseClient.auth.currentUser;
-      final response = await _supabaseClient
-          .from('tasks')
-          .update(task.toJson())
-          .eq('id', task.id)
-          .select()
-          .single();
-      
-      // SYNC KE TASK_ASSIGNEES (DELETE LALU RE-INSERT)
-      await _supabaseClient.from('task_assignees').delete().eq('task_id', task.id);
-      if (assignees.isNotEmpty) {
-        final List<Map<String, dynamic>> assignments = assignees.map((userId) {
-          return {
-            'task_id': task.id,
-            'user_id': userId,
-            'assigned_by': user?.id,
-          };
-        }).toList();
-        await _supabaseClient.from('task_assignees').insert(assignments);
-      }
 
-      return TaskModel.fromJson(response, assignees: assignees, attachments: task.attachments);
-    } catch (e) {
-      debugPrint("=== WARNING: Task Supabase update failed. Error: $e ===");
-      final index = _localTasks.indexWhere((t) => t.id == task.id);
-      if (index != -1) {
-        final updatedTask = task.copyWith(assignees: assignees);
-        _localTasks[index] = updatedTask;
-        return updatedTask;
-      }
-      return task;
+    final user = _supabaseClient.auth.currentUser;
+    final response = await _supabaseClient
+        .from('tasks')
+        .update(task.toJson())
+        .eq('id', task.id)
+        .select()
+        .single()
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => throw Exception(
+            'Koneksi ke server timeout. Pastikan koneksi internet stabil dan coba lagi.'
+          ),
+        );
+
+    // SYNC KE TASK_ASSIGNEES (DELETE LALU RE-INSERT)
+    await _supabaseClient.from('task_assignees').delete().eq('task_id', task.id)
+        .timeout(const Duration(seconds: 10));
+    if (assignees.isNotEmpty) {
+      final List<Map<String, dynamic>> assignments = assignees.map((a) {
+        return {
+          'task_id': task.id,
+          'user_id': a['user_id'],
+          'project_member_id': a['project_member_id'],
+          'project_team_id': a['project_team_id'],
+          'assigned_by': user?.id,
+        };
+      }).toList();
+      await _supabaseClient.from('task_assignees').insert(assignments)
+          .timeout(const Duration(seconds: 10));
     }
+
+    String? resolvedTeamId;
+    for (final a in assignees) {
+      if (a['project_team_id'] != null) {
+        resolvedTeamId = a['project_team_id'] as String?;
+        break;
+      }
+    }
+
+    String? resolvedMemberId;
+    for (final a in assignees) {
+      if (a['project_member_id'] != null) {
+        resolvedMemberId = a['project_member_id'] as String?;
+        break;
+      }
+    }
+
+    return TaskModel.fromJson(
+      response,
+      assignees: assignees.map((a) => (a['user_id'] ?? '') as String).where((uid) => uid.isNotEmpty).toList(),
+      attachments: task.attachments,
+      projectTeamId: resolvedTeamId,
+      projectMemberId: resolvedMemberId,
+    );
   }
 
   Future<void> deleteTask(String id) async {
@@ -202,11 +260,18 @@ class TaskRepository {
     }
     try {
       // Pastikan status dikonversi ke lowercase jika fungsi pemanggil belum memetakan ke format DB
-      String dbStatus = status;
-      if (status == 'Akan Dikerjakan') dbStatus = 'accept';
-      if (status == 'Selesai') dbStatus = 'done';
-      if (status == 'Draft') dbStatus = 'draft';
-      if (status == 'Sedang Direview') dbStatus = 'review';
+      String dbStatus = status.toLowerCase().trim();
+      if (dbStatus == 'akan dikerjakan' || dbStatus == 'sedang dikerjakan' || dbStatus == 'accept') {
+        dbStatus = 'accept';
+      } else if (dbStatus == 'selesai' || dbStatus == 'done') {
+        dbStatus = 'done';
+      } else if (dbStatus == 'draft' || dbStatus == 'draf') {
+        dbStatus = 'draft';
+      } else if (dbStatus == 'ditinjau' || dbStatus == 'review' || dbStatus == 'sedang direview') {
+        dbStatus = 'review';
+      } else if (dbStatus == 'dijadwalkan' || dbStatus == 'scheduled') {
+        dbStatus = 'scheduled';
+      }
 
       await _supabaseClient.from('tasks').update({'status_tugas': dbStatus}).eq('id', id);
     } catch (e) {
@@ -230,9 +295,18 @@ class TaskRepository {
       return;
     }
     try {
-      String dbStatus = statusTugas;
-      if (statusTugas == 'Akan Dikerjakan') dbStatus = 'accept';
-      if (statusTugas == 'Selesai') dbStatus = 'done';
+      String dbStatus = statusTugas.toLowerCase().trim();
+      if (dbStatus == 'akan dikerjakan' || dbStatus == 'sedang dikerjakan' || dbStatus == 'accept') {
+        dbStatus = 'accept';
+      } else if (dbStatus == 'selesai' || dbStatus == 'done') {
+        dbStatus = 'done';
+      } else if (dbStatus == 'draft' || dbStatus == 'draf') {
+        dbStatus = 'draft';
+      } else if (dbStatus == 'ditinjau' || dbStatus == 'review') {
+        dbStatus = 'review';
+      } else if (dbStatus == 'dijadwalkan' || dbStatus == 'scheduled') {
+        dbStatus = 'scheduled';
+      }
 
       await _supabaseClient.from('tasks').update({
         'keputusan_manajer': keputusan,
@@ -319,6 +393,8 @@ class TaskRepository {
             persen_selesai,
             created_at,
             jenis_aksi,
+            hambatan,
+            status_progress,
             profiles:logged_by ( nama, email, role ),
             task_attachments:task_attachments ( id, tipe_lampiran, file_path_or_url, nama_file )
           ''')
@@ -338,6 +414,7 @@ class TaskRepository {
     String? catatan,
     int? persenSelesai,
     AttachmentModel? attachment,
+    String? hambatan,
   }) async {
     if (taskId.startsWith('local-')) {
       await updateTaskStatus(taskId, status);
@@ -350,12 +427,11 @@ class TaskRepository {
       }
 
       // 1. MAPPING STATUS: Konversi Bahasa UI ke Kode Database PostgreSQL
-      String dbStatus = 'draft';
+      String dbStatus = 'accept';
       if (status == 'Akan Dikerjakan' || status == 'accept') {
         dbStatus = 'accept';
-      } else if (status == 'Sedang Dikerjakan' || status == 'review') {
-        // 'review' di skema kamu setara dengan pengerjaan/peninjauan tim
-        dbStatus = 'review'; 
+      } else if (status == 'Sedang Dikerjakan') {
+        dbStatus = 'accept'; 
       } else if (status == 'Selesai' || status == 'done') {
         dbStatus = 'done';
       }
@@ -376,9 +452,11 @@ class TaskRepository {
       final logResponse = await _supabaseClient.from('task_progress_logs').insert({
         'task_id': taskId,
         'logged_by': user.id,
-        'catatan': catatan ?? 'Mengubah status tugas menjadi $status',
-        'persen_selesai': persenSelesai ?? (dbStatus == 'done' ? 100 : (dbStatus == 'review' ? 50 : 0)),
+        'catatan': catatan ?? 'Mengubah status status tugas menjadi $status',
+        'persen_selesai': persenSelesai ?? (status == 'Selesai' ? 100 : (status == 'Sedang Dikerjakan' ? 50 : 0)),
         'jenis_aksi': 'memperbarui',
+        'hambatan': hambatan,
+        'status_progress': status,
       }).select('id').single();
 
       final logId = logResponse['id'] as String;
@@ -404,6 +482,43 @@ class TaskRepository {
     } catch (e) {
       debugPrint("=== WARNING: Log task progress failed. Error: $e ===");
       rethrow;
+    }
+  }
+
+  Future<String> uploadAttachmentFile(Uint8List bytes, String fileName) async {
+    final extension = fileName.split('.').last;
+    final finalFileName = '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000000)}.$extension';
+
+    try {
+      await _supabaseClient.storage.createBucket('task_attachments', const BucketOptions(public: true));
+    } catch (_) {
+      // Bucket might already exist
+    }
+
+    await _supabaseClient.storage.from('task_attachments').uploadBinary(
+      finalFileName,
+      bytes,
+      fileOptions: FileOptions(
+        contentType: _determineContentType(extension),
+        upsert: true,
+      ),
+    );
+
+    return _supabaseClient.storage.from('task_attachments').getPublicUrl(finalFileName);
+  }
+
+  String _determineContentType(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'png': return 'image/png';
+      case 'jpg':
+      case 'jpeg': return 'image/jpeg';
+      case 'pdf': return 'application/pdf';
+      case 'doc':
+      case 'docx': return 'application/msword';
+      case 'xls':
+      case 'xlsx': return 'application/vnd.ms-excel';
+      case 'txt': return 'text/plain';
+      default: return 'application/octet-stream';
     }
   }
 }

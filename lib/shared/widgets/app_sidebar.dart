@@ -5,6 +5,7 @@ import 'package:pbl_kyu/core/theme/colors.dart';
 import 'package:pbl_kyu/core/theme/theme_mode.dart';
 import 'package:pbl_kyu/shared/providers/navigation_provider.dart';
 import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
+import 'package:pbl_kyu/features/auth/presentation/views/onboarding_screen.dart';
 import 'package:pbl_kyu/features/auth/providers/auth_provider.dart';
 
 class AppSidebar extends ConsumerWidget {
@@ -252,6 +253,14 @@ class AppSidebar extends ConsumerWidget {
                               onPressed: () async {
                                 final authController = ref.read(authControllerProvider);
                                 await authController.signOut();
+                                ref.read(navigationIndexProvider.notifier).state = 0;
+                                if (context.mounted) {
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+                                    (route) => false,
+                                  );
+                                }
                               },
                               icon: const Icon(
                                 Icons.logout_rounded,

@@ -135,6 +135,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
           drawer: const AppSidebar(),
           floatingActionButton: FloatingActionButton(
+            heroTag: 'inbox_screen_fab',
             onPressed: () {
               Navigator.push(
                 context,

@@ -32,12 +32,9 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
 
   List<Map<String, dynamic>> _teams = [];
   bool _isLoadingTeams = false;
-  List<Map<String, dynamic>> _dbProjects = [];
   final _teamNameController = TextEditingController();
   String? _selectedMemberId;
-  String? _selectedProjectId;
   bool _isCreatingTeam = false;
-
   List<Map<String, dynamic>> _members = [];
   bool _isLoadingMembers = false;
 
@@ -70,7 +67,6 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                      user.userMetadata?['avatar'];
       });
       _loadInvitations();
-      _loadProjects();
       _loadTeams();
     }
   }
@@ -118,22 +114,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
     }
   }
 
-  Future<void> _loadProjects() async {
-    if (_currentUser == null) return;
-    try {
-      final response = await ref.read(profileRepositoryProvider).getProjects(_currentUser!.id);
-      
-      final list = response;
-      setState(() {
-        _dbProjects = list.map((item) => <String, dynamic>{
-          'id': item['id'] as String,
-          'name': item['nama_proyek'] as String,
-        }).toList();
-      });
-    } catch (e) {
-      debugPrint('Error loading projects: $e');
-    }
-  }
+
 
   Future<void> _loadTeams() async {
     if (_currentUser == null) return;
@@ -178,27 +159,9 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
       return;
     }
 
-    if (_selectedProjectId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pilih proyek terlebih dahulu'),
-          backgroundColor: AppColors.alertText,
-        ),
-      );
-      return;
-    }
-
     setState(() => _isCreatingTeam = true);
 
     try {
-      String projectName = 'Proyek';
-      for (final p in _dbProjects) {
-        if (p['id'] == _selectedProjectId) {
-          projectName = p['name'] as String;
-          break;
-        }
-      }
-
       final managerName = _currentUser!.userMetadata?['nama'] ??
           _currentUser!.userMetadata?['name'] ??
           _currentUser!.userMetadata?['full_name'] ??
@@ -208,16 +171,13 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
         teamName: teamName,
         managerId: _currentUser!.id,
         memberId: _selectedMemberId!,
-        projectId: _selectedProjectId!,
         managerName: managerName,
-        projectName: projectName,
       );
 
       if (mounted) {
         _teamNameController.clear();
         setState(() {
           _selectedMemberId = null;
-          _selectedProjectId = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -675,13 +635,6 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      Text('Pilih Proyek', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: MediaQuery.of(context).size.width * 0.4,
-                        child: _buildProjectDropdown(isDark: isDark),
-                      ),
-                      const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         height: 44,
@@ -949,44 +902,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
     );
   }
 
-  Widget _buildProjectDropdown({required bool isDark}) {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.background : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedProjectId,
-          hint: Text(
-            'Nama Proyek', 
-            style: TextStyle(
-              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-              fontSize: 14
-            )
-          ),
-          dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
-          isExpanded: true,
-          style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontSize: 14),
-          icon: Icon(Icons.keyboard_arrow_down, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
-          onChanged: (String? newValue) {
-            setState(() {
-              _selectedProjectId = newValue;
-            });
-          },
-          items: _dbProjects.map<DropdownMenuItem<String>>((Map<String, dynamic> project) {
-            return DropdownMenuItem<String>(
-              value: project['id'] as String,
-              child: Text(project['name'] as String),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildMemberListItem(
     BuildContext context, 

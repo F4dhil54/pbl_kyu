@@ -29,36 +29,44 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
     }
   }
 
-  Future<void> addTask(TaskModel task, List<String> assignees) async {
+  Future<void> addTask(TaskModel task, List<Map<String, dynamic>> assignees) async {
     try {
       final newT = await _repository.createTask(task, assignees);
-      state.whenData((tasks) {
-        state = AsyncValue.data([...tasks, newT]);
-      });
+      if (state.hasValue) {
+        state = AsyncValue.data([...state.value!, newT]);
+      } else {
+        await fetchTasks();
+      }
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
+      rethrow; // Agar UI dapat menangkap error & mereset _isSaving
     }
   }
 
-  Future<void> editTask(TaskModel task, List<String> assignees) async {
+  Future<void> editTask(TaskModel task, List<Map<String, dynamic>> assignees) async {
     try {
       final updatedT = await _repository.updateTask(task, assignees);
-      state.whenData((tasks) {
+      if (state.hasValue) {
         state = AsyncValue.data(
-          tasks.map((t) => t.id == task.id ? updatedT : t).toList()
+          state.value!.map((t) => t.id == task.id ? updatedT : t).toList()
         );
-      });
+      } else {
+        await fetchTasks();
+      }
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
+      rethrow; // Agar UI dapat menangkap error & mereset _isSaving
     }
   }
 
   Future<void> removeTask(String id) async {
     try {
       await _repository.deleteTask(id);
-      state.whenData((tasks) {
-        state = AsyncValue.data(tasks.where((t) => t.id != id).toList());
-      });
+      if (state.hasValue) {
+        state = AsyncValue.data(state.value!.where((t) => t.id != id).toList());
+      } else {
+        await fetchTasks();
+      }
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
     }
@@ -67,11 +75,13 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
   Future<void> updateStatus(String id, String status) async {
     try {
       await _repository.updateTaskStatus(id, status);
-      state.whenData((tasks) {
+      if (state.hasValue) {
         state = AsyncValue.data(
-          tasks.map((t) => t.id == id ? t.copyWith(statusTugas: status) : t).toList()
+          state.value!.map((t) => t.id == id ? t.copyWith(statusTugas: status) : t).toList()
         );
-      });
+      } else {
+        await fetchTasks();
+      }
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
     }
@@ -80,11 +90,13 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
   Future<void> approveOrRejectTask(String id, String keputusan, String statusTugas) async {
     try {
       await _repository.updateTaskManagerDecision(id, keputusan, statusTugas);
-      state.whenData((tasks) {
+      if (state.hasValue) {
         state = AsyncValue.data(
-          tasks.map((t) => t.id == id ? t.copyWith(keputusanManajer: keputusan, statusTugas: statusTugas) : t).toList()
+          state.value!.map((t) => t.id == id ? t.copyWith(keputusanManajer: keputusan, statusTugas: statusTugas) : t).toList()
         );
-      });
+      } else {
+        await fetchTasks();
+      }
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
     }
@@ -93,9 +105,9 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
   Future<void> attachFile(String taskId, AttachmentModel attachment) async {
     try {
       await _repository.addAttachment(taskId, attachment);
-      state.whenData((tasks) {
+      if (state.hasValue) {
         state = AsyncValue.data(
-          tasks.map((t) {
+          state.value!.map((t) {
             if (t.id == taskId) {
               final newAttachments = [...t.attachments, attachment];
               return t.copyWith(attachments: newAttachments);
@@ -103,7 +115,9 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
             return t;
           }).toList()
         );
-      });
+      } else {
+        await fetchTasks();
+      }
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
     }
@@ -138,6 +152,7 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
     String? catatan,
     int? persenSelesai,
     AttachmentModel? attachment,
+    String? hambatan,
   }) async {
     try {
       await _repository.logTaskProgress(
@@ -146,12 +161,17 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
         catatan: catatan,
         persenSelesai: persenSelesai,
         attachment: attachment,
+        hambatan: hambatan,
       );
       await fetchTasks();
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
       rethrow;
     }
+  }
+
+  Future<String> uploadAttachmentFile(Uint8List bytes, String fileName) async {
+    return await _repository.uploadAttachmentFile(bytes, fileName);
   }
 }
 

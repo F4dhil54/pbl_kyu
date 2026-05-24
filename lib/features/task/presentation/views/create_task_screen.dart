@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:typed_data';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -5,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import '../../data/models/task_model.dart';
@@ -34,7 +37,8 @@ Future<bool> cekTanggalMerah(DateTime tanggalPilihan) async {
 class CreateTaskScreen extends ConsumerStatefulWidget {
   final String projectId;
   final TaskModel? taskToEdit;
-  const CreateTaskScreen({super.key, required this.projectId, this.taskToEdit});
+  final bool? isManager;
+  const CreateTaskScreen({super.key, required this.projectId, this.taskToEdit, this.isManager});
 
   @override
   ConsumerState<CreateTaskScreen> createState() => _CreateTaskScreenState();
@@ -50,10 +54,14 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   bool _isLoadingDate = false;
   bool _isSaving = false;
 
+  // Failsafe timer: paksa reset _isSaving jika Supabase hang di Flutter Web
+  Timer? _saveTimeoutTimer;
+
   String _selectedPriority = 'Schedule'; // 'Do' | 'Schedule' | 'Delegate'
   bool _assignToAll = true;
-  final List<String> _selectedMemberIds = [];
+  final List<Map<String, dynamic>> _selectedAssignees = [];
   final List<AttachmentModel> _attachments = [];
+  final Map<String, Uint8List> _attachmentBytes = {};
 
   @override
   void initState() {
@@ -64,17 +72,90 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       _selectedPriority = widget.taskToEdit!.prioritas;
       _selectedDate = widget.taskToEdit!.deadlineDate;
       _scheduledDate = widget.taskToEdit!.scheduledFor;
-      _selectedMemberIds.addAll(widget.taskToEdit!.assignees);
-      _assignToAll = widget.taskToEdit!.assignees.isEmpty;
+      
+      if (widget.taskToEdit!.projectTeamId != null) {
+        _selectedAssignees.add({
+          'type': 'team',
+          'id': widget.taskToEdit!.projectTeamId,
+          'user_id': null,
+          'name': 'Loading Team...',
+        });
+        _assignToAll = false;
+      } else if (widget.taskToEdit!.projectMemberId != null) {
+        _selectedAssignees.add({
+          'type': 'member',
+          'id': widget.taskToEdit!.projectMemberId,
+          'user_id': widget.taskToEdit!.assignees.isNotEmpty ? widget.taskToEdit!.assignees.first : null,
+          'name': 'Loading Member...',
+        });
+        _assignToAll = false;
+      } else if (widget.taskToEdit!.assignees.isNotEmpty) {
+        for (final uid in widget.taskToEdit!.assignees) {
+          _selectedAssignees.add({
+            'type': 'member',
+            'id': '',
+            'user_id': uid,
+            'name': 'Loading Member...',
+          });
+        }
+        _assignToAll = false;
+      } else {
+        _assignToAll = true;
+      }
+      
       _attachments.addAll(widget.taskToEdit!.attachments);
     }
   }
 
   @override
   void dispose() {
+    _saveTimeoutTimer?.cancel();
     _judulController.dispose();
     _deskripsiController.dispose();
     super.dispose();
+  }
+
+  void _resolveAssigneeNames(List<Map<String, dynamic>> membersList, List<Map<String, dynamic>> teamsList) {
+    bool updated = false;
+    for (int i = 0; i < _selectedAssignees.length; i++) {
+      final item = _selectedAssignees[i];
+      if (item['name'].toString().startsWith('Loading')) {
+        if (item['type'] == 'team') {
+          final matchedTeam = teamsList.firstWhere(
+            (t) => t['id'] == item['id'] || t['team_id'] == item['id'],
+            orElse: () => {},
+          );
+          if (matchedTeam.isNotEmpty) {
+            _selectedAssignees[i] = {
+              'type': 'team',
+              'id': matchedTeam['id'],
+              'user_id': null,
+              'name': matchedTeam['nama_tim'],
+            };
+            updated = true;
+          }
+        } else {
+          final matchedMember = membersList.firstWhere(
+            (m) => m['member_id'] == item['id'] || m['user_id'] == item['user_id'],
+            orElse: () => {},
+          );
+          if (matchedMember.isNotEmpty) {
+            _selectedAssignees[i] = {
+              'type': 'member',
+              'id': matchedMember['member_id'],
+              'user_id': matchedMember['user_id'],
+              'name': matchedMember['nama'],
+            };
+            updated = true;
+          }
+        }
+      }
+    }
+    if (updated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    }
   }
 
   String _formatIndonesianDateOnly(DateTime? date) {
@@ -157,6 +238,8 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       );
 
       if (pickedTime != null) {
+        // Hanya set tanggal jadwal di state form — TIDAK auto-save.
+        // User harus menekan tombol "Ditugaskan" / "Simpan Draft" secara eksplisit.
         setState(() {
           _scheduledDate = DateTime(
             pickedDate.year,
@@ -165,11 +248,8 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
             pickedTime.hour,
             pickedTime.minute,
           );
-          _selectedPriority = 'Schedule'; // Force schedule priority
+          _selectedPriority = 'Schedule';
         });
-        
-        // Auto-save task as scheduled
-        _simpanTugas(false);
       }
     }
   }
@@ -187,12 +267,25 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.camera_alt, color: AppColors.primary),
-                title: const Text('Ambil Foto'),
+                title: const Text('Ambil Foto (Kamera)'),
                 onTap: () async {
                   Navigator.pop(context);
                   final picker = ImagePicker();
                   final pickedFile = await picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
+                    final size = await pickedFile.length();
+                    if (size > 5 * 1024 * 1024) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Ukuran foto melebihi batas 5MB!'),
+                            backgroundColor: AppColors.alertText,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    final bytes = await pickedFile.readAsBytes();
                     setState(() {
                       _attachments.add(AttachmentModel(
                         id: '',
@@ -201,26 +294,78 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                         filePathOrUrl: pickedFile.path,
                         namaFile: pickedFile.name,
                       ));
+                      _attachmentBytes[pickedFile.path] = bytes;
                     });
                   }
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.file_upload, color: AppColors.primary),
-                title: const Text('Upload File'),
+                leading: const Icon(Icons.photo_library, color: AppColors.primary),
+                title: const Text('Galeri Foto'),
                 onTap: () async {
                   Navigator.pop(context);
                   final picker = ImagePicker();
                   final pickedFile = await picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
+                    final size = await pickedFile.length();
+                    if (size > 5 * 1024 * 1024) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Ukuran foto melebihi batas 5MB!'),
+                            backgroundColor: AppColors.alertText,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    final bytes = await pickedFile.readAsBytes();
+                    setState(() {
+                      _attachments.add(AttachmentModel(
+                        id: '',
+                        taskId: widget.taskToEdit?.id ?? '',
+                        tipeLampiran: 'foto',
+                        filePathOrUrl: pickedFile.path,
+                        namaFile: pickedFile.name,
+                      ));
+                      _attachmentBytes[pickedFile.path] = bytes;
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.file_present_rounded, color: AppColors.primary),
+                title: const Text('Pilih Dokumen (PDF, Word, dll.)'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'],
+                  );
+                  if (result != null) {
+                    final size = result.files.single.size;
+                    if (size > 5 * 1024 * 1024) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Ukuran dokumen melebihi batas 5MB!'),
+                            backgroundColor: AppColors.alertText,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    final pathOrUrl = result.files.single.path ?? result.files.single.name;
+                    final bytes = result.files.single.bytes ?? await XFile(result.files.single.path!).readAsBytes();
                     setState(() {
                       _attachments.add(AttachmentModel(
                         id: '',
                         taskId: widget.taskToEdit?.id ?? '',
                         tipeLampiran: 'file',
-                        filePathOrUrl: pickedFile.path,
-                        namaFile: pickedFile.name,
+                        filePathOrUrl: pathOrUrl,
+                        namaFile: result.files.single.name,
                       ));
+                      _attachmentBytes[pathOrUrl] = bytes;
                     });
                   }
                 },
@@ -283,6 +428,98 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     );
   }
 
+  // ============================================================
+  // APPROVAL: Manajer menyetujui usulan Draft Tim → Tugas Aktif
+  // ============================================================
+  Future<void> _approveTimDraft() async {
+    if (widget.taskToEdit == null) return;
+    setState(() { _isSaving = true; });
+    try {
+      await ref.read(projectTaskListProvider(widget.projectId).notifier)
+          .approveOrRejectTask(widget.taskToEdit!.id, 'Setujui', 'Akan Dikerjakan');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Usulan tugas disetujui dan kini aktif!'),
+            backgroundColor: AppColors.successText,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyetujui: $e'), backgroundColor: AppColors.alertText),
+        );
+      }
+    } finally {
+      if (mounted) setState(() { _isSaving = false; });
+    }
+  }
+
+  // ============================================================
+  // REJECTION: Manajer menolak usulan Draft Tim
+  // ============================================================
+  Future<void> _rejectTimDraft() async {
+    if (widget.taskToEdit == null) return;
+    // Tampilkan dialog konfirmasi sebelum menolak
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tolak Usulan Tugas?'),
+        content: Text('Usulan "${widget.taskToEdit!.judulTugas}" akan ditandai sebagai "Tidak Disetujui" dan anggota tim akan diberitahu.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Tolak Usulan', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() { _isSaving = true; });
+    try {
+      await ref.read(projectTaskListProvider(widget.projectId).notifier)
+          .approveOrRejectTask(widget.taskToEdit!.id, 'Tidak Setujui', 'Ditinjau');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Usulan tugas ditolak.'),
+            backgroundColor: AppColors.alertText,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menolak: $e'), backgroundColor: AppColors.alertText),
+        );
+      }
+    } finally {
+      if (mounted) setState(() { _isSaving = false; });
+    }
+  }
+
+  // ============================================================
+  // PUBLISH: Manajer menerbitkan draft-nya sendiri → Tugas Aktif
+  // (seperti tombol "Tugaskan" di Google Classroom)
+  // ============================================================
+  Future<void> _tugaskanDraft() async {
+    final judul = _judulController.text.trim();
+    if (judul.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Judul tugas tidak boleh kosong!')),
+      );
+      return;
+    }
+    // Override _scheduledDate agar tidak masuk ke path 'scheduled'
+    _scheduledDate = null;
+    await _simpanTugas(false); // isDraft=false, scheduledDate=null → accept
+  }
+
   Future<void> _simpanTugas(bool isDraft) async {
     final judul = _judulController.text.trim();
     final deskripsi = _deskripsiController.text.trim();
@@ -296,26 +533,107 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
 
     setState(() { _isSaving = true; });
 
-    final user = Supabase.instance.client.auth.currentUser;
-    final role = user?.userMetadata?['role'] ?? 'Tim';
-    final isManager = role == 'Manajer';
+    // ── LAYER 1: Timer failsafe ─────────────────────────────────────────────
+    // Jika Supabase hang di Flutter Web (HTTP browser tidak merespons),
+    // Timer ini PAKSA reset _isSaving setelah 20 detik. Bekerja independen
+    // dari async/await dan tidak bergantung pada event loop Supabase.
+    _saveTimeoutTimer?.cancel();
+    _saveTimeoutTimer = Timer(const Duration(seconds: 20), () {
+      if (mounted && _isSaving) {
+        setState(() { _isSaving = false; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal menyimpan: koneksi ke server timeout. Silakan coba lagi.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
 
-    // Determine status
-    String statusTugas = 'Akan Dikerjakan';
-    if (isDraft) {
+    final user = Supabase.instance.client.auth.currentUser;
+    final isManager = widget.isManager ?? (user?.userMetadata?['role'] == 'Manajer');
+
+    // =======================================================
+    // LOGIKA STATUS TUGAS:
+    // - Tim buat tugas → selalu 'review' (butuh persetujuan manajer)
+    // - Manajer simpan draft → 'draft' (privat, hanya manajer)
+    // - Manajer jadwalkan → 'scheduled'
+    // - Manajer tugaskan langsung → 'accept' (tugas aktif)
+    // =======================================================
+    String statusTugas;
+    String keputusanManajer;
+
+    if (!isManager) {
+      statusTugas = 'review';
+      keputusanManajer = 'Menunggu';
+    } else if (isDraft) {
       statusTugas = 'draft';
-    } else if (isManager && _scheduledDate != null) {
+      keputusanManajer = 'Menunggu';
+    } else if (_scheduledDate != null) {
       statusTugas = 'scheduled';
+      keputusanManajer = 'Menunggu';
+    } else {
+      statusTugas = 'accept';
+      keputusanManajer = 'Setujui';
     }
 
     // Determine assignees
-    List<String> assignees = [];
+    List<Map<String, dynamic>> assignees = [];
     if (isManager) {
       if (_assignToAll) {
         final membersList = ref.read(projectMembersProvider(widget.projectId)).value ?? [];
-        assignees = membersList.map((m) => m['user_id'] as String).toList();
+        assignees = membersList.map((m) => {
+          'user_id': m['user_id'] as String,
+          'project_member_id': m['member_id'] as String,
+          'project_team_id': null,
+        }).toList();
       } else {
-        assignees = List<String>.from(_selectedMemberIds);
+        assignees = _selectedAssignees.map((a) => {
+          'user_id': a['user_id'],
+          'project_member_id': a['type'] == 'member' ? a['id'] : null,
+          'project_team_id': a['type'] == 'team' ? a['id'] : null,
+        }).toList();
+      }
+    }
+
+    String? resolvedTeamId;
+    for (final a in assignees) {
+      if (a['project_team_id'] != null) {
+        resolvedTeamId = a['project_team_id'] as String?;
+        break;
+      }
+    }
+
+    String? resolvedMemberId;
+    for (final a in assignees) {
+      if (a['project_member_id'] != null) {
+        resolvedMemberId = a['project_member_id'] as String?;
+        break;
+      }
+    }
+
+    // Upload attachments that have local bytes
+    final List<AttachmentModel> uploadedAttachments = [];
+    for (final att in _attachments) {
+      if (_attachmentBytes.containsKey(att.filePathOrUrl)) {
+        final bytes = _attachmentBytes[att.filePathOrUrl]!;
+        try {
+          final publicUrl = await ref.read(projectTaskListProvider(widget.projectId).notifier)
+              .uploadAttachmentFile(bytes, att.namaFile);
+          uploadedAttachments.add(AttachmentModel(
+            id: att.id,
+            taskId: att.taskId,
+            logId: att.logId,
+            tipeLampiran: att.tipeLampiran,
+            filePathOrUrl: publicUrl,
+            namaFile: att.namaFile,
+          ));
+        } catch (e) {
+          debugPrint("Failed uploading attachment: $e");
+          uploadedAttachments.add(att);
+        }
+      } else {
+        uploadedAttachments.add(att);
       }
     }
 
@@ -328,40 +646,65 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       kuadranEisenhower: isManager ? _selectedPriority : 'Schedule',
       statusTugas: statusTugas,
       durasiPomodoro: widget.taskToEdit?.durasiPomodoro ?? 25,
-      dibuatOlehRole: widget.taskToEdit?.dibuatOlehRole ?? role,
-      keputusanManajer: widget.taskToEdit?.keputusanManajer ?? (isManager ? 'Setujui' : 'Menunggu'),
+      dibuatOlehRole: widget.taskToEdit?.dibuatOlehRole ?? (isManager ? 'Manajer' : 'Tim'),
+      keputusanManajer: keputusanManajer,
       prioritas: isManager ? _selectedPriority : 'Schedule',
       deadlineDate: _selectedDate,
-      scheduledFor: isManager && _scheduledDate != null ? _scheduledDate : null,
-      assignees: assignees,
-      attachments: _attachments,
+      scheduledFor: _scheduledDate,
+      assignees: assignees.map((a) => (a['user_id'] ?? '') as String).where((uid) => uid.isNotEmpty).toList(),
+      attachments: uploadedAttachments,
+      projectTeamId: resolvedTeamId,
+      projectMemberId: resolvedMemberId,
     );
 
     try {
+      // ── LAYER 2: Future.timeout(15s) ────────────────────────────────────
+      // Jika notifier tidak menyelesaikan operasi dalam 15 detik,
+      // lempar exception ke catch block sehingga finally pasti jalan.
       if (widget.taskToEdit != null) {
-        await ref.read(projectTaskListProvider(widget.projectId).notifier).editTask(task, assignees);
+        await ref.read(projectTaskListProvider(widget.projectId).notifier)
+            .editTask(task, assignees)
+            .timeout(
+              const Duration(seconds: 15),
+              onTimeout: () => throw Exception('Koneksi timeout. Coba lagi.'),
+            );
       } else {
-        await ref.read(projectTaskListProvider(widget.projectId).notifier).addTask(task, assignees);
+        await ref.read(projectTaskListProvider(widget.projectId).notifier)
+            .addTask(task, assignees)
+            .timeout(
+              const Duration(seconds: 15),
+              onTimeout: () => throw Exception('Koneksi timeout. Coba lagi.'),
+            );
       }
 
       if (mounted) {
+        String successMsg;
+        if (!isManager) {
+          successMsg = 'Usulan tugas berhasil dikirim! Menunggu persetujuan manajer.';
+        } else if (isDraft) {
+          successMsg = 'Draft berhasil disimpan!';
+        } else if (_scheduledDate != null) {
+          successMsg = 'Tugas berhasil dijadwalkan!';
+        } else {
+          successMsg = widget.taskToEdit != null ? 'Tugas berhasil diperbarui!' : 'Tugas berhasil ditugaskan!';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.taskToEdit != null 
-                ? 'Tugas berhasil diperbarui!' 
-                : (isDraft ? 'Draft berhasil disimpan!' : 'Tugas berhasil disimpan!')),
-            backgroundColor: AppColors.successText,
-          ),
+          SnackBar(content: Text(successMsg), backgroundColor: AppColors.successText),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menyimpan tugas: $e'), backgroundColor: AppColors.alertText),
+          SnackBar(
+            content: Text('Gagal menyimpan tugas: ${e.toString().replaceAll("Exception: ", "")}'),
+            backgroundColor: AppColors.alertText,
+          ),
         );
       }
     } finally {
+      // Batalkan timer failsafe dan selalu reset _isSaving
+      _saveTimeoutTimer?.cancel();
       if (mounted) {
         setState(() { _isSaving = false; });
       }
@@ -370,10 +713,11 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
 
   @override
   Widget build(BuildContext context) {
+
     final user = Supabase.instance.client.auth.currentUser;
-    final role = user?.userMetadata?['role'] ?? 'Tim';
-    final isManager = role == 'Manajer';
+    final isManager = widget.isManager ?? (user?.userMetadata?['role'] == 'Manajer');
     final membersAsync = ref.watch(projectMembersProvider(widget.projectId));
+    final teamsAsync = ref.watch(projectTeamsProvider(widget.projectId));
 
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeControl.themeNotifier,
@@ -383,23 +727,155 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
         return Scaffold(
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
           appBar: AppBar(
-            backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+            backgroundColor: isDark ? AppDarkColors.background : Colors.white,
             elevation: 0,
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: Text(
-              'KYU',
-              style: TextStyle(
-                color: isDark ? Colors.white : const Color(0xFF1E3A8A),
-                fontWeight: FontWeight.w900,
-                fontSize: 20,
-                letterSpacing: 1,
+            scrolledUnderElevation: 0,
+            shape: Border(
+              bottom: BorderSide(
+                color: isDark ? AppDarkColors.border : const Color(0xFFEEEEEE),
+                width: 0.5,
               ),
             ),
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                size: 20,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1E50FF), Color(0xFF7C3AED)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(7),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1E50FF).withValues(alpha: 0.35),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'K',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [Color(0xFF1E50FF), Color(0xFF7C3AED)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ).createShader(bounds),
+                  blendMode: BlendMode.srcIn,
+                  child: const Text(
+                    'KYU',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
+                      letterSpacing: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             actions: [
-              if (isManager)
+              // ── KONTEKS 1: Manajer melihat usulan Draft Tim ──────────────────
+              if (isManager && widget.taskToEdit != null &&
+                  widget.taskToEdit!.dibuatOlehRole == 'Tim' &&
+                  widget.taskToEdit!.statusTugas == 'Ditinjau') ...[
+                if (_isSaving)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 16),
+                    child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+                  )
+                else ...[
+                  // Tombol Tolak (merah)
+                  TextButton(
+                    onPressed: _rejectTimDraft,
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('Tolak', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  // Tombol Setujui (hijau) — seperti "Tugaskan" Google Classroom
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12, left: 4),
+                    child: ElevatedButton(
+                      onPressed: _approveTimDraft,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.successText,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        elevation: 0,
+                      ),
+                      child: const Text('Setujui', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ]
+              // ── KONTEKS 2: Manajer edit draft miliknya sendiri ───────────────
+              else if (isManager && widget.taskToEdit != null &&
+                  widget.taskToEdit!.dibuatOlehRole == 'Manajer' &&
+                  widget.taskToEdit!.statusTugas == 'Draft') ...[
+                if (_isSaving)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 16),
+                    child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+                  )
+                else ...[
+                  // Tombol TUGASKAN — seperti Google Classroom (biru, prominent)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4, left: 4),
+                    child: ElevatedButton(
+                      onPressed: _tugaskanDraft,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        elevation: 0,
+                      ),
+                      child: const Text('Tugaskan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  // Popup: hanya Jadwalkan (Simpan Draft sudah ada di tombol bawah)
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+                    onSelected: (value) {
+                      if (value == 'schedule') _pilihTanggalJadwal(context);
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'schedule',
+                        child: Row(
+                          children: [
+                            Icon(Icons.schedule, size: 18),
+                            SizedBox(width: 8),
+                            Text('Jadwalkan'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ]
+              // ── KONTEKS 3: Manajer membuat tugas baru atau edit tugas aktif ──
+              else if (isManager) ...[
                 PopupMenuButton<String>(
                   icon: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
                   onSelected: (value) {
@@ -432,7 +908,8 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                     ),
                   ],
                 ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
+              ],
             ],
           ),
           body: SingleChildScrollView(
@@ -441,16 +918,31 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.taskToEdit != null
-                      ? 'Edit Tugas'
-                      : (isManager ? 'Tambah Tugas Baru' : 'Usulkan Tugas Baru'),
+                  () {
+                    if (widget.taskToEdit != null) {
+                      if (isManager && widget.taskToEdit!.dibuatOlehRole == 'Tim' && widget.taskToEdit!.statusTugas == 'Ditinjau') {
+                        return 'Tinjau Usulan Tim';
+                      } else if (isManager && widget.taskToEdit!.statusTugas == 'Draft') {
+                        return 'Edit Draft Tugas';
+                      }
+                      return 'Edit Tugas';
+                    }
+                    return isManager ? 'Tambah Tugas Baru' : 'Usulkan Tugas Baru';
+                  }(),
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  isManager 
-                      ? 'Detailkan parameter proyek dan tentukan pelaksana tugas.'
-                      : 'Ajukan usulan tugas baru ke Manajer Workspace untuk disetujui.',
+                  () {
+                    if (isManager && widget.taskToEdit != null && widget.taskToEdit!.dibuatOlehRole == 'Tim' && widget.taskToEdit!.statusTugas == 'Ditinjau') {
+                      return 'Review usulan dari anggota tim. Setujui untuk menjadikannya tugas aktif.';
+                    } else if (isManager && widget.taskToEdit != null && widget.taskToEdit!.statusTugas == 'Draft') {
+                      return 'Draft tersimpan privat. Tekan "Tugaskan" di atas untuk menerbitkan ke tim.';
+                    }
+                    return isManager
+                        ? 'Detailkan parameter proyek dan tentukan pelaksana tugas.'
+                        : 'Ajukan usulan tugas baru ke Manajer Workspace untuk disetujui.';
+                  }(),
                   style: TextStyle(fontSize: 14, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, height: 1.5),
                 ),
                 const SizedBox(height: 24),
@@ -504,60 +996,119 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                             loading: () => const Center(child: CircularProgressIndicator()),
                             error: (err, stack) => Text('Gagal memuat anggota: $err', style: const TextStyle(color: Colors.red)),
                             data: (membersList) {
-                              if (membersList.isEmpty) {
-                                return const Text('Tidak ada anggota proyek tersedia.', style: TextStyle(color: Colors.grey, fontSize: 13));
-                              }
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  DropdownButtonFormField<String>(
-                                    decoration: InputDecoration(
-                                      labelText: 'Pilih Anggota',
-                                      filled: true,
-                                      fillColor: isDark ? AppDarkColors.background : Colors.grey[100],
-                                      border: const OutlineInputBorder(),
-                                    ),
-                                    dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
-                                    items: membersList.map<DropdownMenuItem<String>>((m) {
-                                      final userId = m['user_id'] as String;
-                                      final nama = m['nama'] as String;
-                                      return DropdownMenuItem<String>(
-                                        value: userId,
-                                        child: Text(nama, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
-                                      );
-                                    }).toList(),
-                                    onChanged: (userId) {
-                                      if (userId != null && !_selectedMemberIds.contains(userId)) {
-                                        setState(() {
-                                          _selectedMemberIds.add(userId);
-                                        });
-                                      }
-                                    },
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: _selectedMemberIds.map((userId) {
-                                      final member = membersList.firstWhere(
-                                        (m) => m['user_id'] == userId,
-                                        orElse: () => {'nama': 'User'},
-                                      );
-                                      final name = member['nama'] as String;
-                                      return Chip(
-                                        label: Text(name),
-                                        backgroundColor: isDark ? AppDarkColors.background : Colors.grey[200],
-                                        labelStyle: TextStyle(color: isDark ? Colors.white : Colors.black),
-                                        deleteIcon: const Icon(Icons.close, size: 16),
-                                        onDeleted: () {
-                                          setState(() {
-                                            _selectedMemberIds.remove(userId);
-                                          });
+                              return teamsAsync.when(
+                                loading: () => const Center(child: CircularProgressIndicator()),
+                                error: (err, stack) => Text('Gagal memuat tim: $err', style: const TextStyle(color: Colors.red)),
+                                data: (teamsList) {
+                                  // Resolve initial loaded/editing assignee names
+                                  _resolveAssigneeNames(membersList, teamsList);
+
+                                  if (membersList.isEmpty && teamsList.isEmpty) {
+                                    return const Text('Tidak ada anggota atau tim proyek tersedia.', style: TextStyle(color: Colors.grey, fontSize: 13));
+                                  }
+
+                                  final List<DropdownMenuItem<String>> dropdownItems = [];
+                                  
+                                  for (final m in membersList) {
+                                    dropdownItems.add(DropdownMenuItem(
+                                      value: 'member_${m['member_id']}',
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.person, size: 18, color: Colors.blue),
+                                          const SizedBox(width: 8),
+                                          Text(m['nama'] as String, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+                                        ],
+                                      ),
+                                    ));
+                                  }
+
+                                  for (final t in teamsList) {
+                                    dropdownItems.add(DropdownMenuItem(
+                                      value: 'team_${t['id']}',
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.group, size: 18, color: Colors.amber),
+                                          const SizedBox(width: 8),
+                                          Text(t['nama_tim'] as String, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+                                        ],
+                                      ),
+                                    ));
+                                  }
+
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      DropdownButtonFormField<String>(
+                                        value: null,
+                                        decoration: InputDecoration(
+                                          labelText: 'Pilih Penerima Tugas (Anggota/Tim)',
+                                          filled: true,
+                                          fillColor: isDark ? AppDarkColors.background : Colors.grey[100],
+                                          border: const OutlineInputBorder(),
+                                        ),
+                                        dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
+                                        items: dropdownItems,
+                                        onChanged: (val) {
+                                          if (val != null) {
+                                            if (val.startsWith('member_')) {
+                                              final memberId = val.substring('member_'.length);
+                                              final m = membersList.firstWhere((x) => x['member_id'] == memberId);
+                                              final alreadySelected = _selectedAssignees.any((a) => a['id'] == m['member_id']);
+                                              if (!alreadySelected) {
+                                                setState(() {
+                                                  _selectedAssignees.add({
+                                                    'type': 'member',
+                                                    'id': m['member_id'],
+                                                    'user_id': m['user_id'],
+                                                    'name': m['nama'],
+                                                  });
+                                                });
+                                              }
+                                            } else if (val.startsWith('team_')) {
+                                              final teamId = val.substring('team_'.length);
+                                              final t = teamsList.firstWhere((x) => x['id'] == teamId);
+                                              final alreadySelected = _selectedAssignees.any((a) => a['id'] == t['id']);
+                                              if (!alreadySelected) {
+                                                setState(() {
+                                                  _selectedAssignees.add({
+                                                    'type': 'team',
+                                                    'id': t['id'],
+                                                    'user_id': null,
+                                                    'name': t['nama_tim'],
+                                                  });
+                                                });
+                                              }
+                                            }
+                                          }
                                         },
-                                      );
-                                    }).toList(),
-                                  ),
-                                ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: _selectedAssignees.map((assignee) {
+                                          final isTeam = assignee['type'] == 'team';
+                                          return Chip(
+                                            avatar: Icon(
+                                              isTeam ? Icons.group : Icons.person,
+                                              size: 14,
+                                              color: isTeam ? Colors.amber[800] : Colors.blue[800],
+                                            ),
+                                            label: Text(assignee['name'] as String),
+                                            backgroundColor: isDark ? AppDarkColors.background : Colors.grey[200],
+                                            labelStyle: TextStyle(color: isDark ? Colors.white : Colors.black),
+                                            deleteIcon: const Icon(Icons.close, size: 16),
+                                            onDeleted: () {
+                                              setState(() {
+                                                _selectedAssignees.remove(assignee);
+                                              });
+                                            },
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ],
+                                  );
+                                },
                               );
                             },
                           ),
@@ -713,9 +1264,64 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Buttons Row
+                      // ── TOMBOL BAWAH: Context-aware ──────────────────────────
                       if (_isSaving)
                         const Center(child: CircularProgressIndicator())
+                      
+                      // KONTEKS A: Manajer meninjau usulan Draft Tim
+                      // → Aksi (Tolak/Setujui) sudah ada di AppBar, tombol bawah hanya Batal
+                      else if (isManager && widget.taskToEdit != null &&
+                          widget.taskToEdit!.dibuatOlehRole == 'Tim' &&
+                          widget.taskToEdit!.statusTugas == 'Ditinjau')
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: Text('Kembali', style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
+                          ),
+                        )
+                      
+                      // KONTEKS B: Manajer edit draft miliknya sendiri
+                      // → AppBar punya tombol "Tugaskan" & "Jadwalkan", tombol bawah = Simpan Draft
+                      else if (isManager && widget.taskToEdit != null &&
+                          widget.taskToEdit!.dibuatOlehRole == 'Manajer' &&
+                          widget.taskToEdit!.statusTugas == 'Draft')
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: Text('Batal', style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _simpanTugas(true),
+                                icon: const Icon(Icons.edit_document, size: 18, color: Colors.white),
+                                label: const Text('Simpan Draft', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF6B7280),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  elevation: 0,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+
+                      // KONTEKS C: Default — Manajer buat tugas baru / edit tugas aktif / Tim usulkan
                       else
                         Row(
                           children: [
@@ -741,9 +1347,12 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                                   elevation: 0,
                                 ),
                                 child: Text(
-                                  isManager 
-                                      ? (widget.taskToEdit != null ? 'Simpan Perubahan' : 'Ditugaskan') 
-                                      : 'Kirim Usulan',
+                                  () {
+                                    if (!isManager) return 'Kirim Usulan';
+                                    if (_scheduledDate != null) return 'Simpan Dijadwalkan';
+                                    if (widget.taskToEdit != null) return 'Simpan Perubahan';
+                                    return 'Ditugaskan';
+                                  }(),
                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                                 ),
                               ),
