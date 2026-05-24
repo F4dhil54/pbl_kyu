@@ -20,6 +20,11 @@ void main() async {
     );
     debugPrint("=== DEBUG: [3/4] Jembatan Supabase Berhasil Terhubung! ===");
 
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (currentUser != null) {
+      await ThemeControl.loadTheme(currentUser.id);
+    }
+
     debugPrint("=== DEBUG: [4/4] Menjalankan Aplikasi KYU ===");
     runApp(
       const ProviderScope(

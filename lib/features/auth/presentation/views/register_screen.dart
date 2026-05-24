@@ -146,21 +146,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final isAuthLoading = ref.watch(authLoadingProvider);
+    const bool isDark = false;
 
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: ThemeControl.themeNotifier,
-      builder: (context, currentMode, child) {
-        bool isDark = currentMode == ThemeMode.dark;
+    OutlineInputBorder buildBorder(Color borderColor, {double width = 1.0}) {
+      return OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: borderColor, width: width),
+      );
+    }
 
-        OutlineInputBorder buildBorder(Color borderColor, {double width = 1.0}) {
-          return OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: borderColor, width: width),
-          );
-        }
-
-        return Scaffold(
-          backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+    return Scaffold(
+      backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -685,8 +681,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
           ),
         );
-      },
-    );
   }
 
   Widget _buildFieldLabel(String label, bool isDark) {
