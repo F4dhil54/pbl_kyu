@@ -46,7 +46,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _confirmPasswordController.clear();
 
     // Dengarkan perubahan sesi untuk menangani kembalinya pengguna dari halaman Google OAuth
-    _authStateSubscription = ref.read(supabaseClientProvider).auth.onAuthStateChange.listen((data) {
+    _authStateSubscription = ref.read(supabaseClientProvider).auth.onAuthStateChange.listen((data) async {
       final AuthChangeEvent event = data.event;
       final Session? session = data.session;
 
@@ -54,12 +54,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         // Arahkan langsung ke Beranda jika login dipicu oleh alur Google dan peran sudah dipilih
         if (mounted && selectedRole != null && _isGoogleAuthFlowActive) {
           _isGoogleAuthFlowActive = false;
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MainLayout(role: selectedRole!),
-            ),
-          );
+          
+          try {
+            final supabase = ref.read(supabaseClientProvider);
+            final response = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', session.user.id)
+                .single();
+            
+            final dbRole = response['role'] as String? ?? '';
+            
+            if (!dbRole.contains(selectedRole!)) {
+              final newRole = dbRole.isEmpty ? selectedRole! : '$dbRole, $selectedRole';
+              await supabase.from('profiles').update({'role': newRole}).eq('id', session.user.id);
+            }
+            
+            await supabase.auth.updateUser(UserAttributes(data: {'role': selectedRole}));
+          } catch (e) {
+            debugPrint('Gagal memperbarui peran pada daftar dengan Google: $e');
+          }
+
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MainLayout(role: selectedRole!),
+              ),
+            );
+          }
         }
       }
     });

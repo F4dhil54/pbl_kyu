@@ -40,7 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isGoogleAuthFlowActive = false; 
   StreamSubscription<AuthState>? _authStateSubscription;
 
-  Future<void> _fetchRoleAndNavigate(String userId) async {
+  Future<void> _fetchRoleAndNavigate(String userId, {required bool isGoogleAuth}) async {
     setState(() {
       _isGoogleLoading = true;
     });
@@ -53,7 +53,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .eq('id', userId)
           .single();
       
-      final dbRole = response['role'] as String? ?? 'Tim';
+      final dbRole = response['role'] as String? ?? '';
+      
+      if (isGoogleAuth) {
+        if (selectedRole != null && !dbRole.contains(selectedRole!)) {
+          final newRole = dbRole.isEmpty ? selectedRole! : '$dbRole, $selectedRole';
+          await supabase.from('profiles').update({'role': newRole}).eq('id', userId);
+        }
+      } else {
+        if (selectedRole != null && !dbRole.contains(selectedRole!)) {
+          await ref.read(authControllerProvider).signOut();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Akun belum terdaftar sebagai peran yang dipilih. Silakan lakukan pendaftaran terlebih dahulu.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return; 
+        }
+      }
+
+      if (selectedRole != null) {
+        await supabase.auth.updateUser(UserAttributes(data: {'role': selectedRole}));
+      }
 
       // Reset navigation index to 0 (Task 8)
       ref.read(navigationIndexProvider.notifier).state = 0;
@@ -62,7 +87,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => MainLayout(role: dbRole),
+            builder: (context) => MainLayout(role: selectedRole ?? 'Tim'),
           ),
         );
       }
@@ -99,7 +124,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         // Hanya arahkan langsung jika login dipicu oleh alur Google
         if (mounted && _isGoogleAuthFlowActive) {
           _isGoogleAuthFlowActive = false;
-          await _fetchRoleAndNavigate(session.user.id);
+          await _fetchRoleAndNavigate(session.user.id, isGoogleAuth: true);
         }
       }
     });
@@ -136,7 +161,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final supabase = ref.read(supabaseClientProvider);
         final user = supabase.auth.currentUser;
         if (user != null) {
-          await _fetchRoleAndNavigate(user.id);
+          await _fetchRoleAndNavigate(user.id, isGoogleAuth: false);
         } else {
           ref.read(navigationIndexProvider.notifier).state = 0;
           Navigator.pushReplacement(

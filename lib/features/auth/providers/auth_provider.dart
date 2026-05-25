@@ -57,6 +57,44 @@ class AuthController {
       }
       return true;
     } on AuthException catch (e) {
+      if (e.message.toLowerCase().contains('already registered') || e.message.toLowerCase().contains('already exists')) {
+        try {
+          final response = await _supabase.auth.signInWithPassword(email: email, password: password);
+          if (response.user != null) {
+            final userId = response.user!.id;
+            final profile = await _supabase.from('profiles').select('role').eq('id', userId).single();
+            final dbRole = profile['role'] as String? ?? '';
+            
+            if (!dbRole.contains(role)) {
+              final newRole = dbRole.isEmpty ? role : '$dbRole, $role';
+              await _supabase.from('profiles').update({'role': newRole}).eq('id', userId);
+            }
+            
+            await _supabase.auth.signOut();
+            
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Peran berhasil ditambahkan ke akun Anda! Silakan Login.'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+            return true;
+          }
+        } catch (loginError) {
+           if (context.mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(
+                 content: Text('Akun sudah terdaftar. Jika Anda ingin menambah peran, pastikan kata sandi yang Anda masukkan benar.'),
+                 backgroundColor: Colors.red,
+               ),
+             );
+           }
+           return false;
+        }
+      }
+      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
