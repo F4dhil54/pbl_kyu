@@ -6,6 +6,7 @@ import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
 import 'package:pbl_kyu/shared/widgets/app_sidebar.dart';
 import '../../data/models/notification_model.dart';
 import '../providers/notification_provider.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
 import 'message_detail_screen.dart' as message_detail;
 import 'compose_message_screen.dart';
 
@@ -306,6 +307,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           Color iconColor = AppColors.primary;
                           Color iconBgColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F4FF);
                           
+                          bool isAccepted = notif.tipeNotifikasi == 'undangan' && notif.pesan == 'Undangan diterima!';
+                          bool isRejected = notif.tipeNotifikasi == 'undangan' && notif.pesan == 'Undangan ditolak.';
+
                           if (notif.tipeNotifikasi == 'pesan' || notif.tipeNotifikasi == 'mention') {
                             iconData = Icons.chat_bubble_outline;
                             iconColor = AppColors.primary;
@@ -321,19 +325,37 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                             iconData = Icons.star_border;
                             iconColor = Colors.amber;
                             iconBgColor = isDark ? const Color(0xFF422006) : const Color(0xFFFFFBEB);
+                          } else if (isAccepted) {
+                            iconData = Icons.check_circle_outline;
+                            iconColor = AppColors.successText;
+                            iconBgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFE8F5E9);
+                          } else if (isRejected) {
+                            iconData = Icons.cancel_outlined;
+                            iconColor = AppColors.alertText;
+                            iconBgColor = isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFFEBEB);
                           }
+
+                          Color notifBgColor = isAccepted 
+                              ? (isDark ? AppColors.successText.withValues(alpha: 0.15) : AppColors.successBackground)
+                              : (isRejected 
+                                  ? (isDark ? AppColors.alertText.withValues(alpha: 0.15) : const Color(0xFFFFEBEB))
+                                  : (notif.isRead 
+                                      ? (isDark ? AppDarkColors.background : Colors.white)
+                                      : (isDark ? AppDarkColors.surface : AppColors.inputBackground)));
 
                           return GestureDetector(
                             onTap: () => _handleNotificationTap(notif),
                             child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: notif.isRead 
-                                    ? (isDark ? AppDarkColors.background : Colors.white)
-                                    : (isDark ? AppDarkColors.surface : AppColors.inputBackground),
+                                color: notifBgColor,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: isDark ? AppDarkColors.border : AppColors.border, 
+                                  color: isAccepted 
+                                      ? AppColors.successText.withValues(alpha: 0.3)
+                                      : (isRejected 
+                                          ? AppColors.alertText.withValues(alpha: 0.3) 
+                                          : (isDark ? AppDarkColors.border : AppColors.border)), 
                                   width: 0.5
                                 ),
                               ),
@@ -398,17 +420,25 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                                           ],
                                         ),
                                         const SizedBox(height: 6),
-                                        Text(
-                                          notif.pesan,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: notif.isRead 
-                                                ? (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary)
-                                                : (isDark ? AppDarkColors.textMain : AppColors.textMain),
-                                            height: 1.4,
-                                          ),
+                                        Builder(
+                                          builder: (context) {
+                                            String displayPesan = notif.pesan;
+                                            if (notif.tipeNotifikasi == 'undangan' && notif.senderName != null && !isAccepted && !isRejected) {
+                                              displayPesan = displayPesan.replaceAll('Anda telah diundang', '${notif.senderName} mengundang Anda');
+                                            }
+                                            return Text(
+                                              displayPesan,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: notif.isRead 
+                                                    ? (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary)
+                                                    : (isDark ? AppDarkColors.textMain : AppColors.textMain),
+                                                height: 1.4,
+                                              ),
+                                            );
+                                          }
                                         ),
                                         if (notif.projectName != null && notif.projectName!.isNotEmpty) ...[
                                           const SizedBox(height: 8),
@@ -426,6 +456,72 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
+                                          ),
+                                        ],
+                                        if (notif.tipeNotifikasi == 'undangan' && !isAccepted && !isRejected) ...[
+                                          const SizedBox(height: 12),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: ElevatedButton(
+                                                  onPressed: () async {
+                                                    if (notif.senderId != null) {
+                                                      try {
+                                                        await ref.read(profileRepositoryProvider).respondToInvitation(notif.senderId!, notif.userId, 'aktif');
+                                                        if (context.mounted) {
+                                                          await ref.read(notificationNotifierProvider.notifier).updateNotificationStatus(notif.id, 'Undangan diterima!');
+                                                          if (context.mounted) {
+                                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Undangan diterima!')));
+                                                          }
+                                                        }
+                                                      } catch (e) {
+                                                        if (context.mounted) {
+                                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menerima undangan: $e')));
+                                                        }
+                                                      }
+                                                    } else {
+                                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal: ID pengirim tidak ditemukan.')));
+                                                    }
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: AppColors.successText,
+                                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                  ),
+                                                  child: const Text('Terima', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: OutlinedButton(
+                                                  onPressed: () async {
+                                                    if (notif.senderId != null) {
+                                                      try {
+                                                        await ref.read(profileRepositoryProvider).rejectInvitation(notif.senderId!, notif.userId);
+                                                        if (context.mounted) {
+                                                          await ref.read(notificationNotifierProvider.notifier).updateNotificationStatus(notif.id, 'Undangan ditolak.');
+                                                          if (context.mounted) {
+                                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Undangan ditolak.')));
+                                                          }
+                                                        }
+                                                      } catch (e) {
+                                                        if (context.mounted) {
+                                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menolak undangan: $e')));
+                                                        }
+                                                      }
+                                                    } else {
+                                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal: ID pengirim tidak ditemukan.')));
+                                                    }
+                                                  },
+                                                  style: OutlinedButton.styleFrom(
+                                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                                    side: const BorderSide(color: Colors.red),
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                  ),
+                                                  child: const Text('Tolak', style: TextStyle(color: Colors.red, fontSize: 12)),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ],

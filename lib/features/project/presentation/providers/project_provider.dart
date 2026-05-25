@@ -197,3 +197,54 @@ final projectTeamsProvider = FutureProvider.family<List<Map<String, dynamic>>, S
     return [];
   }
 });
+
+// Provider to calculate real project progress based on task logs
+final projectRealProgressProvider = FutureProvider.family<double, String>((ref, projectId) async {
+  if (projectId.startsWith('local-')) {
+    return 0.0;
+  }
+  
+  final supabase = ref.watch(supabaseClientProvider);
+  try {
+    // 1. Ambil semua tugas untuk proyek ini
+    final tasksResponse = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('project_id', projectId);
+        
+    final tasks = tasksResponse as List<dynamic>;
+    if (tasks.isEmpty) return 0.0;
+
+    final taskIds = tasks.map((t) => t['id'] as String).toList();
+
+    // 2. Ambil log progress terakhir untuk setiap tugas
+    final logsResponse = await supabase
+        .from('task_progress_logs')
+        .select('task_id, persen_selesai, created_at')
+        .inFilter('task_id', taskIds)
+        .order('created_at', ascending: false);
+        
+    final logs = logsResponse as List<dynamic>;
+    
+    Map<String, int> latestProgressMap = {};
+    for (var taskId in taskIds) {
+        latestProgressMap[taskId] = 0; // Default 0
+    }
+    
+    for (var log in logs) {
+        String tId = log['task_id'];
+        if (latestProgressMap[tId] == 0 && log['persen_selesai'] != null) {
+            latestProgressMap[tId] = (log['persen_selesai'] as num).toInt();
+        }
+    }
+    
+    int totalProgress = 0;
+    for (var progress in latestProgressMap.values) {
+        totalProgress += progress;
+    }
+    
+    return totalProgress / (tasks.length * 100);
+  } catch (e) {
+    return 0.0;
+  }
+});

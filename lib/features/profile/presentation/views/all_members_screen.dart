@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import 'edit_member_screen.dart';
+import '../providers/profile_provider.dart';
 
-class AllMembersScreen extends StatelessWidget {
+class AllMembersScreen extends ConsumerWidget {
   const AllMembersScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeControl.themeNotifier,
       builder: (context, currentMode, child) {
@@ -41,39 +43,72 @@ class AllMembersScreen extends StatelessWidget {
               ),
             ],
           ),
-          body: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              _buildMemberItem(context, 'Fadhil Syahidan', 'Lead Designer', 'Aktif', AppColors.successText, AppColors.successBackground, isDark: isDark),
-              Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
-              
-              _buildMemberItem(context, 'Dea Marselia', 'Frontend Dev', 'Sedang Rapat', AppColors.warningText, AppColors.warningBackground, isDark: isDark),
-              Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
-              
-              _buildMemberItem(context, 'Sukma Ananda', 'DevOps Engineer', 'Offline', AppColors.offlineText, AppColors.offlineBackground, isDark: isDark),
-              Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
-              
-              _buildMemberItem(context, 'Budi Santoso', 'Backend Developer', 'Aktif', AppColors.successText, AppColors.successBackground, isDark: isDark),
-              Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
-              
-              _buildMemberItem(context, 'Siti Aminah', 'QA Tester', 'Cuti', AppColors.alertText, const Color(0xFFFEE2E2), isDark: isDark),
-            ],
+          body: Consumer(
+            builder: (context, ref, child) {
+              final membersAsync = ref.watch(managerInvitationsProvider);
+              return membersAsync.when(
+                data: (members) {
+                  if (members.isEmpty) {
+                    return Center(child: Text('Belum ada anggota.', style: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary)));
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(20),
+                    itemCount: members.length,
+                    separatorBuilder: (context, index) => Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
+                    itemBuilder: (context, index) {
+                      final m = members[index];
+                      String statusUI = 'Offline';
+                      Color colorText = AppColors.offlineText;
+                      Color colorBg = isDark ? AppColors.offlineText.withValues(alpha: 0.15) : AppColors.offlineBackground;
+                      
+                      if (m['status'] == 'aktif') {
+                        statusUI = 'Aktif';
+                        colorText = AppColors.successText;
+                        colorBg = isDark ? AppColors.successText.withValues(alpha: 0.15) : AppColors.successBackground;
+                      } else if (m['status'] == 'pending') {
+                        statusUI = 'Menunggu';
+                        colorText = AppColors.warningText;
+                        colorBg = isDark ? AppColors.warningText.withValues(alpha: 0.15) : AppColors.warningBackground;
+                      } else if (m['status'] == 'nonaktif') {
+                        statusUI = 'Nonaktif';
+                        colorText = AppColors.alertText;
+                        colorBg = isDark ? AppColors.alertText.withValues(alpha: 0.15) : const Color(0xFFFFEBEB);
+                      }
+
+                      return _buildMemberItem(
+                        context, 
+                        m['name']?.toString() ?? 'Anggota', 
+                        m['role']?.toString() ?? 'Anggota', 
+                        statusUI, 
+                        colorText, 
+                        colorBg, 
+                        isDark: isDark,
+                        invitationId: m['invitation_id']?.toString() ?? '',
+                        email: m['email']?.toString() ?? '',
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stack) => Center(child: Text('Gagal memuat data', style: TextStyle(color: AppColors.alertText))),
+              );
+            },
           ),
         );
       },
     );
   }
 
-  Widget _buildMemberItem(BuildContext context, String name, String role, String status, Color statusColor, Color statusBg, {required bool isDark}) {
+  Widget _buildMemberItem(BuildContext context, String name, String role, String status, Color statusColor, Color statusBg, {required bool isDark, required String invitationId, required String email}) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => EditMemberScreen(
-            invitationId: '',
+            invitationId: invitationId,
             name: name,
-            email: 'email@example.com',
-            status: status.toLowerCase() == 'aktif' ? 'aktif' : 'nonaktif',
+            email: email,
+            status: status.toLowerCase() == 'aktif' ? 'aktif' : (status.toLowerCase() == 'pending' || status.toLowerCase() == 'menunggu' ? 'pending' : 'nonaktif'),
           )),
         );
       },

@@ -84,6 +84,88 @@ class TaskRepository {
     }
   }
 
+  Future<List<TaskModel>> getMyTasks() async {
+    try {
+      final user = _supabaseClient.auth.currentUser;
+      if (user == null) return [];
+
+      // Fetch task IDs assigned to the user
+      final assigneesResponse = await _supabaseClient
+          .from('task_assignees')
+          .select('task_id')
+          .eq('user_id', user.id);
+      
+      final assigneesData = assigneesResponse as List<dynamic>;
+      if (assigneesData.isEmpty) return [];
+
+      final taskIds = assigneesData.map((e) => e['task_id'] as String).toList();
+
+      // Fetch the tasks
+      final tasksResponse = await _supabaseClient
+          .from('tasks')
+          .select()
+          .inFilter('id', taskIds);
+      
+      final tasksData = tasksResponse as List<dynamic>;
+      if (tasksData.isEmpty) return [];
+
+      // We should also fetch project names to display on the dashboard if needed, 
+      // but ProjectListProvider can handle project info mapping.
+      
+      // Fetch assignees for these tasks
+      final allAssigneesResponse = await _supabaseClient
+          .from('task_assignees')
+          .select('task_id, user_id, project_member_id, project_team_id')
+          .inFilter('task_id', taskIds);
+      
+      final allAssigneesData = allAssigneesResponse as List<dynamic>;
+      final Map<String, List<String>> taskAssigneesMap = {};
+      final Map<String, String?> taskProjectTeamIdMap = {};
+      final Map<String, String?> taskProjectMemberIdMap = {};
+
+      for (final item in allAssigneesData) {
+        final taskId = item['task_id'] as String;
+        final userId = item['user_id'] as String?;
+        if (userId != null) {
+          taskAssigneesMap.putIfAbsent(taskId, () => []).add(userId);
+        }
+        if (item['project_team_id'] != null) {
+          taskProjectTeamIdMap[taskId] = item['project_team_id'] as String;
+        }
+        if (item['project_member_id'] != null) {
+          taskProjectMemberIdMap[taskId] = item['project_member_id'] as String;
+        }
+      }
+
+      // Fetch attachments
+      final attachmentsResponse = await _supabaseClient
+          .from('task_attachments')
+          .select()
+          .inFilter('task_id', taskIds);
+      
+      final attachmentsData = attachmentsResponse as List<dynamic>;
+      final Map<String, List<AttachmentModel>> taskAttachmentsMap = {};
+      for (final item in attachmentsData) {
+        final attachment = AttachmentModel.fromJson(item);
+        taskAttachmentsMap.putIfAbsent(attachment.taskId, () => []).add(attachment);
+      }
+
+      return tasksData.map((json) {
+        final taskId = json['id'] as String;
+        return TaskModel.fromJson(
+          json,
+          assignees: taskAssigneesMap[taskId],
+          attachments: taskAttachmentsMap[taskId],
+          projectTeamId: taskProjectTeamIdMap[taskId],
+          projectMemberId: taskProjectMemberIdMap[taskId],
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint("=== WARNING: Fetching My Tasks failed. Error: $e ===");
+      return [];
+    }
+  }
+
   Future<TaskModel> createTask(TaskModel task, List<Map<String, dynamic>> assignees) async {
     if (task.projectId.startsWith('local-')) {
       final localId = 'local-task-${DateTime.now().millisecondsSinceEpoch}';
