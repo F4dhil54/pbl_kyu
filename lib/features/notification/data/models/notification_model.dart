@@ -13,6 +13,9 @@ class NotificationModel {
   final String? senderName;
   final String? senderEmail;
   final String? senderAvatar;
+  final String? receiverName;
+  final String? receiverEmail;
+  final String? receiverAvatar;
 
   NotificationModel({
     required this.id,
@@ -28,11 +31,15 @@ class NotificationModel {
     this.senderName,
     this.senderEmail,
     this.senderAvatar,
+    this.receiverName,
+    this.receiverEmail,
+    this.receiverAvatar,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     final project = json['projects'] as Map<String, dynamic>? ?? {};
     final sender = json['sender'] as Map<String, dynamic>? ?? {};
+    final receiver = json['receiver'] as Map<String, dynamic>? ?? {};
     
     return NotificationModel(
       id: json['id'] as String,
@@ -48,6 +55,9 @@ class NotificationModel {
       senderName: sender['nama'] as String?,
       senderEmail: sender['email'] as String?,
       senderAvatar: sender['avatar_url'] as String?,
+      receiverName: receiver['nama'] as String?,
+      receiverEmail: receiver['email'] as String?,
+      receiverAvatar: receiver['avatar_url'] as String?,
     );
   }
 

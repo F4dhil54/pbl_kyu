@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../data/models/notification_model.dart';
 import '../../data/repositories/notification_repo.dart';
 
@@ -9,9 +10,47 @@ enum NotificationFilter { semua, belumDibaca, mention, tugas }
 class NotificationNotifier extends StateNotifier<AsyncValue<List<NotificationModel>>> {
   final NotificationRepository _repository;
   final String _userId;
+  RealtimeChannel? _subscription;
 
   NotificationNotifier(this._repository, this._userId) : super(const AsyncValue.loading()) {
     loadNotifications();
+    if (_userId.isNotEmpty) {
+      _setupRealtime();
+    }
+  }
+
+  void _setupRealtime() {
+    _subscription = Supabase.instance.client
+        .channel('public:notifications:user_$_userId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'notifications',
+          callback: (payload) {
+            final newRecord = payload.newRecord;
+            
+            // Check if this notification is for me OR sent by me
+            if (newRecord['user_id'] == _userId || newRecord['sender_id'] == _userId) {
+              loadNotifications();
+              
+              // Only trigger sound/popup if I am the RECEIVER and not the sender
+              if (newRecord['user_id'] == _userId && newRecord['sender_id'] != _userId) {
+                LocalNotificationService.showNotification(
+                  id: (newRecord['id'] ?? '').hashCode,
+                  title: newRecord['judul'] ?? 'Notifikasi Baru',
+                  body: newRecord['pesan'] ?? 'Anda memiliki pesan baru',
+                );
+              }
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  @override
+  void dispose() {
+    _subscription?.unsubscribe();
+    super.dispose();
   }
 
   Future<void> loadNotifications() async {
@@ -173,7 +212,11 @@ final filteredNotificationsProvider = Provider<AsyncValue<List<NotificationModel
     // Filter
     switch (filter) {
       case NotificationFilter.belumDibaca:
-        filtered = filtered.where((n) => !n.isRead).toList();
+        final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+        filtered = filtered.where((n) {
+          final isSentByMe = n.senderId == currentUserId && n.userId != currentUserId;
+          return !n.isRead && !isSentByMe;
+        }).toList();
         break;
       case NotificationFilter.mention:
         filtered = filtered.where((n) => n.tipeNotifikasi == 'mention' || n.tipeNotifikasi == 'pesan').toList();
