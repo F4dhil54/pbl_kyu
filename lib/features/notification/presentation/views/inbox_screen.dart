@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
@@ -193,7 +194,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                       ),
                       child: asyncNotifications.when(
                         data: (notifications) {
-                          final unreadCount = notifications.where((n) => !n.isRead).length;
+                          final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+                          final unreadCount = notifications.where((n) {
+                            final isSentByMe = n.senderId == currentUserId && n.userId != currentUserId;
+                            return !n.isRead && !isSentByMe;
+                          }).length;
                           return Text(
                             '$unreadCount Baru',
                             style: TextStyle(
@@ -301,6 +306,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                         separatorBuilder: (context, index) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final notif = notifications[index];
+                          final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+                          final isSentByMe = notif.senderId == currentUserId && notif.userId != currentUserId;
                           
                           // Determine icon/color based on type
                           IconData iconData = Icons.notifications;
@@ -310,7 +317,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           bool isAccepted = notif.tipeNotifikasi == 'undangan' && notif.pesan == 'Undangan diterima!';
                           bool isRejected = notif.tipeNotifikasi == 'undangan' && notif.pesan == 'Undangan ditolak.';
 
-                          if (notif.tipeNotifikasi == 'pesan' || notif.tipeNotifikasi == 'mention') {
+                          if (isSentByMe) {
+                            iconData = Icons.outbox;
+                            iconColor = isDark ? Colors.blue[300]! : Colors.blue;
+                            iconBgColor = isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.3) : const Color(0xFFE0F2FE);
+                          } else if (notif.tipeNotifikasi == 'pesan' || notif.tipeNotifikasi == 'mention') {
                             iconData = Icons.chat_bubble_outline;
                             iconColor = AppColors.primary;
                           } else if (notif.tipeNotifikasi == 'tugas') {
@@ -339,9 +350,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                               ? (isDark ? AppColors.successText.withValues(alpha: 0.15) : AppColors.successBackground)
                               : (isRejected 
                                   ? (isDark ? AppColors.alertText.withValues(alpha: 0.15) : const Color(0xFFFFEBEB))
-                                  : (notif.isRead 
+                                  : (isSentByMe || notif.isRead 
                                       ? (isDark ? AppDarkColors.background : Colors.white)
                                       : (isDark ? AppDarkColors.surface : AppColors.inputBackground)));
+
+                          String? displayAvatar = isSentByMe ? notif.receiverAvatar : notif.senderAvatar;
 
                           return GestureDetector(
                             onTap: () => _handleNotificationTap(notif),
@@ -362,10 +375,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (notif.senderAvatar != null && notif.senderAvatar!.isNotEmpty)
+                                  if (displayAvatar != null && displayAvatar.isNotEmpty)
                                     CircleAvatar(
                                       radius: 20,
-                                      backgroundImage: NetworkImage(notif.senderAvatar!),
+                                      backgroundImage: NetworkImage(displayAvatar),
                                     )
                                   else
                                     Container(
@@ -389,11 +402,13 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                                           children: [
                                             Expanded(
                                               child: Text(
-                                                notif.judul,
+                                                isSentByMe 
+                                                    ? 'Terkirim ke: ${notif.receiverName ?? 'Pengguna'}'
+                                                    : notif.judul,
                                                 style: TextStyle(
                                                   fontSize: 14, 
                                                   color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
-                                                  fontWeight: notif.isRead ? FontWeight.normal : FontWeight.bold
+                                                  fontWeight: (isSentByMe || notif.isRead) ? FontWeight.normal : FontWeight.bold
                                                 ),
                                               ),
                                             ),
@@ -405,7 +420,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                                                   color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
                                               ),
                                             ),
-                                            if (!notif.isRead) ...[
+                                            if (!notif.isRead && !isSentByMe) ...[
                                               const SizedBox(width: 6),
                                               Container(
                                                 width: 8,
@@ -432,7 +447,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
                                                 fontSize: 13,
-                                                color: notif.isRead 
+                                                color: (notif.isRead || isSentByMe) 
                                                     ? (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary)
                                                     : (isDark ? AppDarkColors.textMain : AppColors.textMain),
                                                 height: 1.4,

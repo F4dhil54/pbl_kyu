@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/theme/colors.dart';
 import 'core/theme/theme_mode.dart';
+import 'core/services/notification_service.dart';
 
 void main() async {
   try {
@@ -13,6 +14,9 @@ void main() async {
 
     await dotenv.load(fileName: ".env");
     debugPrint("=== DEBUG: [2/4] File .env Berhasil Dimuat ===");
+
+    await LocalNotificationService.initialize();
+    debugPrint("=== DEBUG: LocalNotificationService Berhasil Dimuat ===");
 
     await Supabase.initialize(
       url: dotenv.env['SUPABASE_URL'] ?? '',
