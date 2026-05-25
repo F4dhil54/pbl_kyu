@@ -32,6 +32,20 @@ class NotificationRepository {
         .eq('id', id);
   }
 
+  Future<void> deleteNotification(String id) async {
+    await _supabaseClient
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+  }
+
+  Future<void> updateNotification(String id, Map<String, dynamic> data) async {
+    await _supabaseClient
+        .from('notifications')
+        .update(data)
+        .eq('id', id);
+  }
+
   Future<void> sendNotification({
     required String receiverId,
     required String tipeNotifikasi,

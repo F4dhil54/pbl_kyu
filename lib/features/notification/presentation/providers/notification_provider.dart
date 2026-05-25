@@ -57,6 +57,56 @@ class NotificationNotifier extends StateNotifier<AsyncValue<List<NotificationMod
     }
   }
 
+  Future<void> deleteNotification(String id) async {
+    try {
+      await _repository.deleteNotification(id);
+      if (state.hasValue) {
+        final currentList = state.value!;
+        final updatedList = currentList.where((n) => n.id != id).toList();
+        state = AsyncValue.data(updatedList);
+      }
+    } catch (e) {
+      // Ignore or log error
+    }
+  }
+
+  Future<void> updateNotificationStatus(String id, String pesan) async {
+    try {
+      await _repository.updateNotification(id, {
+        'pesan': pesan,
+        'is_read': true,
+        'read_at': DateTime.now().toUtc().toIso8601String(),
+      });
+      if (state.hasValue) {
+        final currentList = state.value!;
+        final updatedList = currentList.map((n) {
+          if (n.id == id) {
+            return NotificationModel(
+              id: n.id,
+              userId: n.userId,
+              senderId: n.senderId,
+              projectId: n.projectId,
+              projectName: n.projectName,
+              tipeNotifikasi: n.tipeNotifikasi,
+              judul: n.judul,
+              pesan: pesan,
+              isRead: true,
+              createdAt: n.createdAt,
+              senderName: n.senderName,
+              senderEmail: n.senderEmail,
+              senderAvatar: n.senderAvatar,
+            );
+          }
+          return n;
+        }).toList();
+        state = AsyncValue.data(updatedList);
+      }
+    } catch (e) {
+      print('Error updating notification status: $e');
+      rethrow;
+    }
+  }
+
   Future<void> sendMessage(String receiverEmail, String judul, String pesan) async {
     try {
       final receiver = await _repository.getUserByEmail(receiverEmail);

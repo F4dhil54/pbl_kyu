@@ -147,6 +147,25 @@ class ProfileRepository {
         .eq('id', invitationId);
   }
 
+  // Respond to invitation (from notification)
+  Future<void> respondToInvitation(String invitedBy, String userId, String newStatus) async {
+    await _supabaseClient
+        .from('invitations')
+        .update({'status': newStatus})
+        .eq('invited_by', invitedBy)
+        .eq('user_id', userId)
+        .eq('status', 'pending');
+  }
+
+  Future<void> rejectInvitation(String invitedBy, String userId) async {
+    await _supabaseClient
+        .from('invitations')
+        .delete()
+        .eq('invited_by', invitedBy)
+        .eq('user_id', userId)
+        .eq('status', 'pending');
+  }
+
   // Load Pomodoro sessions (profile view team stats)
   Future<List<dynamic>> getPomodoroSessions({
     required String userId,

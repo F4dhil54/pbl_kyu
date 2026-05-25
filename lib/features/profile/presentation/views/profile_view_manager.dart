@@ -1230,6 +1230,19 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
       }
 
       final profile = response;
+      final role = profile['role'] as String? ?? 'Tim';
+
+      if (role == 'Manajer') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email tidak valid. Anda hanya dapat mengundang anggota dengan peran Tim.'),
+              backgroundColor: AppColors.alertText,
+            ),
+          );
+        }
+        return;
+      }
       final profileId = profile['id'] as String;
 
       final alreadyExists = _members.any((member) => member['id'] == profileId);

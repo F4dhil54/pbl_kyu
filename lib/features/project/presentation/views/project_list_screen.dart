@@ -559,35 +559,117 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
             // Manager card: show progress, avatars and date
             if (isManager) ...[
               const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Progress',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+              Consumer(
+                builder: (context, ref, child) {
+                  final progressAsync = ref.watch(projectRealProgressProvider(project.id));
+                  
+                  return progressAsync.when(
+                    data: (realProgress) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Progress',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                ),
+                              ),
+                              Text(
+                                '${(realProgress * 100).toInt()}%',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: realProgress,
+                              backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
+                              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                              minHeight: 6,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                    loading: () => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Progress',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: 0,
+                            backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                            minHeight: 6,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  Text(
-                    '${(project.progress * 100).toInt()}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                    error: (e, st) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Progress',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              '${(project.progress * 100).toInt()}%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: project.progress,
+                            backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                            minHeight: 6,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: project.progress,
-                  backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                  minHeight: 6,
-                ),
+                  );
+                },
               ),
               const SizedBox(height: 20),
               Row(

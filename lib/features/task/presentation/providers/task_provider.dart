@@ -183,3 +183,8 @@ final projectTaskListProvider = StateNotifierProvider.family<TaskListNotifier, A
 
 // A provider for task tab filters
 final taskFilterProvider = StateProvider<String>((ref) => 'Tugas Aktif');
+
+final myTasksProvider = FutureProvider<List<TaskModel>>((ref) async {
+  final repo = ref.watch(taskRepositoryProvider);
+  return repo.getMyTasks();
+});

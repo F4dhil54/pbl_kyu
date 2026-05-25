@@ -403,10 +403,15 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                             border: Border.all(color: isDark ? AppDarkColors.border : Colors.transparent),
                           ),
                           child: Center(
-                            child: Image.asset(
-                              'image/ic_avatar_team.png',
-                              width: 48,
-                              errorBuilder: (context, error, stackTrace) => Icon(Icons.phone_android, size: 40, color: isDark ? AppDarkColors.textSecondary : AppColors.rank1Background,),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.asset(
+                                'image/logoSemua.png',
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) => Icon(Icons.groups, size: 40, color: isDark ? AppDarkColors.textSecondary : AppColors.primary),
+                              ),
                             ),
                           ),
                         ),
