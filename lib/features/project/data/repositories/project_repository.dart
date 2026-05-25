@@ -79,6 +79,9 @@ class ProjectRepository {
             .order('nama_proyek', ascending: true);
         
         final data = response as List<dynamic>;
+        if (data.isEmpty) {
+          return List.of(_localProjects);
+        }
         return data.map((json) => ProjectModel.fromJson(json)).toList();
       } else {
         // Team member sees only active projects they are joined in
@@ -92,7 +95,7 @@ class ProjectRepository {
         final projectIds = memberData.map((m) => m['project_id'] as String).toList();
 
         if (projectIds.isEmpty) {
-          return [];
+          return _localProjects.where((p) => p.statusAktif).toList();
         }
 
         final response = await _supabaseClient
