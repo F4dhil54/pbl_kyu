@@ -67,10 +67,49 @@ class TaskRepository {
         taskAttachmentsMap.putIfAbsent(attachment.taskId, () => []).add(attachment);
       }
 
+      // ── AUTO-AKTIVASI TUGAS TERJADWAL ─────────────────────────────────
+      // Cari tugas berstatus 'scheduled' yang scheduled_for-nya sudah lewat.
+      // Jika ada, langsung update ke 'accept' di Supabase agar tim bisa melihat.
+      final now = DateTime.now().toUtc();
+      final scheduledExpiredIds = <String>{};
+
+      for (final json in tasksData) {
+        if ((json['status_tugas'] as String?) != 'scheduled') continue;
+        final sfRaw = json['scheduled_for'] as String?;
+        if (sfRaw == null) continue;
+        final sf = DateTime.tryParse(sfRaw);
+        // Bandingkan UTC dengan UTC — scheduled_for dari Supabase sudah UTC
+        if (sf != null && sf.isBefore(now)) {
+          scheduledExpiredIds.add(json['id'] as String);
+        }
+      }
+
+      if (scheduledExpiredIds.isNotEmpty) {
+        try {
+          await _supabaseClient
+              .from('tasks')
+              .update({'status_tugas': 'accept', 'keputusan_manajer': 'Setujui'})
+              .inFilter('id', scheduledExpiredIds.toList());
+          debugPrint('=== INFO: Auto-activated ${scheduledExpiredIds.length} scheduled task(s): $scheduledExpiredIds ===');
+        } catch (activateErr) {
+          debugPrint('=== WARNING: Auto-activate scheduled tasks failed: $activateErr ===');
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
+      // Bangun TaskModel. Untuk tugas yang di-auto-aktifkan, buat Map baru
+      // (spread operator) karena Supabase mengembalikan UnmodifiableMapView.
       return tasksData.map((json) {
         final taskId = json['id'] as String;
+        final effectiveJson = scheduledExpiredIds.contains(taskId)
+            ? <String, dynamic>{
+                ...json as Map<String, dynamic>,
+                'status_tugas': 'accept',
+                'keputusan_manajer': 'Setujui',
+              }
+            : json;
         return TaskModel.fromJson(
-          json,
+          effectiveJson,
           assignees: taskAssigneesMap[taskId],
           attachments: taskAttachmentsMap[taskId],
           projectTeamId: taskProjectTeamIdMap[taskId],

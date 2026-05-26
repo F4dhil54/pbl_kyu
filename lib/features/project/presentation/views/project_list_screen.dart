@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
@@ -12,7 +12,8 @@ import 'edit_project_screen.dart';
 import 'project_detail_screen.dart';
 
 class ProjectListScreen extends ConsumerStatefulWidget {
-  const ProjectListScreen({super.key});
+  final String role;
+  const ProjectListScreen({super.key, required this.role});
 
   @override
   ConsumerState<ProjectListScreen> createState() => _ProjectListScreenState();
@@ -43,10 +44,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
     final projectsState = ref.watch(projectListProvider);
     final searchQuery = ref.watch(projectSearchQueryProvider);
     
-    // Fetch logged in user role
-    final user = Supabase.instance.client.auth.currentUser;
-    final role = user?.userMetadata?['role'] ?? 'Tim';
-    final isManager = role == 'Manajer';
+    final isManager = widget.role == 'Manajer';
 
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeControl.themeNotifier,

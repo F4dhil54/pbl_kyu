@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
@@ -350,6 +350,59 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
     }
   }
 
+  Widget buildAttachmentViewer(Map<String, dynamic> attachmentData) {
+    final String rawUrlMedia = attachmentData['file_path_or_url'] ?? '';
+    // Harmonize bucket name to lowercase 'task_attachments'
+    final String urlMedia = rawUrlMedia.replaceAll('/TASK_ATTACHMENTS/', '/task_attachments/');
+    final String tipe = attachmentData['tipe_lampiran'] ?? 'file';
+    final String namaFile = attachmentData['nama_file'] ?? 'Lampiran';
+
+    // KONDISI JIKA LAMPIRAN ADALAH FOTO/GAMBAR
+    if (tipe == 'foto') {
+      final session = Supabase.instance.client.auth.currentSession;
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          urlMedia,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: 200,
+          headers: {
+            if (session != null) 'Authorization': 'Bearer ${session.accessToken}',
+          },
+          // Handler pencegah aplikasi crash jika link rusak/terhapus di storage
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey[800],
+              height: 200,
+              child: const Center(
+                child: Text(
+                  "⚠️ Gagal memuat gambar (404/Restricted)",
+                  style: TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    // KONDISI JIKA LAMPIRAN ADALAH DOKUMEN/LINK GOOGLE DRIVE
+    return ListTile(
+      leading: const Icon(Icons.insert_drive_file, color: Colors.blue),
+      title: Text(namaFile),
+      subtitle: const Text("Klik untuk membuka tautan berkas"),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      onTap: () async {
+        // Menggunakan library url_launcher untuk membuka file PDF/Link di browser luar
+        final Uri url = Uri.parse(urlMedia);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        }
+      },
+    );
+  }
+
   void _pilihLampiranTim() {
     final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
     showModalBottomSheet(
@@ -370,12 +423,13 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                   final pickedFile = await picker.pickImage(source: ImageSource.camera);
                   if (pickedFile != null) {
                     final size = await pickedFile.length();
-                    if (size > 5 * 1024 * 1024) {
+                    // ✅ 15MB limit: 15 × 1024 × 1024 = 15,728,640 bytes
+                    if (size > 15728640) {
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Ukuran foto melebihi batas 5MB!'),
-                            backgroundColor: AppColors.alertText,
+                          const SnackBar(
+                            content: Text('⚠️ Ukuran file terlalu besar! Maksimal lampiran adalah 15 MB.'),
+                            backgroundColor: Colors.red,
                           ),
                         );
                       }
@@ -400,12 +454,13 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                   final pickedFile = await picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     final size = await pickedFile.length();
-                    if (size > 5 * 1024 * 1024) {
+                    // ✅ 15MB limit: 15 × 1024 × 1024 = 15,728,640 bytes
+                    if (size > 15728640) {
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Ukuran foto melebihi batas 5MB!'),
-                            backgroundColor: AppColors.alertText,
+                          const SnackBar(
+                            content: Text('⚠️ Ukuran file terlalu besar! Maksimal lampiran adalah 15 MB.'),
+                            backgroundColor: Colors.red,
                           ),
                         );
                       }
@@ -432,24 +487,27 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                   );
                   if (result != null) {
                     final size = result.files.single.size;
-                    if (size > 5 * 1024 * 1024) {
+                    // ✅ 15MB limit: 15 × 1024 × 1024 = 15,728,640 bytes
+                    if (size > 15728640) {
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Ukuran dokumen melebihi batas 5MB!'),
-                            backgroundColor: AppColors.alertText,
+                          const SnackBar(
+                            content: Text('⚠️ Ukuran file terlalu besar! Maksimal lampiran adalah 15 MB.'),
+                            backgroundColor: Colors.red,
                           ),
                         );
                       }
                       return;
                     }
-                    final bytes = result.files.single.bytes ?? await XFile(result.files.single.path!).readAsBytes();
-                    setState(() {
-                      _attachmentType = 'file';
-                      _attachmentPathController.text = result.files.single.path ?? result.files.single.name;
-                      _attachmentNameController.text = result.files.single.name;
-                      _pickedAttachmentBytes = bytes;
-                    });
+                    final bytes = result.files.single.bytes ?? (kIsWeb ? null : await XFile(result.files.single.path!).readAsBytes());
+                    if (bytes != null) {
+                      setState(() {
+                        _attachmentType = 'file';
+                        _attachmentPathController.text = kIsWeb ? result.files.single.name : (result.files.single.path ?? result.files.single.name);
+                        _attachmentNameController.text = result.files.single.name;
+                        _pickedAttachmentBytes = bytes;
+                      });
+                    }
                   }
                 },
               ),
@@ -628,38 +686,12 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
             children: initialAttachments.map((att) {
               return Card(
                 color: isDark ? AppDarkColors.surface : Colors.white,
-                child: ListTile(
-                  leading: Icon(
-                    att.tipeLampiran == 'foto'
-                        ? Icons.camera_alt_outlined
-                        : (att.tipeLampiran == 'file' ? Icons.file_present_outlined : Icons.link),
-                    color: AppColors.primary,
-                  ),
-                  title: Text(att.namaFile, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
-                  subtitle: Row(
-                    children: [
-                      Text(att.tipeLampiran.toUpperCase(), style: const TextStyle(fontSize: 10)),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'TUGAS',
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: () => _bukaTautan(att.filePathOrUrl),
-                ),
+                clipBehavior: Clip.antiAlias,
+                child: buildAttachmentViewer({
+                  'file_path_or_url': att.filePathOrUrl,
+                  'tipe_lampiran': att.tipeLampiran,
+                  'nama_file': att.namaFile,
+                }),
               );
             }).toList(),
           );
@@ -761,7 +793,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             CircleAvatar(
-                              backgroundColor: AppColors.primary.withOpacity(0.1),
+                              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                               child: Text(name[0].toUpperCase(), style: const TextStyle(color: AppColors.primary)),
                             ),
                             const SizedBox(width: 12),
@@ -788,18 +820,8 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                               children: attachments.map<Widget>((att) {
                                 return Card(
                                   color: isDark ? AppDarkColors.surface : Colors.grey[100],
-                                  child: ListTile(
-                                    leading: Icon(
-                                      att['tipe_lampiran'] == 'foto'
-                                          ? Icons.camera_alt_outlined
-                                          : (att['tipe_lampiran'] == 'file' ? Icons.file_present_outlined : Icons.link),
-                                      color: AppColors.primary,
-                                      size: 18,
-                                    ),
-                                    title: Text(att['nama_file'] ?? '', style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                    trailing: const Icon(Icons.arrow_forward_ios, size: 12),
-                                    onTap: () => _bukaTautan(att['file_path_or_url'] ?? ''),
-                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: buildAttachmentViewer(att as Map<String, dynamic>),
                                 );
                               }).toList(),
                             ),
@@ -860,7 +882,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                     child: Row(
                       children: [
                         CircleAvatar(
-                          backgroundColor: AppColors.primary.withOpacity(0.15),
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                           child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'U', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                         ),
                         const SizedBox(width: 12),
@@ -914,24 +936,10 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                       return Card(
                         color: isDark ? AppDarkColors.background : Colors.grey[50],
                         margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          dense: true,
-                          leading: Icon(
-                            att['tipe_lampiran'] == 'foto'
-                                ? Icons.camera_alt_outlined
-                                : (att['tipe_lampiran'] == 'file' ? Icons.file_present_outlined : Icons.link),
-                            color: AppColors.primary,
-                            size: 16,
-                          ),
-                          title: Text(att['nama_file'] ?? '', style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 10),
-                          onTap: () {
-                            Navigator.pop(context);
-                            _bukaTautan(att['file_path_or_url'] ?? '');
-                          },
-                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: buildAttachmentViewer(att as Map<String, dynamic>),
                       );
-                    }).toList(),
+                    }),
                   if (hambatan != null && hambatan.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Container(
@@ -939,7 +947,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF4A1D1D) : const Color(0xFFFFF5F5),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1183,38 +1191,12 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
             children: initialAttachments.map((att) {
               return Card(
                 color: isDark ? AppDarkColors.surface : Colors.white,
-                child: ListTile(
-                  leading: Icon(
-                    att.tipeLampiran == 'foto'
-                        ? Icons.camera_alt_outlined
-                        : (att.tipeLampiran == 'file' ? Icons.file_present_outlined : Icons.link),
-                    color: AppColors.primary,
-                  ),
-                  title: Text(att.namaFile, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
-                  subtitle: Row(
-                    children: [
-                      Text(att.tipeLampiran.toUpperCase(), style: const TextStyle(fontSize: 10)),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'TUGAS',
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-                  onTap: () => _bukaTautan(att.filePathOrUrl),
-                ),
+                clipBehavior: Clip.antiAlias,
+                child: buildAttachmentViewer({
+                  'file_path_or_url': att.filePathOrUrl,
+                  'tipe_lampiran': att.tipeLampiran,
+                  'nama_file': att.namaFile,
+                }),
               );
             }).toList(),
           );
@@ -1270,7 +1252,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
             children: [
               _buildSectionLabel('Status Tugas', isDark),
               DropdownButtonFormField<String>(
-                value: _selectedStatus,
+                initialValue: _selectedStatus,
                 dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
                 style: TextStyle(color: isDark ? Colors.white : Colors.black),
                 decoration: const InputDecoration(

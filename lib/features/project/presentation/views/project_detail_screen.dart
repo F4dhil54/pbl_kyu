@@ -151,7 +151,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                             return ListTile(
                                               contentPadding: EdgeInsets.zero,
                                               leading: CircleAvatar(
-                                                backgroundColor: AppColors.primary.withOpacity(0.1),
+                                                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                                                 child: Text(nama.isNotEmpty ? nama[0].toUpperCase() : 'U', style: const TextStyle(color: AppColors.primary)),
                                               ),
                                               title: Text(nama, style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 14)),
@@ -231,7 +231,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                             return ListTile(
                                               contentPadding: EdgeInsets.zero,
                                               leading: CircleAvatar(
-                                                backgroundColor: Colors.amber.withOpacity(0.1),
+                                                backgroundColor: Colors.amber.withValues(alpha: 0.1),
                                                 child: const Icon(Icons.group, color: Colors.amber),
                                               ),
                                               title: Text(namaTim, style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 14)),
@@ -394,8 +394,11 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         widget.project;
 
     final user = Supabase.instance.client.auth.currentUser;
-    final isManager = project.creatorId == user?.id;
-    final role = isManager ? 'Manajer' : 'Tim';
+    // Gunakan role dari auth metadata (ditetapkan saat registrasi, bersifat static)
+    // BUKAN creatorId == userId karena manajer lain akan tampil sebagai Tim
+    final userRole = user?.userMetadata?['role'] as String? ?? 'Tim';
+    final isManager = userRole == 'Manajer';
+    final role = userRole;
 
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeControl.themeNotifier,
@@ -996,7 +999,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: categoryColor.withOpacity(0.1),
+                        color: categoryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -1014,7 +1017,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.1),
+                            color: Colors.amber.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Text(
@@ -1030,7 +1033,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
+                            color: Colors.red.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Text(

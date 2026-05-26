@@ -25,7 +25,6 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
   bool _isLoading = false;
   String? _avatarUrl;
   Uint8List? _selectedImageBytes;
-  String? _selectedImageName;
   User? _currentUser;
   final _emailController = TextEditingController();
   bool _isLoadingInvitation = false;
@@ -255,7 +254,6 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
           final bytes = await croppedFile.readAsBytes();
           setState(() {
             _selectedImageBytes = bytes;
-            _selectedImageName = image.name;
           });
         }
       }
@@ -287,13 +285,12 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
     try {
       final profileRepo = ref.read(profileRepositoryProvider);
       
-      // 1. Upload image if selected
+      // 1. Upload image if selected → stores to avatars bucket + updates profiles table
       if (_selectedImageBytes != null) {
         final userId = _currentUser?.id ?? 'user';
         _avatarUrl = await profileRepo.uploadAvatar(
           userId,
           _selectedImageBytes!,
-          _selectedImageName ?? 'avatar.png',
         );
       }
       

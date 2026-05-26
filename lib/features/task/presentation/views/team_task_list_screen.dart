@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
-import 'task_detail_team_screen.dart' as task_detail;
 import '../providers/task_provider.dart';
 import '../../../project/presentation/providers/project_provider.dart';
-import '../../data/models/task_model.dart';
 import '../../../project/data/models/project_model.dart';
 import '../../../project/presentation/views/project_detail_screen.dart';
 

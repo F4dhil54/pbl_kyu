@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import '../../../../core/network/supabase_provider.dart';
@@ -107,7 +108,7 @@ final projectMembersProvider = FutureProvider.family<List<Map<String, dynamic>>,
       };
     }).toList();
   } catch (e) {
-    print("Error fetching project members for project $projectId: $e");
+    debugPrint("Error fetching project members for project $projectId: $e");
     rethrow;
   }
 });

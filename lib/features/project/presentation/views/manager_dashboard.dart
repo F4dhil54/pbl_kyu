@@ -158,7 +158,7 @@ class ManagerDashboard extends ConsumerWidget {
                                           padding: EdgeInsets.only(bottom: 16),
                                           child: Center(child: CircularProgressIndicator()),
                                         ),
-                                        error: (_, __) => Padding(
+                                        error: (err, stack) => Padding(
                                           padding: const EdgeInsets.only(bottom: 16),
                                           child: _buildProgressBar(p.name, (p.progress * 100).toInt(), isDark: isDark),
                                         ),
@@ -169,7 +169,7 @@ class ManagerDashboard extends ConsumerWidget {
                               );
                             },
                             loading: () => const Center(child: CircularProgressIndicator()),
-                            error: (_, __) => const SizedBox(),
+                            error: (err, stack) => const SizedBox(),
                           );
                         }
                       ),
@@ -290,7 +290,7 @@ class ManagerDashboard extends ConsumerWidget {
                               );
                             },
                             loading: () => const Center(child: CircularProgressIndicator()),
-                            error: (_, __) => const SizedBox(),
+                            error: (err, stack) => const SizedBox(),
                           );
                         },
                       ),
@@ -403,7 +403,7 @@ class ManagerDashboard extends ConsumerWidget {
                               );
                             },
                             loading: () => const Center(child: CircularProgressIndicator()),
-                            error: (_, __) => const SizedBox(),
+                            error: (err, stack) => const SizedBox(),
                           );
                         },
                       ),

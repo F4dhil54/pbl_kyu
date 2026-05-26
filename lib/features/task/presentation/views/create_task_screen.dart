@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../../core/theme/colors.dart';
@@ -56,6 +56,10 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
 
   // Failsafe timer: paksa reset _isSaving jika Supabase hang di Flutter Web
   Timer? _saveTimeoutTimer;
+
+  // Flag untuk mencegah infinite loop: _resolveAssigneeNames hanya boleh
+  // memicu setState SATU kali setelah nama berhasil diambil.
+  bool _assigneesResolved = false;
 
   String _selectedPriority = 'Schedule'; // 'Do' | 'Schedule' | 'Delegate'
   bool _assignToAll = true;
@@ -115,7 +119,23 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     super.dispose();
   }
 
-  void _resolveAssigneeNames(List<Map<String, dynamic>> membersList, List<Map<String, dynamic>> teamsList) {
+  // Dipanggil SEKALI saat data members/teams sudah tersedia untuk edit mode.
+  // Menggunakan flag _assigneesResolved agar TIDAK membuat infinite loop:
+  // resolve → setState → rebuild → resolve → setState → rebuild ...
+  void _resolveAssigneeNamesOnce(
+    List<Map<String, dynamic>> membersList,
+    List<Map<String, dynamic>> teamsList,
+  ) {
+    // Sudah resolved? Jangan setState lagi — ini mencegah infinite loop.
+    if (_assigneesResolved) return;
+
+    // Tidak perlu resolve jika tidak ada yang perlu diisi
+    final hasUnresolved = _selectedAssignees.any((item) => item['name'].toString().startsWith('Loading'));
+    if (!hasUnresolved) {
+      _assigneesResolved = true;
+      return;
+    }
+
     bool updated = false;
     for (int i = 0; i < _selectedAssignees.length; i++) {
       final item = _selectedAssignees[i];
@@ -151,10 +171,17 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
         }
       }
     }
+
     if (updated) {
+      // Tandai sudah resolved SEBELUM addPostFrameCallback agar rebuild
+      // berikutnya tidak masuk ke sini lagi.
+      _assigneesResolved = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() {});
       });
+    } else {
+      // Tidak ada yang cocok tapi juga tidak perlu loop lagi
+      _assigneesResolved = true;
     }
   }
 
@@ -355,18 +382,20 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                       }
                       return;
                     }
-                    final pathOrUrl = result.files.single.path ?? result.files.single.name;
-                    final bytes = result.files.single.bytes ?? await XFile(result.files.single.path!).readAsBytes();
-                    setState(() {
-                      _attachments.add(AttachmentModel(
-                        id: '',
-                        taskId: widget.taskToEdit?.id ?? '',
-                        tipeLampiran: 'file',
-                        filePathOrUrl: pathOrUrl,
-                        namaFile: result.files.single.name,
-                      ));
-                      _attachmentBytes[pathOrUrl] = bytes;
-                    });
+                    final pathOrUrl = kIsWeb ? result.files.single.name : (result.files.single.path ?? result.files.single.name);
+                    final bytes = result.files.single.bytes ?? (kIsWeb ? null : await XFile(result.files.single.path!).readAsBytes());
+                    if (bytes != null) {
+                      setState(() {
+                        _attachments.add(AttachmentModel(
+                          id: '',
+                          taskId: widget.taskToEdit?.id ?? '',
+                          tipeLampiran: 'file',
+                          filePathOrUrl: pathOrUrl,
+                          namaFile: result.files.single.name,
+                        ));
+                        _attachmentBytes[pathOrUrl] = bytes;
+                      });
+                    }
                   }
                 },
               ),
@@ -744,57 +773,22 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
               ),
               onPressed: () => Navigator.pop(context),
             ),
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1E50FF), Color(0xFF7C3AED)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(7),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF1E50FF).withValues(alpha: 0.35),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'K',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
+            title: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFF1E50FF), Color(0xFF7C3AED)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ).createShader(bounds),
+              blendMode: BlendMode.srcIn,
+              child: const Text(
+                'KYU',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 20,
+                  letterSpacing: 2,
+                  color: Colors.white,
                 ),
-                const SizedBox(width: 7),
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [Color(0xFF1E50FF), Color(0xFF7C3AED)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ).createShader(bounds),
-                  blendMode: BlendMode.srcIn,
-                  child: const Text(
-                    'KYU',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 20,
-                      letterSpacing: 2,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             actions: [
               // ── KONTEKS 1: Manajer melihat usulan Draft Tim ──────────────────
@@ -1000,8 +994,8 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                                 loading: () => const Center(child: CircularProgressIndicator()),
                                 error: (err, stack) => Text('Gagal memuat tim: $err', style: const TextStyle(color: Colors.red)),
                                 data: (teamsList) {
-                                  // Resolve initial loaded/editing assignee names
-                                  _resolveAssigneeNames(membersList, teamsList);
+                                  // Resolve initial loaded/editing assignee names (hanya sekali)
+                                  _resolveAssigneeNamesOnce(membersList, teamsList);
 
                                   if (membersList.isEmpty && teamsList.isEmpty) {
                                     return const Text('Tidak ada anggota atau tim proyek tersedia.', style: TextStyle(color: Colors.grey, fontSize: 13));
@@ -1039,7 +1033,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       DropdownButtonFormField<String>(
-                                        value: null,
+                                        initialValue: null,
                                         decoration: InputDecoration(
                                           labelText: 'Pilih Penerima Tugas (Anggota/Tim)',
                                           filled: true,
