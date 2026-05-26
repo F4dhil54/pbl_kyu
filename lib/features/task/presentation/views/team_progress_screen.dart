@@ -196,7 +196,7 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -211,7 +211,7 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
                             children: [
                               CircleAvatar(
                                 radius: 18,
-                                backgroundColor: AppColors.primary.withOpacity(0.1),
+                                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                                 child: Text(
                                   name.isNotEmpty ? name[0].toUpperCase() : 'U',
                                   style: const TextStyle(

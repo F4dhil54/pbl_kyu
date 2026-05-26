@@ -60,7 +60,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.15),
+                color: Colors.black.withValues(alpha: 0.15),
                 blurRadius: 10,
                 offset: const Offset(0, -4),
               ),
@@ -552,7 +552,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
         border: isFirst ? null : Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -570,7 +570,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
                 height: 56,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isFirst ? Colors.white.withOpacity(0.1) : (isDark ? AppDarkColors.background : AppColors.inputBackground),
+                  color: isFirst ? Colors.white.withValues(alpha: 0.1) : (isDark ? AppDarkColors.background : AppColors.inputBackground),
                   border: Border.all(color: avatarColor, width: 2),
                 ),
                 child: Center(
@@ -666,7 +666,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
         border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.1 : 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -771,10 +771,10 @@ class _CollabViewState extends ConsumerState<CollabView> {
                                 margin: const EdgeInsets.only(right: 6),
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: isDark ? AppDarkColors.background.withOpacity(0.5) : AppColors.inputBackground.withOpacity(0.5),
+                                  color: isDark ? AppDarkColors.background.withValues(alpha: 0.5) : AppColors.inputBackground.withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: isDark ? AppDarkColors.border.withOpacity(0.3) : AppColors.border.withOpacity(0.3),
+                                    color: isDark ? AppDarkColors.border.withValues(alpha: 0.3) : AppColors.border.withValues(alpha: 0.3),
                                     width: 0.5,
                                   ),
                                 ),

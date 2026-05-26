@@ -31,7 +31,6 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
   bool _isLoading = false;
   String? _avatarUrl;
   Uint8List? _selectedImageBytes;
-  String? _selectedImageName;
   User? _currentUser;
 
   // Real-time Pomodoro Focus Stats state
@@ -250,7 +249,6 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
           final bytes = await croppedFile.readAsBytes();
           setState(() {
             _selectedImageBytes = bytes;
-            _selectedImageName = image.name;
           });
         }
       }
@@ -282,13 +280,12 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
     try {
       final profileRepo = ref.read(profileRepositoryProvider);
       
-      // 1. Upload image if selected
+      // 1. Upload image if selected → stores to avatars bucket + updates profiles table
       if (_selectedImageBytes != null) {
         final userId = _currentUser?.id ?? 'user';
         _avatarUrl = await profileRepo.uploadAvatar(
           userId,
           _selectedImageBytes!,
-          _selectedImageName ?? 'avatar.png',
         );
       }
       

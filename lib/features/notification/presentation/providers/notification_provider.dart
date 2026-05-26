@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -141,7 +142,7 @@ class NotificationNotifier extends StateNotifier<AsyncValue<List<NotificationMod
         state = AsyncValue.data(updatedList);
       }
     } catch (e) {
-      print('Error updating notification status: $e');
+      debugPrint('Error updating notification status: $e');
       rethrow;
     }
   }

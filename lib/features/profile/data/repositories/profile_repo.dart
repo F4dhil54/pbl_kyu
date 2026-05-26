@@ -56,27 +56,68 @@ class ProfileRepository {
     });
   }
 
-  // Upload avatar to storage bucket
-  Future<String> uploadAvatar(String userId, Uint8List imageBytes, String fileName) async {
-    final extension = fileName.split('.').last;
-    final uniqueFileName = '$userId-${DateTime.now().millisecondsSinceEpoch}.$extension';
-    
+  // Upload avatar to storage bucket (MODULE B: Profile Picture Update Workflow)
+  Future<String> uploadAvatar(String userId, Uint8List imageBytes) async {
+    // Step 1: Upload ke bucket 'avatars' dengan nama file kanonik
+    // Menggunakan upsert: true agar foto lama tertimpa secara seamless
+    const bucketName = 'avatars';
+    final canonicalFileName = 'avatar_$userId.png';
+
     try {
-      await _supabaseClient.storage.createBucket('avatars', const BucketOptions(public: true));
-    } catch (_) {
-      // Bucket might already exist
+      await _supabaseClient.storage.from(bucketName).uploadBinary(
+        canonicalFileName,
+        imageBytes,
+        fileOptions: const FileOptions(
+          contentType: 'image/png',
+          upsert: true, // overwrite existing avatar without error
+        ),
+      );
+      debugPrint('=== INFO: Avatar uploaded to $bucketName/$canonicalFileName ===');
+    } catch (uploadErr) {
+      debugPrint('=== ERROR: Avatar upload failed: $uploadErr ===');
+      rethrow;
     }
 
-    await _supabaseClient.storage.from('avatars').uploadBinary(
-      uniqueFileName,
-      imageBytes,
-      fileOptions: const FileOptions(
-        contentType: 'image/png',
-        upsert: true,
-      ),
-    );
+    // Step 2: Resolve public URL — harus berupa string HTTP/HTTPS bersih
+    final publicUrl = _supabaseClient.storage.from(bucketName).getPublicUrl(canonicalFileName);
+    debugPrint('=== INFO: Avatar public URL: $publicUrl ===');
 
-    return _supabaseClient.storage.from('avatars').getPublicUrl(uniqueFileName);
+    // Step 3: Commit ke public.profiles.avatar_url (Pure String Rule: hanya HTTP/HTTPS)
+    await updateProfileTable(userId: userId, avatarUrl: publicUrl);
+
+    return publicUrl;
+  }
+
+  // Update public.profiles table — dipisah agar bisa dipanggil mandiri
+  Future<void> updateProfileTable({
+    required String userId,
+    String? avatarUrl,
+    String? nama,
+    String? bio,
+  }) async {
+    final updates = <String, dynamic>{};
+    if (avatarUrl != null && (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))) {
+      updates['avatar_url'] = avatarUrl;
+    }
+    if (nama != null && nama.trim().length >= 2) {
+      updates['nama'] = nama.trim();
+    }
+    if (bio != null) {
+      updates['bio'] = bio.trim().isEmpty ? null : bio.trim();
+    }
+
+    if (updates.isEmpty) return;
+
+    try {
+      await _supabaseClient
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId);
+      debugPrint('=== INFO: public.profiles updated for $userId: $updates ===');
+    } catch (e) {
+      debugPrint('=== ERROR: profiles table update failed: $e ===');
+      rethrow;
+    }
   }
 
   // Update user profile metadata

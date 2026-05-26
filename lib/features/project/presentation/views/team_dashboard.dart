@@ -5,11 +5,9 @@ import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
 import 'package:pbl_kyu/shared/widgets/app_sidebar.dart';
-import '../../../task/presentation/views/task_detail_team_screen.dart' as task_detail;
 import '../../../task/presentation/views/team_task_list_screen.dart' as team_task_list;
 import '../../../task/presentation/providers/task_provider.dart';
 import '../../presentation/providers/project_provider.dart';
-import '../../../task/data/models/task_model.dart';
 import '../../data/models/project_model.dart';
 import 'project_detail_screen.dart';
 import '../../../notification/presentation/providers/notification_provider.dart';
@@ -200,7 +198,7 @@ class TeamDashboard extends ConsumerWidget {
                               );
                             },
                             loading: () => const Center(child: CircularProgressIndicator()),
-                            error: (_, __) => const SizedBox(),
+                            error: (err, stack) => const SizedBox(),
                           );
                         },
                       ),

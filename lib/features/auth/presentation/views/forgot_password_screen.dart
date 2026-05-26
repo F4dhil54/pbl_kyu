@@ -45,7 +45,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final isAuthLoading = ref.watch(authLoadingProvider);
-    const bool isDark = false;
+    final bool isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
 
     // Base styling border input adaptif konsisten dengan Kyu
     OutlineInputBorder buildBorder(Color borderColor, {double width = 1.0}) {

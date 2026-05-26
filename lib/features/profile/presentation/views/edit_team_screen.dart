@@ -97,7 +97,6 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
     setState(() => _isSaving = true);
     try {
       final profileRepo = ref.read(profileRepositoryProvider);
-      final currentUser = ref.read(supabaseClientProvider).auth.currentUser!;
 
       // 1. Update team name if changed
       if (teamName != widget.teamName) {

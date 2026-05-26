@@ -96,7 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal mengambil data profil dari database: $e'),
-            backgroundColor: AppColors.alertText ?? Colors.red,
+            backgroundColor: AppColors.alertText,
           ),
         );
       }
@@ -226,7 +226,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final isAuthLoading = ref.watch(authLoadingProvider);
-    const bool isDark = false;
+    final bool isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
 
     OutlineInputBorder buildBorder(Color borderColor, {double width = 1.0}) {
       return OutlineInputBorder(
