@@ -233,17 +233,33 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
           });
         }
       } else {
-        setState(() {
-          _selectedDate = pickedDate;
-          _isLoadingDate = true;
-          _isHoliday = false;
-        });
-        bool isMerah = await cekTanggalMerah(pickedDate);
-        if (mounted) {
+        if (!context.mounted) return;
+        final TimeOfDay? pickedTime = await showTimePicker(
+          context: context,
+          initialTime: const TimeOfDay(hour: 23, minute: 59),
+        );
+
+        if (pickedTime != null) {
+          final combinedDate = DateTime(
+            pickedDate.year,
+            pickedDate.month,
+            pickedDate.day,
+            pickedTime.hour,
+            pickedTime.minute,
+          );
+          
           setState(() {
-            _isHoliday = isMerah;
-            _isLoadingDate = false;
+            _selectedDate = combinedDate;
+            _isLoadingDate = true;
+            _isHoliday = false;
           });
+          bool isMerah = await cekTanggalMerah(combinedDate);
+          if (mounted) {
+            setState(() {
+              _isHoliday = isMerah;
+              _isLoadingDate = false;
+            });
+          }
         }
       }
     }
@@ -615,12 +631,14 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
           'user_id': m['user_id'] as String,
           'project_member_id': m['member_id'] as String,
           'project_team_id': null,
+          'name': m['nama'] as String,
         }).toList();
       } else {
         assignees = _selectedAssignees.map((a) => {
           'user_id': a['user_id'],
           'project_member_id': a['type'] == 'member' ? a['id'] : null,
           'project_team_id': a['type'] == 'team' ? a['id'] : null,
+          'name': a['name'],
         }).toList();
       }
     }
@@ -1135,7 +1153,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  _selectedDate == null ? 'Pilih tenggat waktu' : _formatIndonesianDateOnly(_selectedDate!),
+                                  _selectedDate == null ? 'Pilih tenggat waktu' : _formatIndonesianDateTime(_selectedDate!),
                                   style: TextStyle(color: _selectedDate == null ? (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary) : (isDark ? AppDarkColors.textMain : AppColors.textMain)),
                                 ),
                                 if (_isLoadingDate)

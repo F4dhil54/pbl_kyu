@@ -56,7 +56,7 @@ class NotificationRepository {
     // 3. Ambil notifikasi dari Supabase
     final response = await _supabaseClient
         .from('notifications')
-        .select('*, projects(nama_proyek), sender:profiles!notifications_sender_id_fkey(nama, email, avatar_url), receiver:profiles!notifications_user_id_fkey(nama, email, avatar_url)')
+        .select('*, projects(nama_proyek), sender:profiles!sender_id(nama, email, avatar_url), receiver:profiles!user_id(nama, email, avatar_url)')
         .or('user_id.eq.$userId,sender_id.eq.$userId')
         .order('created_at', ascending: false);
 

@@ -133,7 +133,19 @@ class ProfileRepository {
     }
     
     final attributes = UserAttributes(data: data);
-    return await _supabaseClient.auth.updateUser(attributes);
+    final response = await _supabaseClient.auth.updateUser(attributes);
+    
+    // Also update public.profiles table so other users see the new name!
+    final userId = _supabaseClient.auth.currentUser?.id;
+    if (userId != null) {
+      await updateProfileTable(
+        userId: userId, 
+        nama: name, 
+        avatarUrl: avatarUrl
+      );
+    }
+    
+    return response;
   }
 
   // Invite member by email

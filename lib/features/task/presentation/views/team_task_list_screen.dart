@@ -50,13 +50,20 @@ class TeamTaskListScreen extends ConsumerWidget {
               const SizedBox(width: 20),
             ],
           ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Daftar Tugas',
+          body: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(myTasksProvider);
+              ref.invalidate(projectListProvider);
+              await Future.delayed(const Duration(milliseconds: 500));
+            },
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Daftar Tugas',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -189,6 +196,7 @@ class TeamTaskListScreen extends ConsumerWidget {
                 const SizedBox(height: 40),
               ],
             ),
+          ),
           ),
         );
       },

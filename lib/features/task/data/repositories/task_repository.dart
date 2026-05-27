@@ -148,6 +148,50 @@ class TaskRepository {
       final tasksData = tasksResponse as List<dynamic>;
       if (tasksData.isEmpty) return [];
 
+      // Deadline Notifications Check (< 24 jam)
+      final now = DateTime.now().toUtc();
+      final tomorrow = now.add(const Duration(hours: 24));
+      
+      for (final json in tasksData) {
+        final statusTugas = json['status_tugas'] as String?;
+        if (statusTugas == 'done' || statusTugas == 'selesai') continue;
+        
+        final deadlineRaw = json['deadline'] as String?;
+        if (deadlineRaw == null) continue;
+        
+        final deadlineDate = DateTime.tryParse(deadlineRaw);
+        if (deadlineDate != null && deadlineDate.isAfter(now) && deadlineDate.isBefore(tomorrow)) {
+          final taskId = json['id'] as String;
+          final judulTugas = json['judul_tugas'] as String;
+          final projectId = json['project_id'] as String;
+
+          try {
+            // Cek apakah notifikasi untuk tugas ini sudah pernah dikirim
+            final existingNotif = await _supabaseClient
+                .from('notifications')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('tipe_notifikasi', 'tugas')
+                .eq('judul', 'Pengingat Tenggat Waktu')
+                .ilike('pesan', '%$judulTugas%')
+                .maybeSingle();
+
+            if (existingNotif == null) {
+              await _supabaseClient.from('notifications').insert({
+                'user_id': user.id,
+                'project_id': projectId,
+                'tipe_notifikasi': 'tugas',
+                'judul': 'Pengingat Tenggat Waktu',
+                'pesan': 'Tenggat waktu untuk tugas "$judulTugas" tinggal kurang dari 24 jam.',
+                'is_read': false,
+              });
+            }
+          } catch (e) {
+            debugPrint("=== WARNING: Deadline notification failed: $e ===");
+          }
+        }
+      }
+
       // We should also fetch project names to display on the dashboard if needed, 
       // but ProjectListProvider can handle project info mapping.
       
@@ -281,6 +325,67 @@ class TaskRepository {
         resolvedMemberId = a['project_member_id'] as String?;
         break;
       }
+    }
+
+    // 6. Notifications on Create Task
+    try {
+      final projectRes = await _supabaseClient.from('projects').select('pembuat_id').eq('id', task.projectId).single();
+      final managerId = projectRes['pembuat_id'] as String;
+
+      if (task.dibuatOlehRole == 'Tim' && task.statusTugas.toLowerCase() == 'review') {
+        // Send notification to manager about new draft proposal
+        await _supabaseClient.from('notifications').insert({
+          'user_id': managerId,
+          'sender_id': user?.id,
+          'project_id': task.projectId,
+          'tipe_notifikasi': 'tugas',
+          'judul': 'Usulan Tugas Baru',
+          'pesan': 'Anggota tim mengusulkan tugas baru "${task.judulTugas}" untuk ditinjau.',
+          'is_read': false,
+        });
+      } else if (task.dibuatOlehRole == 'Manajer') {
+        // Construct assigned names string
+        String assignedStr = '';
+        if (assignees.isNotEmpty) {
+          final List<String> names = assignees.map((a) => (a['name'] ?? 'Anggota') as String).toList();
+          // Remove duplicates (e.g. if a team has multiple members and is passed as individual user_ids, though we pass team_id)
+          final uniqueNames = names.toSet().toList();
+          if (uniqueNames.length > 2) {
+            assignedStr = '${uniqueNames[0]}, ${uniqueNames[1]}, dan ${uniqueNames.length - 2} lainnya';
+          } else {
+            assignedStr = uniqueNames.join(' & ');
+          }
+        } else {
+          assignedStr = 'Semua Anggota';
+        }
+
+        // Send notification to all active project members
+        final membersRes = await _supabaseClient.from('project_members')
+            .select('user_id')
+            .eq('project_id', task.projectId)
+            .eq('status_akses', 'aktif');
+        final members = membersRes as List<dynamic>;
+        
+        final notifications = members
+            .map((m) => m['user_id'] as String)
+            .where((uid) => uid != user?.id) // Jangan kirim ke diri sendiri
+            .map((uid) => {
+                  'user_id': uid,
+                  'sender_id': user?.id,
+                  'project_id': task.projectId,
+                  'tipe_notifikasi': 'tugas',
+                  'judul': 'Tugas Baru Dibuat',
+                  'pesan': 'Manajer telah membuat tugas baru "${task.judulTugas}". Ditugaskan untuk: $assignedStr.',
+                  'is_read': false,
+                })
+            .toList();
+            
+        if (notifications.isNotEmpty) {
+          await _supabaseClient.from('notifications').insert(notifications);
+        }
+      }
+    } catch (e) {
+      debugPrint("=== WARNING: Failed to send createTask notifications: $e ===");
     }
 
     return createdTask.copyWith(
@@ -433,6 +538,25 @@ class TaskRepository {
         'keputusan_manajer': keputusan,
         'status_tugas': dbStatus,
       }).eq('id', id);
+
+      // Notification to Team Member (Task Creator)
+      try {
+        final taskRes = await _supabaseClient.from('tasks').select('created_by, project_id, judul_tugas').eq('id', id).single();
+        final user = _supabaseClient.auth.currentUser;
+        if (taskRes['created_by'] != null) {
+          await _supabaseClient.from('notifications').insert({
+            'user_id': taskRes['created_by'],
+            'sender_id': user?.id,
+            'project_id': taskRes['project_id'],
+            'tipe_notifikasi': 'tugas',
+            'judul': 'Keputusan Draft Tugas',
+            'pesan': 'Usulan tugas "${taskRes['judul_tugas']}" telah ${keputusan == 'Setujui' ? 'disetujui' : 'ditolak'} oleh Manajer.',
+            'is_read': false,
+          });
+        }
+      } catch (e) {
+        debugPrint("=== WARNING: Failed to send decision notification: $e ===");
+      }
     } catch (e) {
       debugPrint("=== WARNING: Task Supabase manager decision update failed. Error: $e ===");
       final index = _localTasks.indexWhere((t) => t.id == id);
@@ -550,12 +674,15 @@ class TaskRepository {
       // Validasi tugas terjadwal di masa depan
       final taskCheck = await _supabaseClient
           .from('tasks')
-          .select('status_tugas, scheduled_for')
+          .select('status_tugas, scheduled_for, project_id, judul_tugas')
           .eq('id', taskId)
           .single();
       
       final dbTaskStatus = taskCheck['status_tugas'] as String?;
       final dbScheduledForRaw = taskCheck['scheduled_for'] as String?;
+      final projectId = taskCheck['project_id'] as String;
+      final judulTugas = taskCheck['judul_tugas'] as String;
+
       if (dbTaskStatus == 'scheduled' && dbScheduledForRaw != null) {
         final dbScheduledFor = DateTime.tryParse(dbScheduledForRaw);
         if (dbScheduledFor != null && dbScheduledFor.isAfter(DateTime.now())) {
@@ -616,6 +743,36 @@ class TaskRepository {
           .from('tasks')
           .update(taskUpdatePayload)
           .eq('id', taskId);
+
+      // 6. Notifications for Manager
+      try {
+        final projectRes = await _supabaseClient.from('projects').select('pembuat_id').eq('id', projectId).single();
+        final managerId = projectRes['pembuat_id'] as String;
+        
+        if (dbStatus == 'done') {
+          await _supabaseClient.from('notifications').insert({
+            'user_id': managerId,
+            'sender_id': user.id,
+            'project_id': projectId,
+            'tipe_notifikasi': 'tugas',
+            'judul': 'Tugas Selesai',
+            'pesan': 'Tugas "$judulTugas" telah diselesaikan oleh anggota tim.',
+            'is_read': false,
+          });
+        } else if (hambatan != null && hambatan.trim().isNotEmpty) {
+          await _supabaseClient.from('notifications').insert({
+            'user_id': managerId,
+            'sender_id': user.id,
+            'project_id': projectId,
+            'tipe_notifikasi': 'tugas',
+            'judul': 'Hambatan Tugas',
+            'pesan': 'Ada hambatan pada tugas "$judulTugas": $hambatan',
+            'is_read': false,
+          });
+        }
+      } catch (e) {
+        debugPrint("=== WARNING: Failed to send manager notification: $e ===");
+      }
 
       debugPrint("=== INFO: [Supabase] Tim berhasil memperbarui progress tugas ===");
     } catch (e) {

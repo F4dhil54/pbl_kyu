@@ -64,6 +64,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final dbRole = response['role'] as String? ?? '';
       
       if (isGoogleAuth) {
+        // Fix for "User Baru" bug: Sync name from Google metadata to profiles table
+        final user = supabase.auth.currentUser;
+        if (user != null) {
+          final googleName = user.userMetadata?['name'] ?? user.userMetadata?['full_name'];
+          if (googleName != null && googleName.toString().trim().isNotEmpty) {
+            await supabase.from('profiles').update({'nama': googleName.toString().trim()}).eq('id', userId);
+          }
+        }
+
         if (selectedRole != null && !dbRole.contains(selectedRole!)) {
           final newRole = dbRole.isEmpty ? selectedRole! : '$dbRole, $selectedRole';
           await supabase.from('profiles').update({'role': newRole}).eq('id', userId);
@@ -203,8 +212,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           setState(() {
             _isGoogleLoading = false;
             if (errorMsg != null) {
-              if (errorMsg.contains('salah, atau akun')) {
+              if (errorMsg.contains('Akun belum terdaftar')) {
                 _emailErrorText = errorMsg;
+              } else if (errorMsg.contains('Kata sandi salah')) {
                 _passwordErrorText = errorMsg;
               } else {
                 _emailErrorText = errorMsg;

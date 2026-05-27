@@ -58,6 +58,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           
           try {
             final supabase = ref.read(supabaseClientProvider);
+            
+            // Fix for "User Baru" bug: Sync name from Google metadata to profiles table
+            final googleName = session.user.userMetadata?['name'] ?? session.user.userMetadata?['full_name'];
+            if (googleName != null && googleName.toString().trim().isNotEmpty) {
+              await supabase.from('profiles').update({'nama': googleName.toString().trim()}).eq('id', session.user.id);
+            }
+
             final response = await supabase
                 .from('profiles')
                 .select('role')

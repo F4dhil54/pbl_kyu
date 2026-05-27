@@ -11,9 +11,8 @@ import '../../../profile/presentation/providers/profile_provider.dart';
 import 'message_detail_screen.dart' as message_detail;
 import 'compose_message_screen.dart';
 
-// Assuming we have these imports available for deep linking:
-// import '../../project/presentation/views/project_detail_screen.dart';
-// import '../../task/presentation/views/task_detail_screen.dart';
+import 'package:pbl_kyu/features/project/presentation/views/project_detail_screen.dart';
+import 'package:pbl_kyu/features/project/data/models/project_model.dart';
 
 class InboxScreen extends ConsumerStatefulWidget {
   const InboxScreen({super.key});
@@ -78,14 +77,31 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           ),
         ),
       );
-    } else if (notif.tipeNotifikasi == 'proyek') {
-      // Deep link to project
-      // Navigator.push(context, MaterialPageRoute(builder: (context) => ProjectDetailScreen(projectId: notif.projectId)));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mengarahkan ke detail proyek...')));
-    } else if (notif.tipeNotifikasi == 'tugas') {
-      // Deep link to task
-      // Navigator.push(context, MaterialPageRoute(builder: (context) => TaskDetailScreen(taskId: notif.taskId)));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mengarahkan ke detail tugas...')));
+    } else if (notif.tipeNotifikasi == 'proyek' || notif.tipeNotifikasi == 'tugas') {
+      if (notif.projectId != null) {
+        showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+        try {
+          final supabase = Supabase.instance.client;
+          final response = await supabase.from('projects').select().eq('id', notif.projectId!).single();
+          final project = ProjectModel.fromJson(response);
+          if (mounted) {
+            Navigator.pop(context); // dismiss loading
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProjectDetailScreen(project: project),
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            Navigator.pop(context); // dismiss loading
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat proyek: $e')));
+          }
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Proyek tidak ditemukan')));
+      }
     }
   }
 
