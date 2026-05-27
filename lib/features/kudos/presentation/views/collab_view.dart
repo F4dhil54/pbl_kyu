@@ -4,6 +4,7 @@ import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import '../../../profile/presentation/views/profile_view_manager.dart';
 import '../../../project/presentation/providers/project_provider.dart';
+import '../../../../core/network/supabase_provider.dart';
 import '../../data/models/activity_model.dart';
 import '../providers/kudos_provider.dart';
 import 'create_post_screen.dart';
@@ -40,9 +41,6 @@ class _CollabViewState extends ConsumerState<CollabView> {
       ];
       final monthStr = months[time.month - 1];
       
-      // "jika kemarin lusa hingga terhitung 1 minggu setelah hari ini penulisannya "tanggal, jam". 
-      // jika lebih 1 minggu penulisannya "tanggal, jam"."
-      // Keduanya menggunakan format tanggal lengkap.
       return "${time.day} $monthStr ${time.year}, $timeStr";
     }
   }
@@ -106,8 +104,30 @@ class _CollabViewState extends ConsumerState<CollabView> {
 
   Widget _buildEmojiOption(BuildContext context, WidgetRef ref, ActivityModel activity, String emoji, String points) {
     final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
+    final currentUserId = ref.read(supabaseClientProvider).auth.currentUser?.id;
+    
+    // Cek apakah user sudah mengirim kudos dengan emoji ini
+    bool hasVoted = activity.reactions.any((r) => 
+        r.reaksiEmoji.runes.first == emoji.runes.first && 
+        (r.pengirimId == currentUserId || currentUserId == null));
+
+    // Disable jika dirinya sendiri
+    bool isSelf = activity.userId == currentUserId;
+
     return GestureDetector(
-      onTap: () async {
+      onTap: hasVoted ? null : () async {
+        if (isSelf) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Anda tidak bisa memberi Kudos untuk diri sendiri! 😅'),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+
         Navigator.pop(context);
         try {
           await ref.read(kudosActionNotifierProvider.notifier).sendKudos(
@@ -117,11 +137,6 @@ class _CollabViewState extends ConsumerState<CollabView> {
             emoji: emoji,
             commitSha: activity.commitSha,
           );
-          // Force refresh providers from widget side to ensure UI updates
-          ref.invalidate(collabActivitiesProvider);
-          if (_selectedProjectId != null) {
-            ref.invalidate(projectLeaderboardProvider(_selectedProjectId!));
-          }
           if (mounted) {
             ScaffoldMessenger.of(this.context).showSnackBar(
               SnackBar(
@@ -143,23 +158,40 @@ class _CollabViewState extends ConsumerState<CollabView> {
           }
         }
       },
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isDark ? AppDarkColors.background : AppColors.inputBackground,
+          color: hasVoted 
+              ? (isDark ? Colors.blue.withValues(alpha: 0.3) : Colors.blue.withValues(alpha: 0.1))
+              : (isDark ? AppDarkColors.background : AppColors.inputBackground),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
+          border: Border.all(
+            color: hasVoted 
+                ? Colors.blue 
+                : (isDark ? AppDarkColors.border : AppColors.border), 
+            width: hasVoted ? 1.5 : 0.5
+          ),
+          boxShadow: hasVoted ? [
+            BoxShadow(
+              color: Colors.blue.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            )
+          ] : null,
         ),
         child: Column(
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 32)),
+            Text(emoji, style: TextStyle(fontSize: 32, color: (hasVoted || isSelf) ? Colors.grey : null)),
             const SizedBox(height: 8),
             Text(
-              points,
+              hasVoted ? 'Dipilih' : points,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                color: hasVoted 
+                    ? Colors.blue 
+                    : (isDark ? AppDarkColors.textMain : AppColors.textMain),
               ),
             ),
           ],
@@ -230,7 +262,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
           body: RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(projectListProvider);
-              ref.invalidate(collabActivitiesProvider);
+              ref.read(collabActivitiesProvider.notifier).loadActivities(isRefresh: true);
               if (_selectedProjectId != null) {
                 ref.invalidate(projectLeaderboardProvider(_selectedProjectId!));
               }
@@ -395,44 +427,30 @@ class _CollabViewState extends ConsumerState<CollabView> {
                   const SizedBox(height: 32),
 
                   // Recent Activities Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Aktivitas Terbaru',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Text(
-                            'Segarkan',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.amberAccent : AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.refresh, 
-                            size: 14, 
-                            color: isDark ? Colors.amberAccent : AppColors.primary
-                          ),
-                        ],
-                      ),
-                    ],
+                  Text(
+                    'Aktivitas Terbaru',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                    ),
                   ),
                   const SizedBox(height: 20),
 
                   // Dynamic Activities Feed
-                  activitiesAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (err, stack) => Center(child: Text('Gagal memuat aktivitas: $err')),
-                    data: (activitiesList) {
+                  Builder(
+                    builder: (context) {
+                      if (activitiesAsync.isLoading && activitiesAsync.activities.isEmpty) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (activitiesAsync.error != null && activitiesAsync.activities.isEmpty) {
+                        return Center(child: Text('Gagal memuat aktivitas: ${activitiesAsync.error}'));
+                      }
+
+                      final activitiesList = activitiesAsync.activities
+                          .where((a) => _selectedProjectId == null || a.projectId == _selectedProjectId)
+                          .toList();
+
                       if (activitiesList.isEmpty) {
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 40.0),
@@ -448,45 +466,73 @@ class _CollabViewState extends ConsumerState<CollabView> {
                         );
                       }
 
-                      return ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: activitiesList.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 16),
-                        itemBuilder: (context, index) {
-                          final act = activitiesList[index];
-                          
-                          // Struktur teks kustom untuk progres tugas vs commit GitHub
-                          final String formattedTime = _formatActivityTime(act.time);
-                          final String actionDesc;
-                          final String titleText;
-                          final String detailText;
+                      return Column(
+                        children: [
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: activitiesList.length,
+                            separatorBuilder: (context, index) => const SizedBox(height: 16),
+                            itemBuilder: (context, index) {
+                              final act = activitiesList[index];
+                              
+                              final String formattedTime = _formatActivityTime(act.time);
+                              final String actionDesc;
+                              final String titleText;
+                              final String detailText;
 
-                          if (act.type == 'commit') {
-                            actionDesc = 'melakukan commit';
-                            titleText = act.linkText;
-                            detailText = 'dari proyek ${act.projectName}';
-                          } else {
-                            actionDesc = act.actionText; // 'sedang mengerjakan' atau 'sudah menyelesaikan'
-                            titleText = 'tugas ${act.linkText}';
-                            detailText = 'dari proyek ${act.projectName}';
-                          }
+                              if (act.type == 'commit') {
+                                actionDesc = 'melakukan commit';
+                                titleText = act.linkText;
+                                detailText = 'dari proyek ${act.projectName}';
+                              } else {
+                                actionDesc = act.actionText; // 'sedang mengerjakan' atau 'sudah menyelesaikan'
+                                titleText = 'tugas ${act.linkText}';
+                                detailText = 'dari proyek ${act.projectName}';
+                              }
 
-                          return _buildActivityCard(
-                            name: act.userName,
-                            avatarUrl: act.userAvatar,
-                            actionText: actionDesc,
-                            linkText: titleText,
-                            projectText: detailText,
-                            time: formattedTime,
-                            kudosIcon: '👏🏻',
-                            kudosText: 'Beri Kudos',
-                            isDark: isDark,
-                            onKudosPressed: () => _showReactionSheet(context, ref, act),
-                            reactions: act.reactions,
-                            type: act.type,
-                          );
-                        },
+                              return _buildActivityCard(
+                                name: act.userName,
+                                avatarUrl: act.userAvatar,
+                                actionText: actionDesc,
+                                linkText: titleText,
+                                projectText: detailText,
+                                time: formattedTime,
+                                kudosIcon: '👏🏻',
+                                kudosText: 'Beri Kudos',
+                                onKudosPressed: () => _showReactionSheet(context, ref, act),
+                                reactions: act.reactions,
+                                type: act.type,
+                                isDark: isDark,
+                              );
+                            },
+                          ),
+                          if (activitiesAsync.hasMore && _selectedProjectId == null) ...[
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
+                                onPressed: activitiesAsync.isLoadMore 
+                                  ? null 
+                                  : () => ref.read(collabActivitiesProvider.notifier).loadActivities(),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  side: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: activitiesAsync.isLoadMore
+                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : Text(
+                                      'Lihat aktivitas riwayat lebih banyak',
+                                      style: TextStyle(
+                                        color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                              ),
+                            )
+                          ]
+                        ],
                       );
                     },
                   ),
@@ -494,18 +540,6 @@ class _CollabViewState extends ConsumerState<CollabView> {
                 ],
               ),
             ),
-          ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CreatePostScreen()),
-              );
-            },
-            backgroundColor: isDark ? Colors.white : AppColors.textMain,
-            elevation: 4,
-            shape: const CircleBorder(),
-            child: Icon(Icons.edit, color: isDark ? AppDarkColors.background : Colors.white, size: 24),
           ),
         );
       },
