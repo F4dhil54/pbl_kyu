@@ -28,7 +28,7 @@ class KudosRepository {
   }
 
   /// Mengambil daftar aktivitas proyek (tugas progress & commit GitHub)
-  Future<List<ActivityModel>> getActivities() async {
+  Future<List<ActivityModel>> getActivities({int limit = 10, int offset = 0}) async {
     final user = _supabaseClient.auth.currentUser;
     if (user == null) {
       return _getLocalActivities();
@@ -107,7 +107,8 @@ class KudosRepository {
             .from('task_progress_logs')
             .select('*, profiles:logged_by(*)')
             .inFilter('task_id', taskIds)
-            .order('created_at', ascending: false);
+            .order('created_at', ascending: false)
+            .range(offset, offset + limit - 1);
         rawLogs = List<Map<String, dynamic>>.from(logsRes as List);
       }
 
@@ -162,8 +163,8 @@ class KudosRepository {
         final status = log['status_progress'] as String? ?? 'Sedang Dikerjakan';
         final persen = log['persen_selesai'] as int? ?? 0;
 
-        // Validasi status: Hanya "Sedang Dikerjakan" atau "Selesai" (Kudos tersambung dengan progress ini)
-        if (status != 'Sedang Dikerjakan' && status != 'Selesai' && persen != 50 && persen != 100) {
+        // Validasi status: Hanya "Sedang Dikerjakan", "Selesai Dikerjakan", atau "Selesai"
+        if (status != 'Sedang Dikerjakan' && status != 'Selesai Dikerjakan' && status != 'Selesai') {
           continue;
         }
 
@@ -172,7 +173,7 @@ class KudosRepository {
         final userAvatar = profile['avatar_url'] as String?;
         final time = DateTime.tryParse(log['created_at'] as String) ?? DateTime.now();
 
-        final actionText = (status == 'Selesai' || persen == 100)
+        final actionText = (status == 'Selesai' || status == 'Selesai Dikerjakan')
             ? 'sudah menyelesaikan'
             : 'sedang mengerjakan';
 
@@ -251,6 +252,14 @@ class KudosRepository {
       }
 
       // Urutkan aktivitas berdasarkan waktu terbaru
+      activities.sort((a, b) => b.time.compareTo(a.time));
+      
+      // Terapkan pagination lokal pada aktivitas gabungan (jika menggunakan mix)
+      if (activities.length > offset) {
+        activities = activities.sublist(offset, (offset + limit > activities.length) ? activities.length : offset + limit);
+      } else {
+        activities = [];
+      }
       if (activities.isEmpty) {
         final localActs = _getLocalActivities();
         if (projectIds.isNotEmpty) {
@@ -302,11 +311,12 @@ class KudosRepository {
     }
 
     try {
+      final poinKudos = getEmojiPoints(emoji);
+
       if (taskId == null) {
         // 1. Kudos Umum / Commit
         final targetPesan = commitSha != null ? 'commit:$commitSha' : 'Apresiasi Umum';
 
-        // Selalu insert baru sesuai Opsi A (Akumulasi tanpa batas)
         await _supabaseClient.from('kudos').insert({
           'pengirim_id': userId,
           'penerima_id': receiverId,
@@ -314,10 +324,10 @@ class KudosRepository {
           'task_id': null,
           'reaksi_emoji': emoji,
           'pesan_apresiasi': targetPesan,
+          'poin_kudos': poinKudos,
         });
       } else {
         // 2. Kudos Spesifik Tugas
-        // Selalu insert baru sesuai Opsi A (Akumulasi tanpa batas)
         await _supabaseClient.from('kudos').insert({
           'pengirim_id': userId,
           'penerima_id': receiverId,
@@ -325,6 +335,7 @@ class KudosRepository {
           'task_id': taskId,
           'reaksi_emoji': emoji,
           'pesan_apresiasi': 'Apresiasi tugas',
+          'poin_kudos': poinKudos,
         });
       }
 
@@ -356,123 +367,53 @@ class KudosRepository {
     }
 
     try {
-      Map<String, Map<String, dynamic>> leaderboardData = {};
+      final res = await _supabaseClient
+          .from('kudos_leaderboard')
+          .select()
+          .eq('project_id', projectId)
+          .order('total_kudos', ascending: false);
 
-      // 1. Ambil seluruh anggota aktif di proyek ini
-      try {
-        final pmRes = await _supabaseClient
-            .from('project_members')
-            .select('user_id, profiles:profiles!project_members_user_id_fkey(id, nama, email, avatar_url)')
-            .eq('project_id', projectId)
-            .eq('status_akses', 'aktif');
-        
-        final membersList = pmRes as List<dynamic>;
-        for (var pm in membersList) {
-          final profile = pm['profiles'] as Map<String, dynamic>?;
-          if (profile != null) {
-            final uId = profile['id'] as String;
-            leaderboardData[uId] = {
-              'penerima_id': uId,
-              'nama': profile['nama'] ?? 'Anggota',
-              'avatar_url': profile['avatar_url'],
-              'total_kudos': 0,
-              'score': 0,
-              'emojis': <String>{},
-            };
-          }
-        }
-      } catch (e) {
-        debugPrint("Warning: Could not fetch project members for leaderboard: $e");
-      }
-
-      // 2. Ambil manajer proyek juga untuk dimasukkan jika ada kontribusinya
-      try {
-        final projRes = await _supabaseClient
-            .from('projects')
-            .select('pembuat_id, profiles:profiles!projects_pembuat_id_fkey(id, nama, email, avatar_url)')
-            .eq('id', projectId)
-            .single();
-        
-        final managerProfile = projRes['profiles'] as Map<String, dynamic>?;
-        if (managerProfile != null) {
-          final mId = managerProfile['id'] as String;
-          leaderboardData.putIfAbsent(mId, () => {
-            'penerima_id': mId,
-            'nama': managerProfile['nama'] ?? 'Manajer',
-            'avatar_url': managerProfile['avatar_url'],
-            'total_kudos': 0,
-            'score': 0,
-            'emojis': <String>{},
-          });
-        }
-      } catch (e) {
-        debugPrint("Warning: Could not fetch project manager for leaderboard: $e");
-      }
-
-      // 3. Ambil semua Kudos untuk proyek ini
-      final kudosRes = await _supabaseClient
-          .from('kudos')
-          .select('penerima_id, reaksi_emoji')
-          .eq('project_id', projectId);
-      
-      final kudosList = kudosRes as List<dynamic>;
-
-      for (var k in kudosList) {
-        final pId = k['penerima_id'] as String;
-        final emoji = k['reaksi_emoji'] as String? ?? '👏🏻';
-        
-        if (!leaderboardData.containsKey(pId)) {
-          // Jika member tidak ada di project_members (mungkin query error), tetap tampilkan poinnya
-          leaderboardData[pId] = {
-            'penerima_id': pId,
-            'nama': pId.startsWith('local-') ? pId.substring(6) : 'User',
-            'avatar_url': null,
-            'total_kudos': 0,
-            'score': 0,
-            'emojis': <String>{},
-          };
-        }
-        
-        final node = leaderboardData[pId]!;
-        node['total_kudos'] = (node['total_kudos'] as int) + 1;
-        node['score'] = (node['score'] as int) + getEmojiPoints(emoji);
-        (node['emojis'] as Set<String>).add(emoji);
-      }
-
-      // 4. Tambahkan juga kudos lokal (untuk kasus testing dummy activities di proyek asli)
-      for (var k in _localKudos) {
-        if (k['project_id'] == projectId) {
-          final pId = k['penerima_id'] as String;
-          final emoji = k['reaksi_emoji'] as String? ?? '👏🏻';
+      final list = res as List<dynamic>;
+      if (list.isEmpty) {
+        // Fallback untuk mencari member saja jika view kosong
+        try {
+          final pmRes = await _supabaseClient
+              .from('project_members')
+              .select('user_id, profiles:profiles!project_members_user_id_fkey(id, nama, email, avatar_url)')
+              .eq('project_id', projectId)
+              .eq('status_akses', 'aktif');
           
-          if (!leaderboardData.containsKey(pId)) {
-            leaderboardData[pId] = {
-              'penerima_id': pId,
-              'nama': pId.startsWith('local-') ? pId.substring(6) : 'User',
-              'avatar_url': null,
-              'total_kudos': 0,
-              'score': 0,
-              'emojis': <String>{},
-            };
+          final membersList = pmRes as List<dynamic>;
+          List<Map<String, dynamic>> emptyLeaderboard = [];
+          for (var pm in membersList) {
+            final profile = pm['profiles'] as Map<String, dynamic>?;
+            if (profile != null) {
+              final uId = profile['id'] as String;
+              emptyLeaderboard.add({
+                'penerima_id': uId,
+                'nama': profile['nama'] ?? 'Anggota',
+                'avatar_url': profile['avatar_url'],
+                'total_kudos': 0,
+                'score': 0,
+                'emojis': [],
+              });
+            }
           }
-          
-          final node = leaderboardData[pId]!;
-          node['total_kudos'] = (node['total_kudos'] as int) + 1;
-          node['score'] = (node['score'] as int) + getEmojiPoints(emoji);
-          (node['emojis'] as Set<String>).add(emoji);
+          if (emptyLeaderboard.isEmpty) return _getLocalLeaderboard(projectId);
+          return emptyLeaderboard;
+        } catch (_) {
+          return _getLocalLeaderboard(projectId);
         }
       }
 
-      // Ubah Set ke List
-      final result = leaderboardData.values.map((v) {
-        v['emojis'] = (v['emojis'] as Set<String>).toList();
-        return v;
+      return list.map((item) => {
+        'penerima_id': item['penerima_id'],
+        'nama': item['nama'] ?? 'User',
+        'avatar_url': item['avatar_url'],
+        'total_kudos': item['total_kudos'] ?? 0,
+        'score': item['total_kudos'] ?? 0, // di view total_kudos adalah poin totalnya
+        'emojis': item['emojis'] ?? [],
       }).toList();
-
-      // Urutkan berdasarkan skor tertinggi
-      result.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
-      if (result.isEmpty) return _getLocalLeaderboard(projectId);
-      return result;
 
     } catch (e) {
       debugPrint("Error fetching leaderboard: $e");
