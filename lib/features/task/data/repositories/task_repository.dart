@@ -547,6 +547,22 @@ class TaskRepository {
         throw Exception("Pengguna tidak terautentikasi!");
       }
 
+      // Validasi tugas terjadwal di masa depan
+      final taskCheck = await _supabaseClient
+          .from('tasks')
+          .select('status_tugas, scheduled_for')
+          .eq('id', taskId)
+          .single();
+      
+      final dbTaskStatus = taskCheck['status_tugas'] as String?;
+      final dbScheduledForRaw = taskCheck['scheduled_for'] as String?;
+      if (dbTaskStatus == 'scheduled' && dbScheduledForRaw != null) {
+        final dbScheduledFor = DateTime.tryParse(dbScheduledForRaw);
+        if (dbScheduledFor != null && dbScheduledFor.isAfter(DateTime.now())) {
+          throw Exception("Tugas belum aktif karena masih dijadwalkan.");
+        }
+      }
+
       // 1. MAPPING STATUS: Konversi Bahasa UI ke Kode Database PostgreSQL
       String dbStatus = 'accept';
       if (status == 'Akan Dikerjakan' || status == 'accept') {
@@ -569,11 +585,13 @@ class TaskRepository {
         taskUpdatePayload['done_at'] = DateTime.now().toUtc().toIso8601String();
       }
 
+      final String? dbCatatan = (catatan != null && catatan.trim().isNotEmpty) ? catatan.trim() : null;
+
       // 3. Insert ke tabel 'task_progress_logs'
       final logResponse = await _supabaseClient.from('task_progress_logs').insert({
         'task_id': taskId,
         'logged_by': user.id,
-        'catatan': catatan ?? 'Mengubah status status tugas menjadi $status',
+        'catatan': dbCatatan, // trigger will set default if null
         'persen_selesai': persenSelesai ?? (status == 'Selesai' ? 100 : (status == 'Sedang Dikerjakan' ? 50 : 0)),
         'jenis_aksi': 'memperbarui',
         'hambatan': hambatan,

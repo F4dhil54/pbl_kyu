@@ -590,7 +590,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               ),
             ],
           ),
-          floatingActionButton: _activeTabIndex == 0
+          floatingActionButton: (_activeTabIndex == 0 && !project.isReadOnly)
               ? FloatingActionButton(
                   heroTag: 'project_detail_fab',
                   onPressed: () {
@@ -872,7 +872,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               separatorBuilder: (context, index) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
                 final task = filteredList[index];
-                return _buildTaskCardWidget(context, task, isDark, isManager);
+                return _buildTaskCardWidget(context, task, isDark, isManager, project);
               },
             );
           },
@@ -961,7 +961,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     );
   }
 
-  Widget _buildTaskCardWidget(BuildContext context, TaskModel task, bool isDark, bool isManager) {
+  Widget _buildTaskCardWidget(BuildContext context, TaskModel task, bool isDark, bool isManager, ProjectModel project) {
     final bool isDone = task.statusTugas == 'Selesai';
     final Color categoryColor = isDone
         ? const Color(0xFF10B981)
@@ -1089,7 +1089,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                       ),
                     ],
                   )
-                else if (isManager || (!isManager && task.dibuatOlehRole == 'Tim' && task.statusTugas == 'Ditinjau' && task.createdBy == currentUserId))
+                else if (isManager || (!isManager && !project.isReadOnly && task.dibuatOlehRole == 'Tim' && task.statusTugas == 'Ditinjau' && task.createdBy == currentUserId))
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert, size: 18),
                     onSelected: (val) {

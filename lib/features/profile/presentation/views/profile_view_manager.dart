@@ -12,6 +12,8 @@ import 'package:pbl_kyu/core/network/supabase_provider.dart';
 import '../providers/profile_provider.dart';
 import 'edit_team_screen.dart';
 import 'edit_member_screen.dart';
+import 'all_members_screen.dart';
+import 'all_teams_screen.dart';
 
 class ProfileViewManager extends ConsumerStatefulWidget {
   const ProfileViewManager({super.key});
@@ -576,8 +578,8 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                             ),
                           ),
                         )
-                      else
-                        for (int i = 0; i < _members.length; i++) ...[
+                      else ...[
+                        for (int i = 0; i < (_members.length > 5 ? 5 : _members.length); i++) ...[
                           _buildMemberListItem(
                             context,
                             _members[i]['id'] as String,
@@ -590,9 +592,28 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                             invitationId: _members[i]['invitation_id'] as String,
                             email: _members[i]['email'] as String,
                           ),
-                          if (i < _members.length - 1)
+                          if (i < (_members.length > 5 ? 5 : _members.length) - 1)
                             Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
                         ],
+                        if (_members.length > 5) ...[
+                          const SizedBox(height: 12),
+                          Center(
+                            child: TextButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const AllMembersScreen()),
+                                ).then((_) => _loadInvitations());
+                              },
+                              icon: const Icon(Icons.people, size: 16, color: AppColors.primary),
+                              label: const Text(
+                                'Lihat Semua Anggota',
+                                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ],
                   ),
                 ),
@@ -675,8 +696,8 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                             ),
                           ),
                         )
-                      else
-                        for (int i = 0; i < _teams.length; i++) ...[
+                      else ...[
+                        for (int i = 0; i < (_teams.length > 5 ? 5 : _teams.length); i++) ...[
                           _buildTeamListItem(
                             context,
                             _teams[i]['id'] as String,
@@ -684,9 +705,28 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                             _teams[i]['color'] as Color,
                             isDark: isDark,
                           ),
-                          if (i < _teams.length - 1)
+                          if (i < (_teams.length > 5 ? 5 : _teams.length) - 1)
                             Divider(height: 24, color: isDark ? AppDarkColors.border : AppColors.border),
                         ],
+                        if (_teams.length > 5) ...[
+                          const SizedBox(height: 12),
+                          Center(
+                            child: TextButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const AllTeamsScreen()),
+                                ).then((_) => _loadTeams());
+                              },
+                              icon: const Icon(Icons.group, size: 16, color: AppColors.primary),
+                              label: const Text(
+                                'Lihat Semua Tim',
+                                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ],
                   ),
                 ),

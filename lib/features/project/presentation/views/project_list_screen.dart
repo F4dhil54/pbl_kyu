@@ -364,54 +364,86 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
         categoryTextColor = isDark ? AppDarkColors.textSecondary : AppColors.textSecondary;
     }
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProjectDetailScreen(project: project),
+    final cardWidget = Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppDarkColors.surface : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
+        boxShadow: isDark ? null : [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isDark ? AppDarkColors.surface : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
-          boxShadow: isDark ? null : [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: categoryBgColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    project.category.toUpperCase(),
-                    style: TextStyle(
-                      color: categoryTextColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: categoryBgColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      project.category.toUpperCase(),
+                      style: TextStyle(
+                        color: categoryTextColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
                     ),
                   ),
-                ),
+                  if (project.isReadOnly) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark ? AppDarkColors.border : AppColors.border,
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.lock_outline,
+                            size: 10,
+                            color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'READ-ONLY',
+                            style: TextStyle(
+                              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
                 // 3-dot Menu (Only for Manager)
                 if (isManager)
                   PopupMenuButton<String>(
@@ -554,204 +586,229 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
               ),
             ],
 
-            // Manager card: show progress, avatars and date
-            if (isManager) ...[
-              const SizedBox(height: 20),
-              Consumer(
-                builder: (context, ref, child) {
-                  final progressAsync = ref.watch(projectRealProgressProvider(project.id));
-                  
-                  return progressAsync.when(
-                    data: (realProgress) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Progress',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                                ),
+            const SizedBox(height: 20),
+            Consumer(
+              builder: (context, ref, child) {
+                final progressAsync = ref.watch(projectRealProgressProvider(project.id));
+                
+                return progressAsync.when(
+                  data: (realProgress) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Progress',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
                               ),
-                              Text(
-                                '${(realProgress * 100).toInt()}%',
-                                style: TextStyle(
+                            ),
+                            Text(
+                              '${(realProgress * 100).toInt()}%',
+                              style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   color: isDark ? AppDarkColors.textMain : AppColors.textMain,
                                 ),
-                              ),
-                            ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: realProgress,
+                            backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                            minHeight: 6,
                           ),
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: realProgress,
-                              backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
-                              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                              minHeight: 6,
+                        ),
+                      ],
+                    );
+                  },
+                  loading: () => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Progress',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: 0,
+                          backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
+                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          minHeight: 6,
+                        ),
+                      ),
+                    ],
+                  ),
+                  error: (e, st) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Progress',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            '${(project.progress * 100).toInt()}%',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
                             ),
                           ),
                         ],
-                      );
-                    },
-                    loading: () => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: project.progress,
+                          backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
+                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          minHeight: 6,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Real project member avatars
+                Consumer(
+                  builder: (context, ref, child) {
+                    final membersAsync = ref.watch(projectMembersProvider(project.id));
+                    return membersAsync.when(
+                      data: (membersList) {
+                        if (membersList.isEmpty) return const SizedBox.shrink();
+                        
+                        final maxDisplay = 3;
+                        final displayMembers = membersList.take(maxDisplay).toList();
+                        final remainingCount = membersList.length - maxDisplay;
+
+                        return Row(
                           children: [
-                            Text(
-                              'Progress',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(
-                              width: 12,
-                              height: 12,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: 0,
-                            backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
-                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                            minHeight: 6,
-                          ),
-                        ),
-                      ],
-                    ),
-                    error: (e, st) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Progress',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                              ),
-                            ),
-                            Text(
-                              '${(project.progress * 100).toInt()}%',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: project.progress,
-                            backgroundColor: isDark ? AppDarkColors.border : const Color(0xFFE2E8F0),
-                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                            minHeight: 6,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Fallback project member avatars based on project name length
-                  Row(
-                    children: [
-                      for (int i = 0; i < (project.name.length % 3 + 1); i++)
-                        Align(
-                          widthFactor: 0.6,
-                          child: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
-                            child: CircleAvatar(
-                              radius: 12,
-                              backgroundColor: isDark ? AppDarkColors.background : AppColors.inputBackground,
-                              child: Icon(
-                                Icons.account_circle,
-                                size: 24,
-                                color: _getFallbackColor(i),
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (project.name.length > 15)
-                        Align(
-                          widthFactor: 0.6,
-                          child: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
-                            child: CircleAvatar(
-                              radius: 12,
-                              backgroundColor: isDark ? AppDarkColors.background : const Color(0xFFF1F5F9),
-                              child: Text(
-                                '+${project.name.length % 5 + 1}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                            ...displayMembers.asMap().entries.map((entry) {
+                              final member = entry.value;
+                              final avatarUrl = member['avatar_url'] as String? ?? '';
+                              final name = member['nama'] as String? ?? '';
+                              
+                              return Align(
+                                widthFactor: 0.6,
+                                child: CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+                                  child: CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: isDark ? AppDarkColors.background : AppColors.inputBackground,
+                                    backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                                    child: avatarUrl.isEmpty
+                                        ? Text(
+                                            name.isNotEmpty ? name[0].toUpperCase() : 'A',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                              );
+                            }),
+                            if (remainingCount > 0)
+                              Align(
+                                widthFactor: 0.6,
+                                child: CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+                                  child: CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: isDark ? AppDarkColors.background : const Color(0xFFF1F5F9),
+                                    child: Text(
+                                      '+$remainingCount',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  // Date
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        size: 14,
+                          ],
+                        );
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (e, st) => const SizedBox.shrink(),
+                    );
+                  },
+                ),
+                // Date
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      size: 14,
+                      color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatIndonesianDate(project.createdAt ?? DateTime.now()),
+                      style: TextStyle(
+                        fontSize: 12,
                         color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatIndonesianDate(project.createdAt ?? DateTime.now()),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ],
         ),
-      ),
-    );
-  }
+      );
 
-  Color _getFallbackColor(int index) {
-    List<Color> colors = [
-      Colors.orange,
-      Colors.pink,
-      Colors.blueGrey,
-      Colors.amber,
-      Colors.blue,
-      Colors.red,
-      Colors.green,
-    ];
-    return colors[index % colors.length];
+      return GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProjectDetailScreen(project: project),
+            ),
+          );
+        },
+        child: project.isReadOnly
+            ? Opacity(opacity: 0.8, child: cardWidget)
+            : cardWidget,
+      );
   }
 }

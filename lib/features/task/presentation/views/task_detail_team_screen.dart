@@ -42,6 +42,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
   final _attachmentNameController = TextEditingController();
   final _attachmentPathController = TextEditingController();
   final _hambatanController = TextEditingController();
+  final _catatanController = TextEditingController();
   bool _isUpdatingStatus = false;
   Uint8List? _pickedAttachmentBytes;
 
@@ -82,10 +83,86 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
         attachments: [],
       );
     }
+
+    // Auto-aktivasi lokal jika scheduled_for sudah lewat
+    final now = DateTime.now();
+    if (_activeTask.statusTugas == 'Dijadwalkan' && 
+        _activeTask.scheduledFor != null && 
+        _activeTask.scheduledFor!.isBefore(now)) {
+      _activeTask = _activeTask.copyWith(
+        statusTugas: 'Akan Dikerjakan',
+        keputusanManajer: 'Setujui',
+      );
+    }
+
     _selectedStatus = _activeTask.statusTugas;
   }
 
   void _startTimer() {
+    final projects = ref.read(projectListProvider).value;
+    ProjectModel? project;
+    if (projects != null) {
+      for (var p in projects) {
+        if (p.id == _activeTask.projectId) {
+          project = p;
+          break;
+        }
+      }
+    }
+    
+    if (project != null && project.isReadOnly) {
+      final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Akses Dinonaktifkan'),
+            content: const Text(
+              'Akses Anda ke proyek ini dinonaktifkan oleh manajer. '
+              'Anda tidak dapat mengerjakan tugas di proyek ini.'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    final now = DateTime.now();
+    if (_activeTask.statusTugas == 'Dijadwalkan' && 
+        _activeTask.scheduledFor != null && 
+        _activeTask.scheduledFor!.isAfter(now)) {
+      final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Tugas Dijadwalkan'),
+            content: const Text(
+              'Tugas ini masih dijadwalkan dan belum aktif. '
+              'Anggota tidak boleh mengerjakan tugas sebelum waktu mulai yang dijadwalkan.'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
     if (_activeTask.id.startsWith('local-')) {
       showDialog(
         context: context,
@@ -278,6 +355,39 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
   }
 
   Future<void> _updateTaskProgress() async {
+    final projects = ref.read(projectListProvider).value;
+    ProjectModel? project;
+    if (projects != null) {
+      for (var p in projects) {
+        if (p.id == _activeTask.projectId) {
+          project = p;
+          break;
+        }
+      }
+    }
+    if (project != null && project.isReadOnly) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal: Akses Anda ke proyek ini dinonaktifkan oleh manajer.'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
+    final now = DateTime.now();
+    if (_activeTask.statusTugas == 'Dijadwalkan' && 
+        _activeTask.scheduledFor != null && 
+        _activeTask.scheduledFor!.isAfter(now)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal: Tugas belum aktif (masih dijadwalkan).'),
+          backgroundColor: AppColors.alertText,
+        ),
+      );
+      return;
+    }
+
     setState(() { _isUpdatingStatus = true; });
 
     try {
@@ -305,7 +415,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
       await ref.read(projectTaskListProvider(_activeTask.projectId).notifier).logProgress(
         taskId: _activeTask.id,
         status: _selectedStatus,
-        catatan: 'Mengubah status tugas menjadi $_selectedStatus',
+        catatan: _catatanController.text.trim().isNotEmpty ? _catatanController.text.trim() : null,
         persenSelesai: _selectedStatus == 'Selesai' ? 100 : (_selectedStatus == 'Sedang Dikerjakan' ? 50 : 0),
         attachment: attachment,
         hambatan: _hambatanController.text.trim().isNotEmpty ? _hambatanController.text.trim() : null,
@@ -314,6 +424,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
       _attachmentNameController.clear();
       _attachmentPathController.clear();
       _hambatanController.clear();
+      _catatanController.clear();
       _pickedAttachmentBytes = null;
 
       if (mounted) {
@@ -574,6 +685,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
     _attachmentNameController.dispose();
     _attachmentPathController.dispose();
     _hambatanController.dispose();
+    _catatanController.dispose();
     super.dispose();
   }
 
@@ -1240,123 +1352,164 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
 
         // Form Update Status Progress
         _buildSectionLabel('Pembaruan Status & Progress', isDark),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: isDark ? AppDarkColors.surface : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionLabel('Status Tugas', isDark),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedStatus,
-                dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'Akan Dikerjakan', child: Text('Akan Dikerjakan')),
-                  DropdownMenuItem(value: 'Sedang Dikerjakan', child: Text('Sedang Dikerjakan')),
-                  DropdownMenuItem(value: 'Selesai', child: Text('Selesai')),
-                ],
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() {
-                      _selectedStatus = val;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-
-              _buildSectionLabel('Hambatan / Kendala (Opsional)', isDark),
-              TextField(
-                controller: _hambatanController,
-                maxLines: 2,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Tulis kendala jika ada...',
-                  hintStyle: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 13),
-                  fillColor: isDark ? AppDarkColors.background : Colors.grey[50],
-                  filled: true,
-                  border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              _buildSectionLabel('Lampiran Progress (Opsional)', isDark),
-              if (_attachmentPathController.text.isEmpty) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _pilihLampiranTim,
-                        icon: const Icon(Icons.attach_file, size: 16),
-                        label: const Text('Tambah Lampiran', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ] else ...[
-                Card(
-                  color: isDark ? AppDarkColors.background : Colors.grey[100],
-                  child: ListTile(
-                    leading: Icon(
-                      _attachmentType == 'foto'
-                          ? Icons.camera_alt_outlined
-                          : (_attachmentType == 'file' ? Icons.file_present_outlined : Icons.link),
-                      color: AppColors.primary,
-                    ),
-                    title: Text(_attachmentNameController.text, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
-                    subtitle: Text(_attachmentType.toUpperCase(), style: const TextStyle(fontSize: 10)),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.red),
-                      onPressed: () {
-                        setState(() {
-                          _attachmentPathController.clear();
-                          _attachmentNameController.clear();
-                        });
-                      },
+        if (project != null && project.isReadOnly)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? AppDarkColors.surface : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lock_outline, color: AppColors.alertText),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Anda tidak memiliki akses edit untuk proyek ini karena dinonaktifkan oleh manajer.',
+                    style: TextStyle(
+                      color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                      fontSize: 13,
                     ),
                   ),
                 ),
               ],
-              const SizedBox(height: 24),
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? AppDarkColors.surface : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionLabel('Status Tugas', isDark),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedStatus,
+                  dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Akan Dikerjakan', child: Text('Akan Dikerjakan')),
+                    DropdownMenuItem(value: 'Sedang Dikerjakan', child: Text('Sedang Dikerjakan')),
+                    DropdownMenuItem(value: 'Selesai', child: Text('Selesai')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _selectedStatus = val;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
 
-              if (_isUpdatingStatus)
-                const Center(child: CircularProgressIndicator())
-              else
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _updateTaskProgress,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          elevation: 0,
+                _buildSectionLabel('Catatan Progress (Opsional)', isDark),
+                TextField(
+                  controller: _catatanController,
+                  maxLines: 2,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Tulis progress pekerjaan Anda (misal: mulai mengerjakan proses A...)',
+                    hintStyle: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 13),
+                    fillColor: isDark ? AppDarkColors.background : Colors.grey[50],
+                    filled: true,
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                _buildSectionLabel('Hambatan / Kendala (Opsional)', isDark),
+                TextField(
+                  controller: _hambatanController,
+                  maxLines: 2,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Tulis kendala jika ada...',
+                    hintStyle: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 13),
+                    fillColor: isDark ? AppDarkColors.background : Colors.grey[50],
+                    filled: true,
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                _buildSectionLabel('Lampiran Progress (Opsional)', isDark),
+                if (_attachmentPathController.text.isEmpty) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _pilihLampiranTim,
+                          icon: const Icon(Icons.attach_file, size: 16),
+                          label: const Text('Tambah Lampiran', style: TextStyle(fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
                         ),
-                        child: const Text('Simpan Perubahan', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Card(
+                    color: isDark ? AppDarkColors.background : Colors.grey[100],
+                    child: ListTile(
+                      leading: Icon(
+                        _attachmentType == 'foto'
+                            ? Icons.camera_alt_outlined
+                            : (_attachmentType == 'file' ? Icons.file_present_outlined : Icons.link),
+                        color: AppColors.primary,
+                      ),
+                      title: Text(_attachmentNameController.text, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                      subtitle: Text(_attachmentType.toUpperCase(), style: const TextStyle(fontSize: 10)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.red),
+                        onPressed: () {
+                          setState(() {
+                            _attachmentPathController.clear();
+                            _attachmentNameController.clear();
+                          });
+                        },
                       ),
                     ),
-                  ],
-                ),
-            ],
+                  ),
+                ],
+                const SizedBox(height: 24),
+
+                if (_isUpdatingStatus)
+                  const Center(child: CircularProgressIndicator())
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _updateTaskProgress,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            elevation: 0,
+                          ),
+                          child: const Text('Simpan Perubahan', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
@@ -1365,7 +1518,19 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
   Widget build(BuildContext context) {
     if (widget.task != null) {
       final tasksList = ref.watch(projectTaskListProvider(widget.task!.projectId)).value ?? [];
-      _activeTask = tasksList.firstWhere((t) => t.id == widget.task!.id, orElse: () => _activeTask);
+      final foundTask = tasksList.firstWhere((t) => t.id == widget.task!.id, orElse: () => _activeTask);
+      
+      final now = DateTime.now();
+      if (foundTask.statusTugas == 'Dijadwalkan' && 
+          foundTask.scheduledFor != null && 
+          foundTask.scheduledFor!.isBefore(now)) {
+        _activeTask = foundTask.copyWith(
+          statusTugas: 'Akan Dikerjakan',
+          keputusanManajer: 'Setujui',
+        );
+      } else {
+        _activeTask = foundTask;
+      }
     }
 
     final projects = ref.watch(projectListProvider).value;

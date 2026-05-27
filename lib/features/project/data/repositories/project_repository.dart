@@ -75,7 +75,13 @@ class ProjectRepository {
             .select('role')
             .eq('id', userId)
             .single();
-        role = profileResponse['role'] as String? ?? 'Tim';
+        final dbRole = profileResponse['role'] as String? ?? 'Tim';
+        final metaRole = user.userMetadata?['role'] as String?;
+        if (metaRole != null && (dbRole == metaRole || dbRole.split(',').map((e) => e.trim()).contains(metaRole))) {
+          role = metaRole;
+        } else {
+          role = dbRole.split(',').first.trim();
+        }
       } catch (profileError) {
         debugPrint("=== WARNING: Failed to fetch role from profiles table, falling back to metadata. Error: $profileError ===");
         role = user.userMetadata?['role'] ?? 'Tim';
@@ -107,6 +113,22 @@ class ProjectRepository {
           return [];
         }
 
+        // Ambil status undangan dari manajer untuk menentukan status read-only
+        final invitationsResponse = await _supabaseClient
+            .from('invitations')
+            .select('invited_by, status')
+            .eq('user_id', userId);
+        
+        final invitationsData = invitationsResponse as List<dynamic>;
+        final Map<String, String> managerInvitationStatus = {};
+        for (var inv in invitationsData) {
+          final managerId = inv['invited_by'] as String?;
+          final status = inv['status'] as String?;
+          if (managerId != null && status != null) {
+            managerInvitationStatus[managerId] = status;
+          }
+        }
+
         final response = await _supabaseClient
             .from('projects')
             .select()
@@ -115,7 +137,12 @@ class ProjectRepository {
             .order('nama_proyek', ascending: true);
 
         final data = response as List<dynamic>;
-        return data.map((json) => ProjectModel.fromJson(json)).toList();
+        return data.map((json) {
+          final proj = ProjectModel.fromJson(json);
+          final invitationStatus = managerInvitationStatus[proj.creatorId];
+          final isReadOnly = invitationStatus == 'nonaktif';
+          return proj.copyWith(isReadOnly: isReadOnly);
+        }).toList();
       }
     } catch (e) {
       debugPrint("=== WARNING: Supabase query failed. Error: $e ===");
