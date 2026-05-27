@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pbl_kyu/core/network/supabase_provider.dart';
 import 'package:pbl_kyu/core/theme/theme_mode.dart';
+import 'package:pbl_kyu/features/project/presentation/providers/project_provider.dart';
+import 'package:pbl_kyu/features/profile/presentation/providers/profile_provider.dart';
+import 'package:pbl_kyu/features/task/presentation/providers/task_provider.dart';
+import 'package:pbl_kyu/features/notification/presentation/providers/notification_provider.dart';
+import 'package:pbl_kyu/features/kudos/presentation/providers/kudos_provider.dart';
 
 // Notifier Status Loading
 class AuthLoadingNotifier extends Notifier<bool> {
@@ -211,5 +216,20 @@ class AuthController {
   Future<void> signOut() async {
     await _supabase.auth.signOut();
     ThemeControl.resetTheme();
+
+    // Flush/invalidate all active workspace providers to prevent cross-account cache leakage
+    _ref.invalidate(projectListProvider);
+    _ref.invalidate(projectSearchQueryProvider);
+    _ref.invalidate(allProfilesProvider);
+    _ref.invalidate(managerActiveColleaguesProvider);
+    _ref.invalidate(managerTeamsProvider);
+    _ref.invalidate(managerInvitationsProvider);
+    _ref.invalidate(myTasksProvider);
+    _ref.invalidate(taskFilterProvider);
+    _ref.invalidate(collabActivitiesProvider);
+    _ref.invalidate(kudosActionNotifierProvider);
+    _ref.invalidate(notificationNotifierProvider);
+    _ref.invalidate(notificationFilterProvider);
+    _ref.invalidate(notificationSearchProvider);
   }
 }

@@ -7,6 +7,11 @@ import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
 import '../../../../core/network/supabase_provider.dart';
 import 'package:pbl_kyu/features/auth/providers/auth_provider.dart';
+import 'package:pbl_kyu/features/project/presentation/providers/project_provider.dart';
+import 'package:pbl_kyu/features/profile/presentation/providers/profile_provider.dart';
+import 'package:pbl_kyu/features/task/presentation/providers/task_provider.dart';
+import 'package:pbl_kyu/features/notification/presentation/providers/notification_provider.dart';
+import 'package:pbl_kyu/features/kudos/presentation/providers/kudos_provider.dart';
 
 import 'package:pbl_kyu/shared/providers/navigation_provider.dart';
 
@@ -79,6 +84,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (selectedRole != null) {
         await supabase.auth.updateUser(UserAttributes(data: {'role': selectedRole}));
       }
+
+      // Flush/invalidate all active workspace providers to force fresh Supabase fetching upon login
+      ref.invalidate(projectListProvider);
+      ref.invalidate(projectSearchQueryProvider);
+      ref.invalidate(allProfilesProvider);
+      ref.invalidate(managerActiveColleaguesProvider);
+      ref.invalidate(managerTeamsProvider);
+      ref.invalidate(managerInvitationsProvider);
+      ref.invalidate(myTasksProvider);
+      ref.invalidate(taskFilterProvider);
+      ref.invalidate(collabActivitiesProvider);
+      ref.invalidate(kudosActionNotifierProvider);
+      ref.invalidate(notificationNotifierProvider);
+      ref.invalidate(notificationFilterProvider);
+      ref.invalidate(notificationSearchProvider);
 
       // Reset navigation index to 0 (Task 8)
       ref.read(navigationIndexProvider.notifier).state = 0;

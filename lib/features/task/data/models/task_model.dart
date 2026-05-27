@@ -60,6 +60,10 @@ class TaskModel {
 
     // KONVERSI DARI DATABASE (lowercase) KE TEKS UI INDONESIA
     String rawStatus = (json['status_tugas'] as String? ?? 'draft').toLowerCase().trim();
+    if (rawStatus == 'scheduled' && sf != null && sf.isBefore(DateTime.now())) {
+      rawStatus = 'accept';
+    }
+
     String uiStatus;
     switch (rawStatus) {
       case 'draft':

@@ -483,14 +483,19 @@ class ManagerDashboard extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
+            const SizedBox(width: 12),
             Text(
               '$percentage%',
               style: TextStyle(

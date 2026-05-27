@@ -8,6 +8,80 @@ import '../providers/profile_provider.dart';
 class AllMembersScreen extends ConsumerWidget {
   const AllMembersScreen({super.key});
 
+  void _showDeleteConfirmation(
+    BuildContext context,
+    WidgetRef ref, {
+    required String title,
+    required String message,
+    required bool isDark,
+    required String invitationId,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          content: Text(
+            message,
+            style: TextStyle(
+              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Tidak',
+                style: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                try {
+                  await ref.read(profileRepositoryProvider).deleteInvitation(invitationId);
+                  ref.invalidate(managerInvitationsProvider);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Anggota berhasil dihapus!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Gagal menghapus anggota: $e'),
+                        backgroundColor: AppColors.alertText,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.alertText,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Ya, Hapus', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ValueListenableBuilder<ThemeMode>(
@@ -22,7 +96,7 @@ class AllMembersScreen extends ConsumerWidget {
             elevation: 0,
             leading: IconButton(
               icon: Icon(Icons.arrow_back, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, true),
             ),
             title: Text(
               'Semua Anggota Tim',
@@ -32,16 +106,6 @@ class AllMembersScreen extends ConsumerWidget {
                 fontSize: 18,
               ),
             ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.search, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Fitur pencarian akan segera hadir!'), duration: Duration(seconds: 2)),
-                  );
-                },
-              ),
-            ],
           ),
           body: Consumer(
             builder: (context, ref, child) {
@@ -77,6 +141,7 @@ class AllMembersScreen extends ConsumerWidget {
 
                       return _buildMemberItem(
                         context, 
+                        ref,
                         m['name']?.toString() ?? 'Anggota', 
                         m['role']?.toString() ?? 'Anggota', 
                         statusUI, 
@@ -99,84 +164,126 @@ class AllMembersScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMemberItem(BuildContext context, String name, String role, String status, Color statusColor, Color statusBg, {required bool isDark, required String invitationId, required String email}) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => EditMemberScreen(
-            invitationId: invitationId,
-            name: name,
-            email: email,
-            status: status.toLowerCase() == 'aktif' ? 'aktif' : (status.toLowerCase() == 'pending' || status.toLowerCase() == 'menunggu' ? 'pending' : 'nonaktif'),
-          )),
-        );
-      },
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: Colors.transparent,
-            child: Image.asset(
-              'image/ic_avatar_${name.split(' ')[0].toLowerCase()}.png',
-              errorBuilder: (context, error, stackTrace) => Icon(Icons.account_circle, size: 48, color: statusColor),
-            ),
+  Widget _buildMemberItem(
+    BuildContext context, 
+    WidgetRef ref,
+    String name, 
+    String role, 
+    String status, 
+    Color statusColor, 
+    Color statusBg, {
+    required bool isDark, 
+    required String invitationId, 
+    required String email,
+  }) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 24,
+          backgroundColor: Colors.transparent,
+          child: Image.asset(
+            'image/ic_avatar_${name.split(' ')[0].toLowerCase()}.png',
+            errorBuilder: (context, error, stackTrace) => Icon(Icons.account_circle, size: 48, color: statusColor),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold, 
-                    fontSize: 16, 
-                    color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                  ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold, 
+                  fontSize: 16, 
+                  color: isDark ? AppDarkColors.textMain : AppColors.textMain,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  role,
-                  style: TextStyle(
-                    fontSize: 12, 
-                    color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    role,
+                    style: TextStyle(
+                      fontSize: 12, 
+                      color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      status,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusBg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  status,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+        ),
+        PopupMenuButton<String>(
+          icon: Icon(
+            Icons.more_vert,
+            color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+            size: 20,
           ),
-        ],
-      ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          color: isDark ? AppDarkColors.surface : Colors.white,
+          onSelected: (value) {
+            if (value == 'edit') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => EditMemberScreen(
+                  invitationId: invitationId,
+                  name: name,
+                  email: email,
+                  status: status.toLowerCase() == 'aktif' 
+                      ? 'aktif' 
+                      : (status.toLowerCase() == 'pending' || status.toLowerCase() == 'menunggu' 
+                          ? 'pending' 
+                          : 'nonaktif'),
+                )),
+              ).then((_) {
+                ref.invalidate(managerInvitationsProvider);
+              });
+            } else if (value == 'delete') {
+              _showDeleteConfirmation(
+                context,
+                ref,
+                isDark: isDark,
+                title: 'Konfirmasi Hapus',
+                message: 'Apakah anda yakin ingin menghapus anggota "$name"?',
+                invitationId: invitationId,
+              );
+            }
+          },
+          itemBuilder: (BuildContext context) => [
+            PopupMenuItem<String>(
+              value: 'edit',
+              child: Text(
+                'Edit',
+                style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'delete',
+              child: Text(
+                'Hapus',
+                style: const TextStyle(color: AppColors.alertText),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

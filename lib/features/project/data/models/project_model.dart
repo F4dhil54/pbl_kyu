@@ -12,6 +12,7 @@ class ProjectModel {
   final String creatorId;
   final bool statusAktif;
   final DateTime? createdAt;
+  final bool isReadOnly;
 
   ProjectModel({
     required this.id,
@@ -25,6 +26,7 @@ class ProjectModel {
     required this.creatorId,
     required this.statusAktif,
     this.createdAt,
+    this.isReadOnly = false,
   });
 
   factory ProjectModel.fromJson(Map<String, dynamic> json) {
@@ -163,6 +165,7 @@ class ProjectModel {
     String? creatorId,
     bool? statusAktif,
     DateTime? createdAt,
+    bool? isReadOnly,
   }) {
     return ProjectModel(
       id: id ?? this.id,
@@ -176,6 +179,7 @@ class ProjectModel {
       creatorId: creatorId ?? this.creatorId,
       statusAktif: statusAktif ?? this.statusAktif,
       createdAt: createdAt ?? this.createdAt,
+      isReadOnly: isReadOnly ?? this.isReadOnly,
     );
   }
 }
