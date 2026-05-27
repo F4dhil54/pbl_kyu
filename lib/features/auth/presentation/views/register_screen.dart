@@ -28,6 +28,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
 
   String? selectedRole; 
+  String? _emailErrorText;
   
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
@@ -102,11 +103,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _handleRegister() async {
     FocusScope.of(context).unfocus();
 
+    setState(() {
+      _emailErrorText = null;
+    });
+
     // Validasi Form (Otomatis memvalidasi Nama, Email, Sandi, dan Peran)
     if (_formKey.currentState!.validate()) {
       final authController = ref.read(authControllerProvider);
       
-      final success = await authController.registerWithEmail(
+      final errorMsg = await authController.registerWithEmail(
         context: context,
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -115,11 +120,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       );
 
       // Jika registrasi sukses, kembalikan user ke halaman Login
-      if (success && mounted) {
+      if (errorMsg == null && mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const LoginScreen()),
         );
+      } else {
+        if (mounted) {
+          setState(() {
+            _emailErrorText = errorMsg;
+          });
+        }
       }
     }
   }
@@ -306,6 +317,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _emailController,
+                        onChanged: (val) {
+                          if (_emailErrorText != null) {
+                            setState(() {
+                              _emailErrorText = null;
+                            });
+                          }
+                        },
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
@@ -316,6 +334,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           fallbackIcon: Icons.mail_outline_rounded,
                           isDark: isDark,
                           buildBorder: buildBorder,
+                          errorText: _emailErrorText,
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -726,8 +745,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     required bool isDark,
     required OutlineInputBorder Function(Color, {double width}) buildBorder,
     Widget? suffix,
+    String? errorText,
   }) {
     return InputDecoration(
+      errorText: errorText,
+      errorMaxLines: 2,
       hintText: hint,
       hintStyle: TextStyle(
         color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
