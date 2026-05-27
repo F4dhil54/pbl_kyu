@@ -21,7 +21,8 @@ import 'team_progress_screen.dart';
 
 class TaskDetailTeamScreen extends ConsumerStatefulWidget {
   final TaskModel? task;
-  const TaskDetailTeamScreen({super.key, this.task});
+  final bool isReadOnly;
+  const TaskDetailTeamScreen({super.key, this.task, this.isReadOnly = false});
 
   @override
   ConsumerState<TaskDetailTeamScreen> createState() => _TaskDetailTeamScreenState();
@@ -1161,96 +1162,98 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
         ),
         const SizedBox(height: 24),
 
-        // Pomodoro Card
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: _isFocusSession ? AppColors.rank1Background : const Color(0xFF0F766E), // Focus Teal vs Break Cyan/Teal
-            borderRadius: BorderRadius.circular(16),
-            border: isDark ? Border.all(color: AppDarkColors.border, width: 1) : null,
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                right: -20,
-                top: -20,
-                child: Icon(
-                  _isFocusSession ? Icons.timer_outlined : Icons.coffee_outlined,
-                  size: 120,
-                  color: Colors.white.withValues(alpha: 0.06),
+        if (!widget.isReadOnly) ...[
+          // Pomodoro Card
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: _isFocusSession ? AppColors.rank1Background : const Color(0xFF0F766E), // Focus Teal vs Break Cyan/Teal
+              borderRadius: BorderRadius.circular(16),
+              border: isDark ? Border.all(color: AppDarkColors.border, width: 1) : null,
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  right: -20,
+                  top: -20,
+                  child: Icon(
+                    _isFocusSession ? Icons.timer_outlined : Icons.coffee_outlined,
+                    size: 120,
+                    color: Colors.white.withValues(alpha: 0.06),
+                  ),
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    _isFocusSession ? 'POMODORO FOCUS SESSION (25M)' : 'POMODORO BREAK SESSION (10M)',
-                    style: const TextStyle(
-                      color: Color(0xFFCBD5E1),
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _timerText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 64,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -2,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _startTimer,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: _isFocusSession ? AppColors.rank1Background : const Color(0xFF0F766E),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            _isRunning ? 'JEDA' : 'MULAI',
-                            style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
-                          ),
-                        ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      _isFocusSession ? 'POMODORO FOCUS SESSION (25M)' : 'POMODORO BREAK SESSION (10M)',
+                      style: const TextStyle(
+                        color: Color(0xFFCBD5E1),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
                       ),
-                      if (_isRunning || _elapsedFocusSeconds > 0) ...[
-                        const SizedBox(width: 12),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _timerText,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 64,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -2,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
                         Expanded(
-                          child: OutlinedButton(
-                            onPressed: _stopTimerAndLog,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.white24, width: 1),
+                          child: ElevatedButton(
+                            onPressed: _startTimer,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: _isFocusSession ? AppColors.rank1Background : const Color(0xFF0F766E),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 14),
+                              elevation: 0,
                             ),
-                            child: const Text(
-                              'BERHENTI',
-                              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
+                            child: Text(
+                              _isRunning ? 'JEDA' : 'MULAI',
+                              style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
                             ),
                           ),
                         ),
+                        if (_isRunning || _elapsedFocusSeconds > 0) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _stopTimerAndLog,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Colors.white24, width: 1),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              child: const Text(
+                                'BERHENTI',
+                                style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                ],
-              ),
-            ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 24),
+          const SizedBox(height: 24),
+        ],
 
         // Description
         _buildSectionLabel('Deskripsi Tugas', isDark),
@@ -1352,7 +1355,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
 
         // Form Update Status Progress
         _buildSectionLabel('Pembaruan Status & Progress', isDark),
-        if (project != null && project.isReadOnly)
+        if ((project != null && project.isReadOnly) || widget.isReadOnly)
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -1366,7 +1369,9 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Anda tidak memiliki akses edit untuk proyek ini karena dinonaktifkan oleh manajer.',
+                    widget.isReadOnly 
+                      ? 'Anda hanya dapat melihat detail tugas ini karena Anda bukan penerima tugas.'
+                      : 'Anda tidak memiliki akses edit untuk proyek ini karena dinonaktifkan oleh manajer.',
                     style: TextStyle(
                       color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
                       fontSize: 13,

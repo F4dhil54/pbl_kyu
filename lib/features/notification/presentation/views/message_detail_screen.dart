@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
@@ -80,9 +81,20 @@ class _MessageDetailScreenState extends ConsumerState<MessageDetailScreen> {
       builder: (context, currentMode, child) {
         bool isDark = currentMode == ThemeMode.dark;
         
-        final senderName = widget.notification.senderName ?? 'Sistem KYU';
-        final senderAvatar = widget.notification.senderAvatar;
-        final senderEmail = widget.notification.senderEmail ?? '';
+        final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+        final isSentByMe = widget.notification.senderId == currentUserId && widget.notification.userId != currentUserId;
+
+        final displayName = isSentByMe 
+            ? (widget.notification.receiverName ?? 'Pengguna') 
+            : (widget.notification.senderName ?? 'Sistem KYU');
+            
+        final displayAvatar = isSentByMe 
+            ? widget.notification.receiverAvatar 
+            : widget.notification.senderAvatar;
+            
+        final displayEmail = isSentByMe 
+            ? (widget.notification.receiverEmail ?? '') 
+            : (widget.notification.senderEmail ?? '');
 
         return Scaffold(
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
@@ -124,10 +136,10 @@ class _MessageDetailScreenState extends ConsumerState<MessageDetailScreen> {
                     CircleAvatar(
                       radius: 24,
                       backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                      backgroundImage: senderAvatar != null && senderAvatar.isNotEmpty 
-                          ? NetworkImage(senderAvatar) 
+                      backgroundImage: displayAvatar != null && displayAvatar.isNotEmpty 
+                          ? NetworkImage(displayAvatar) 
                           : null,
-                      child: senderAvatar == null || senderAvatar.isEmpty
+                      child: displayAvatar == null || displayAvatar.isEmpty
                           ? Icon(
                               Icons.account_circle, 
                               size: 48, 
@@ -141,17 +153,17 @@ class _MessageDetailScreenState extends ConsumerState<MessageDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            senderName,
+                            displayName,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: isDark ? AppDarkColors.textMain : AppColors.textMain,
                             ),
                           ),
-                          if (senderEmail.isNotEmpty) ...[
+                          if (displayEmail.isNotEmpty) ...[
                             const SizedBox(height: 2),
                             Text(
-                              'ke saya',
+                              isSentByMe ? 'terkirim ke ${displayEmail}' : 'ke saya',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,

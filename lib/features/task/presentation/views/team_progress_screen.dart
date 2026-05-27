@@ -160,240 +160,246 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
                   );
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  itemCount: logs.length,
-                  itemBuilder: (context, index) {
-                    final log = logs[index];
-                    final profile = log['profiles'] as Map<String, dynamic>? ?? {};
-                    final name = profile['nama'] ?? 'Anggota';
-                    final email = profile['email'] ?? '';
-                    final roleStr = profile['role'] ?? 'Tim';
-                    final date = DateTime.tryParse(log['created_at'] as String? ?? '')?.toLocal();
-                    final dateStr = date != null ? DateFormat('dd MMMM yyyy HH:mm').format(date) : '-';
-                    final attachments = log['task_attachments'] as List<dynamic>? ?? [];
-                    final hambatan = log['hambatan'] as String?;
-                    final statusProgress = log['status_progress'] as String? ?? 'Sedang Dikerjakan';
-                    final percent = log['persen_selesai'] ?? 0;
-
-                    // Color code status progress
-                    final Color statusColor = statusProgress == 'Selesai'
-                        ? AppColors.successText
-                        : (statusProgress == 'Sedang Dikerjakan' ? AppColors.warningText : AppColors.textSecondary);
-                    final Color statusBg = statusProgress == 'Selesai'
-                        ? AppColors.successBackground
-                        : (statusProgress == 'Sedang Dikerjakan' ? AppColors.warningBackground : AppColors.offlineBackground);
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppDarkColors.surface : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isDark ? AppDarkColors.border : AppColors.border,
-                          width: 0.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    setState(() {});
+                    await Future.delayed(const Duration(milliseconds: 500));
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    itemCount: logs.length,
+                    itemBuilder: (context, index) {
+                      final log = logs[index];
+                      final profile = log['profiles'] as Map<String, dynamic>? ?? {};
+                      final name = profile['nama'] ?? 'Anggota';
+                      final email = profile['email'] ?? '';
+                      final roleStr = profile['role'] ?? 'Tim';
+                      final date = DateTime.tryParse(log['created_at'] as String? ?? '')?.toLocal();
+                      final dateStr = date != null ? DateFormat('dd MMMM yyyy HH:mm').format(date) : '-';
+                      final attachments = log['task_attachments'] as List<dynamic>? ?? [];
+                      final hambatan = log['hambatan'] as String?;
+                      final statusProgress = log['status_progress'] as String? ?? 'Sedang Dikerjakan';
+                      final percent = log['persen_selesai'] ?? 0;
+  
+                      // Color code status progress
+                      final Color statusColor = statusProgress == 'Selesai'
+                          ? AppColors.successText
+                          : (statusProgress == 'Sedang Dikerjakan' ? AppColors.warningText : AppColors.textSecondary);
+                      final Color statusBg = statusProgress == 'Selesai'
+                          ? AppColors.successBackground
+                          : (statusProgress == 'Sedang Dikerjakan' ? AppColors.warningBackground : AppColors.offlineBackground);
+  
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppDarkColors.surface : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? AppDarkColors.border : AppColors.border,
+                            width: 0.5,
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Top info: Member profile & Date
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              CircleAvatar(
-                                radius: 18,
-                                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                                child: Text(
-                                  name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                                  style: const TextStyle(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Top info: Member profile & Date
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                  child: Text(
+                                    name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        name,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : AppColors.textMain,
+                                        ),
+                                      ),
+                                      Text(
+                                        '$email • $roleStr',
+                                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: statusBg,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    statusProgress,
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: statusColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+  
+                            const SizedBox(height: 12),
+                            const Divider(height: 1),
+                            const SizedBox(height: 12),
+  
+                            // Catatan update
+                            Text(
+                              log['catatan'] ?? '-',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white : AppColors.textMain,
+                                height: 1.5,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
+                            ),
+  
+                            const SizedBox(height: 8),
+  
+                            // Progress Percent
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: percent / 100,
+                                      backgroundColor: isDark ? Colors.white10 : Colors.grey[200],
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        percent == 100 ? AppColors.successText : AppColors.primary,
+                                      ),
+                                      minHeight: 6,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  '$percent%',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : AppColors.textMain,
+                                  ),
+                                ),
+                              ],
+                            ),
+  
+                            const SizedBox(height: 12),
+  
+                            // Date text
+                            Text(
+                              'Disubmit pada: $dateStr',
+                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                            ),
+  
+                            // Obstacle / Hambatan (if present)
+                            if (hambatan != null && hambatan.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF3F1B1B) : const Color(0xFFFEE2E2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFCA5A5),
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      name,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark ? Colors.white : AppColors.textMain,
-                                      ),
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
+                                      size: 18,
                                     ),
-                                    Text(
-                                      '$email • $roleStr',
-                                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Hambatan / Kendala',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark ? const Color(0xFFFCE7F3) : const Color(0xFF991B1B),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            hambatan,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark ? const Color(0xFFFECACA) : const Color(0xFFB91C1C),
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: statusBg,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  statusProgress,
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    color: statusColor,
-                                  ),
-                                ),
+                            ],
+  
+                            // Attachments (if present)
+                            if (attachments.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Lampiran:',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: attachments.map<Widget>((att) {
+                                  final tipe = att['tipe_lampiran'] ?? 'file';
+                                  final IconData icon = tipe == 'foto'
+                                      ? Icons.camera_alt_outlined
+                                      : (tipe == 'file' ? Icons.file_present_outlined : Icons.link);
+  
+                                  return ActionChip(
+                                    avatar: Icon(icon, size: 12, color: AppColors.primary),
+                                    label: Text(
+                                      att['nama_file'] ?? 'Lampiran',
+                                      style: const TextStyle(fontSize: 10),
+                                    ),
+                                    onPressed: () => _bukaTautan(att['file_path_or_url'] ?? ''),
+                                  );
+                                }).toList(),
                               ),
                             ],
-                          ),
-
-                          const SizedBox(height: 12),
-                          const Divider(height: 1),
-                          const SizedBox(height: 12),
-
-                          // Catatan update
-                          Text(
-                            log['catatan'] ?? '-',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? Colors.white : AppColors.textMain,
-                              height: 1.5,
-                            ),
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // Progress Percent
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: LinearProgressIndicator(
-                                    value: percent / 100,
-                                    backgroundColor: isDark ? Colors.white10 : Colors.grey[200],
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      percent == 100 ? AppColors.successText : AppColors.primary,
-                                    ),
-                                    minHeight: 6,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                '$percent%',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : AppColors.textMain,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          // Date text
-                          Text(
-                            'Disubmit pada: $dateStr',
-                            style: const TextStyle(fontSize: 10, color: Colors.grey),
-                          ),
-
-                          // Obstacle / Hambatan (if present)
-                          if (hambatan != null && hambatan.isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF3F1B1B) : const Color(0xFFFEE2E2),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFCA5A5),
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Hambatan / Kendala',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark ? const Color(0xFFFCE7F3) : const Color(0xFF991B1B),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          hambatan,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isDark ? const Color(0xFFFECACA) : const Color(0xFFB91C1C),
-                                            height: 1.4,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ],
-
-                          // Attachments (if present)
-                          if (attachments.isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Lampiran:',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
-                            ),
-                            const SizedBox(height: 6),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: attachments.map<Widget>((att) {
-                                final tipe = att['tipe_lampiran'] ?? 'file';
-                                final IconData icon = tipe == 'foto'
-                                    ? Icons.camera_alt_outlined
-                                    : (tipe == 'file' ? Icons.file_present_outlined : Icons.link);
-
-                                return ActionChip(
-                                  avatar: Icon(icon, size: 12, color: AppColors.primary),
-                                  label: Text(
-                                    att['nama_file'] ?? 'Lampiran',
-                                    style: const TextStyle(fontSize: 10),
-                                  ),
-                                  onPressed: () => _bukaTautan(att['file_path_or_url'] ?? ''),
-                                );
-                              }).toList(),
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  },
+                        ),
+                      );
+                    },
+                  ),
                 );
               },
             ),

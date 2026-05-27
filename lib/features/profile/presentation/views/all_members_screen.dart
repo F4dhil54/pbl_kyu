@@ -115,43 +115,50 @@ class AllMembersScreen extends ConsumerWidget {
                   if (members.isEmpty) {
                     return Center(child: Text('Belum ada anggota.', style: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary)));
                   }
-                  return ListView.separated(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: members.length,
-                    separatorBuilder: (context, index) => Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
-                    itemBuilder: (context, index) {
-                      final m = members[index];
-                      String statusUI = 'Offline';
-                      Color colorText = AppColors.offlineText;
-                      Color colorBg = isDark ? AppColors.offlineText.withValues(alpha: 0.15) : AppColors.offlineBackground;
-                      
-                      if (m['status'] == 'aktif') {
-                        statusUI = 'Aktif';
-                        colorText = AppColors.successText;
-                        colorBg = isDark ? AppColors.successText.withValues(alpha: 0.15) : AppColors.successBackground;
-                      } else if (m['status'] == 'pending') {
-                        statusUI = 'Menunggu';
-                        colorText = AppColors.warningText;
-                        colorBg = isDark ? AppColors.warningText.withValues(alpha: 0.15) : AppColors.warningBackground;
-                      } else if (m['status'] == 'nonaktif') {
-                        statusUI = 'Nonaktif';
-                        colorText = AppColors.alertText;
-                        colorBg = isDark ? AppColors.alertText.withValues(alpha: 0.15) : const Color(0xFFFFEBEB);
-                      }
-
-                      return _buildMemberItem(
-                        context, 
-                        ref,
-                        m['name']?.toString() ?? 'Anggota', 
-                        m['role']?.toString() ?? 'Anggota', 
-                        statusUI, 
-                        colorText, 
-                        colorBg, 
-                        isDark: isDark,
-                        invitationId: m['invitation_id']?.toString() ?? '',
-                        email: m['email']?.toString() ?? '',
-                      );
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      ref.invalidate(managerInvitationsProvider);
+                      // Tunggu sedikit agar UI tidak kedip terlalu cepat
+                      await Future.delayed(const Duration(milliseconds: 500));
                     },
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(20),
+                      itemCount: members.length,
+                      separatorBuilder: (context, index) => Divider(height: 32, color: isDark ? AppDarkColors.border : AppColors.border),
+                      itemBuilder: (context, index) {
+                        final m = members[index];
+                        String statusUI = 'Offline';
+                        Color colorText = AppColors.offlineText;
+                        Color colorBg = isDark ? AppColors.offlineText.withValues(alpha: 0.15) : AppColors.offlineBackground;
+                        
+                        if (m['status'] == 'aktif') {
+                          statusUI = 'Aktif';
+                          colorText = AppColors.successText;
+                          colorBg = isDark ? AppColors.successText.withValues(alpha: 0.15) : AppColors.successBackground;
+                        } else if (m['status'] == 'pending') {
+                          statusUI = 'Menunggu';
+                          colorText = AppColors.warningText;
+                          colorBg = isDark ? AppColors.warningText.withValues(alpha: 0.15) : AppColors.warningBackground;
+                        } else if (m['status'] == 'nonaktif') {
+                          statusUI = 'Nonaktif';
+                          colorText = AppColors.alertText;
+                          colorBg = isDark ? AppColors.alertText.withValues(alpha: 0.15) : const Color(0xFFFFEBEB);
+                        }
+  
+                        return _buildMemberItem(
+                          context, 
+                          ref,
+                          m['name']?.toString() ?? 'Anggota', 
+                          m['role']?.toString() ?? 'Anggota', 
+                          statusUI, 
+                          colorText, 
+                          colorBg, 
+                          isDark: isDark,
+                          invitationId: m['invitation_id']?.toString() ?? '',
+                          email: m['email']?.toString() ?? '',
+                        );
+                      },
+                    ),
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),

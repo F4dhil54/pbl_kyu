@@ -169,6 +169,45 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                       'status_akses': 'aktif',
                                                     });
 
+                                                    // Notifications
+                                                    try {
+                                                      // Notify the new member
+                                                      await supabase.from('notifications').insert({
+                                                        'user_id': colleague['id'],
+                                                        'sender_id': user?.id,
+                                                        'project_id': project.id,
+                                                        'tipe_notifikasi': 'proyek',
+                                                        'judul': 'Ditambahkan ke Proyek',
+                                                        'pesan': 'Anda telah ditambahkan ke dalam proyek "${project.name}".',
+                                                        'is_read': false,
+                                                      });
+                                                      
+                                                      // Notify existing members
+                                                      final membersRes = await supabase.from('project_members')
+                                                          .select('user_id')
+                                                          .eq('project_id', project.id)
+                                                          .eq('status_akses', 'aktif');
+                                                      final members = membersRes as List<dynamic>;
+                                                      
+                                                      final notifications = members
+                                                          .map((m) => m['user_id'] as String)
+                                                          .where((uid) => uid != user?.id && uid != colleague['id'])
+                                                          .map((uid) => {
+                                                                'user_id': uid,
+                                                                'sender_id': user?.id,
+                                                                'project_id': project.id,
+                                                                'tipe_notifikasi': 'proyek',
+                                                                'judul': 'Anggota Baru',
+                                                                'pesan': 'Manajer telah menambahkan anggota baru ke dalam proyek.',
+                                                                'is_read': false,
+                                                              })
+                                                          .toList();
+                                                          
+                                                      if (notifications.isNotEmpty) {
+                                                        await supabase.from('notifications').insert(notifications);
+                                                      }
+                                                    } catch (_) {}
+
                                                     if (context.mounted) {
                                                       ScaffoldMessenger.of(context).showSnackBar(
                                                         SnackBar(
@@ -267,6 +306,51 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                       'project_id': project.id,
                                                       'team_id': team['id'],
                                                     });
+
+                                                    // Notifications for team members
+                                                    try {
+                                                      final membersRes = await supabase.from('project_members')
+                                                          .select('user_id')
+                                                          .eq('project_id', project.id)
+                                                          .eq('status_akses', 'aktif');
+                                                      final allProjectMembers = membersRes as List<dynamic>;
+                                                      
+                                                      final newTeamMemberIds = teamMembersList.map((m) => m['user_id'] as String).toSet();
+                                                      final notifications = <Map<String, dynamic>>[];
+                                                      
+                                                      for (final m in allProjectMembers) {
+                                                        final uid = m['user_id'] as String;
+                                                        if (uid == user.id) continue;
+                                                        
+                                                        if (newTeamMemberIds.contains(uid)) {
+                                                          // Notification for newly added team members
+                                                          notifications.add({
+                                                            'user_id': uid,
+                                                            'sender_id': user.id,
+                                                            'project_id': project.id,
+                                                            'tipe_notifikasi': 'proyek',
+                                                            'judul': 'Tim Ditambahkan ke Proyek',
+                                                            'pesan': 'Tim Anda "$namaTim" telah ditambahkan ke dalam proyek "${project.name}".',
+                                                            'is_read': false,
+                                                          });
+                                                        } else {
+                                                          // Notification for existing project members
+                                                          notifications.add({
+                                                            'user_id': uid,
+                                                            'sender_id': user.id,
+                                                            'project_id': project.id,
+                                                            'tipe_notifikasi': 'proyek',
+                                                            'judul': 'Tim Baru Ditambahkan',
+                                                            'pesan': 'Manajer telah menambahkan tim "$namaTim" ke dalam proyek.',
+                                                            'is_read': false,
+                                                          });
+                                                        }
+                                                      }
+                                                      
+                                                      if (notifications.isNotEmpty) {
+                                                        await supabase.from('notifications').insert(notifications);
+                                                      }
+                                                    } catch (_) {}
 
                                                     if (context.mounted) {
                                                       ScaffoldMessenger.of(context).showSnackBar(
@@ -432,12 +516,22 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             children: [
               // Scrollable Header Info
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Breadcrumb
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    final projId = project.id;
+                    ref.invalidate(projectTaskListProvider(projId));
+                    ref.invalidate(projectMembersProvider(projId));
+                    ref.invalidate(projectTeamsProvider(projId));
+                    ref.invalidate(projectListProvider);
+                    await Future.delayed(const Duration(milliseconds: 500));
+                  },
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Breadcrumb
                       Row(
                         children: [
                           Expanded(
@@ -567,7 +661,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   ),
                 ),
               ),
-            ],
+            ),
+          ],
           ),
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: _activeTabIndex,
@@ -872,7 +967,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               separatorBuilder: (context, index) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
                 final task = filteredList[index];
-                return _buildTaskCardWidget(context, task, isDark, isManager, project);
+                final members = ref.watch(projectMembersProvider(project.id)).value;
+                return _buildTaskCardWidget(context, task, isDark, isManager, project, members);
               },
             );
           },
@@ -961,7 +1057,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     );
   }
 
-  Widget _buildTaskCardWidget(BuildContext context, TaskModel task, bool isDark, bool isManager, ProjectModel project) {
+  Widget _buildTaskCardWidget(BuildContext context, TaskModel task, bool isDark, bool isManager, ProjectModel project, List<Map<String, dynamic>>? members) {
     final bool isDone = task.statusTugas == 'Selesai';
     final Color categoryColor = isDone
         ? const Color(0xFF10B981)
@@ -971,13 +1067,25 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
 
     final String visualCategory = isDone ? 'Done' : task.prioritas;
     final String? currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final bool isAssignedToMe = currentUserId != null && task.assignees.contains(currentUserId);
+    final bool isReadOnlyMode = !isManager && !isAssignedToMe;
+
+    String assigneesText = 'Belum Ditugaskan';
+    if (task.assignees.isNotEmpty && members != null) {
+      final memberNames = members.where((m) => task.assignees.contains(m['user_id'])).map((m) => m['nama']).toList();
+      if (memberNames.isNotEmpty) {
+        assigneesText = memberNames.join(', ');
+      } else {
+        assigneesText = '${task.assignees.length} Anggota';
+      }
+    }
 
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => TaskDetailTeamScreen(task: task),
+            builder: (context) => TaskDetailTeamScreen(task: task, isReadOnly: isReadOnlyMode),
           ),
         );
       },
@@ -1137,6 +1245,21 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.person, size: 14, color: Colors.grey),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Ditugaskan ke: $assigneesText',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

@@ -109,6 +109,17 @@ class AuthController {
   }) async {
     _ref.read(authLoadingProvider.notifier).setWith(true);
     try {
+      // Periksa apakah akun ada di tabel profiles terlebih dahulu
+      final profileCheck = await _supabase
+          .from('profiles')
+          .select('id')
+          .ilike('email', email)
+          .maybeSingle();
+
+      if (profileCheck == null) {
+        return 'Akun belum terdaftar. Silakan daftar terlebih dahulu.';
+      }
+
       final response = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
@@ -119,7 +130,7 @@ class AuthController {
       return null; // Mengembalikan null jika sukses
     } on AuthException catch (e) {
       if (e.message == 'Invalid login credentials') {
-        return 'Email atau kata sandi salah, atau akun belum terdaftar.';
+        return 'Kata sandi salah. Silakan coba lagi.';
       }
       return e.message;
     } catch (e) {
