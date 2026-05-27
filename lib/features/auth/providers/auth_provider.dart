@@ -34,7 +34,7 @@ class AuthController {
   SupabaseClient get _supabase => _ref.read(supabaseClientProvider);
 
   // Fungsi Registrasi Akun Baru
-  Future<bool> registerWithEmail({
+  Future<String?> registerWithEmail({
     required BuildContext context,
     required String email,
     required String password,
@@ -60,7 +60,7 @@ class AuthController {
           ),
         );
       }
-      return true;
+      return null;
     } on AuthException catch (e) {
       if (e.message.toLowerCase().contains('already registered') || e.message.toLowerCase().contains('already exists')) {
         try {
@@ -73,59 +73,36 @@ class AuthController {
             if (!dbRole.contains(role)) {
               final newRole = dbRole.isEmpty ? role : '$dbRole, $role';
               await _supabase.from('profiles').update({'role': newRole}).eq('id', userId);
+              await _supabase.auth.signOut();
+              
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Peran berhasil ditambahkan ke akun Anda! Silakan Login.'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+              return null;
+            } else {
+              await _supabase.auth.signOut();
+              return 'Akun dengan email ini sudah terdaftar sebagai $role';
             }
-            
-            await _supabase.auth.signOut();
-            
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Peran berhasil ditambahkan ke akun Anda! Silakan Login.'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
-            return true;
           }
         } catch (loginError) {
-           if (context.mounted) {
-             ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(
-                 content: Text('Akun sudah terdaftar. Jika Anda ingin menambah peran, pastikan kata sandi yang Anda masukkan benar.'),
-                 backgroundColor: Colors.red,
-               ),
-             );
-           }
-           return false;
+           return 'Akun sudah terdaftar. Jika ingin menambah peran, pastikan kata sandi Anda benar.';
         }
       }
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Registrasi Gagal: ${e.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return false;
+      return 'Registrasi Gagal: ${e.message}';
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Terjadi kesalahan tidak terduga: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return false;
+      return 'Terjadi kesalahan tidak terduga: $e';
     } finally {
       _ref.read(authLoadingProvider.notifier).setWith(false);
     }
   }
 
   // Fungsi Login Akun
-  Future<bool> loginWithEmail({
+  Future<String?> loginWithEmail({
     required BuildContext context,
     required String email,
     required String password,
@@ -139,27 +116,14 @@ class AuthController {
       if (response.user != null) {
         await ThemeControl.loadTheme(response.user!.id);
       }
-      return true;
+      return null; // Mengembalikan null jika sukses
     } on AuthException catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Login Gagal: ${e.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      if (e.message == 'Invalid login credentials') {
+        return 'Email atau kata sandi salah, atau akun belum terdaftar.';
       }
-      return false;
+      return e.message;
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Koneksi bermasalah: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return false;
+      return 'Koneksi bermasalah: $e';
     } finally {
       _ref.read(authLoadingProvider.notifier).setWith(false);
     }

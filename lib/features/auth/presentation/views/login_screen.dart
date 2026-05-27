@@ -37,6 +37,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
 
   String? selectedRole; 
+  String? _emailErrorText;
+  String? _passwordErrorText;
+  String? _roleErrorText;
   
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
@@ -70,12 +73,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           await ref.read(authControllerProvider).signOut();
           
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Akun belum terdaftar sebagai peran yang dipilih. Silakan lakukan pendaftaran terlebih dahulu.'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            setState(() {
+              _roleErrorText = 'Akun belum terdaftar sebagai peran yang dipilih. Silakan lakukan pendaftaran terlebih dahulu.';
+            });
+            _roleFieldKey.currentState?.validate();
           }
           return; 
         }
@@ -162,6 +163,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleLogin() async {
     FocusScope.of(context).unfocus();
 
+    setState(() {
+      _emailErrorText = null;
+      _passwordErrorText = null;
+      _roleErrorText = null;
+    });
+
     // Validasi Form (Otomatis akan memvalidasi Peran, Email, dan Password sekaligus)
     if (_formKey.currentState!.validate()) {
       final authController = ref.read(authControllerProvider);
@@ -170,14 +177,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _isGoogleLoading = true;
       });
       
-      final success = await authController.loginWithEmail(
+      final errorMsg = await authController.loginWithEmail(
         context: context,
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
       // Jika login sukses, arahkan ke halaman Layout Utama sesuai Role
-      if (success && mounted) {
+      if (errorMsg == null && mounted) {
         final supabase = ref.read(supabaseClientProvider);
         final user = supabase.auth.currentUser;
         if (user != null) {
@@ -195,6 +202,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (mounted) {
           setState(() {
             _isGoogleLoading = false;
+            if (errorMsg != null) {
+              if (errorMsg.contains('salah, atau akun')) {
+                _emailErrorText = errorMsg;
+                _passwordErrorText = errorMsg;
+              } else {
+                _emailErrorText = errorMsg;
+              }
+            }
           });
         }
       }
@@ -367,6 +382,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           if (selectedRole == null) {
                             return 'Peran harus dipilih terlebih dahulu';
                           }
+                          if (_roleErrorText != null) {
+                            return _roleErrorText;
+                          }
                           return null;
                         },
                         builder: (FormFieldState<String> state) {
@@ -389,8 +407,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     Expanded(
                                       child: GestureDetector(
                                         onTap: () {
-                                          setState(() => selectedRole = 'Manajer');
+                                          setState(() {
+                                            selectedRole = 'Manajer';
+                                            _roleErrorText = null;
+                                          });
                                           state.didChange('Manajer');
+                                          if (_roleFieldKey.currentState?.hasError ?? false) {
+                                            _roleFieldKey.currentState?.validate();
+                                          }
                                         },
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -425,8 +449,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     Expanded(
                                       child: GestureDetector(
                                         onTap: () {
-                                          setState(() => selectedRole = 'Tim');
+                                          setState(() {
+                                            selectedRole = 'Tim';
+                                            _roleErrorText = null;
+                                          });
                                           state.didChange('Tim');
+                                          if (_roleFieldKey.currentState?.hasError ?? false) {
+                                            _roleFieldKey.currentState?.validate();
+                                          }
                                         },
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -494,7 +524,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         autofillHints: const [AutofillHints.email],
                         enabled: !isAuthLoading && !_isGoogleLoading,
                         style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+                        onChanged: (val) {
+                          if (_emailErrorText != null || _passwordErrorText != null) {
+                            setState(() {
+                              _emailErrorText = null;
+                              _passwordErrorText = null;
+                            });
+                          }
+                        },
                         decoration: InputDecoration(
+                          errorText: _emailErrorText,
+                          errorMaxLines: 2,
                           hintText: 'name@organisasi.com',
                           hintStyle: TextStyle(
                             color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
@@ -561,7 +601,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onEditingComplete: _handleLogin, 
                         enabled: !isAuthLoading && !_isGoogleLoading,
                         style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+                        onChanged: (val) {
+                          if (_emailErrorText != null || _passwordErrorText != null) {
+                            setState(() {
+                              _emailErrorText = null;
+                              _passwordErrorText = null;
+                            });
+                          }
+                        },
                         decoration: InputDecoration(
+                          errorText: _passwordErrorText,
+                          errorMaxLines: 2,
                           hintText: '••••••••',
                           hintStyle: TextStyle(
                             color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
