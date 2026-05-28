@@ -187,7 +187,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final isAuthLoading = ref.watch(authLoadingProvider);
-    final bool isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
+    const bool isDark = false; // Patenkan mode terang untuk halaman Auth
 
     OutlineInputBorder buildBorder(Color borderColor, {double width = 1.0}) {
       return OutlineInputBorder(

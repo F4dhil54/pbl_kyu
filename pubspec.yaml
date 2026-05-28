@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_markdown: ^0.7.3
   http: ^1.2.0                   # Untuk melakukan request (GET/POST) ke API
   flutter_web_auth_2: ^5.0.2     # Untuk membuka halaman login GitHub & menangkap redirect
   flutter_secure_storage: ^9.0.0 # Untuk menyimpan GitHub Access Token dengan aman

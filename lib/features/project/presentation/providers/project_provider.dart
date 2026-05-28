@@ -199,6 +199,53 @@ final projectTeamsProvider = FutureProvider.family<List<Map<String, dynamic>>, S
   }
 });
 
+// Fetch which team each user in the project belongs to, restricted to teams that are actually in the project.
+final projectMembersTeamsProvider = FutureProvider.family<Map<String, List<String>>, String>((ref, projectId) async {
+  if (projectId.startsWith('local-')) return {};
+  final supabase = ref.watch(supabaseClientProvider);
+  try {
+    // 1. Get teams in this project
+    final projectTeamsRes = await supabase.from('project_teams').select('team_id, teams(nama_tim)').eq('project_id', projectId);
+    final pTeamsList = projectTeamsRes as List<dynamic>;
+    if (pTeamsList.isEmpty) return {};
+
+    final Map<String, String> teamIdToName = {};
+    for (var pt in pTeamsList) {
+      final teamData = pt['teams'] as Map<String, dynamic>?;
+      if (teamData != null) {
+        teamIdToName[pt['team_id'] as String] = teamData['nama_tim'] as String;
+      }
+    }
+
+    if (teamIdToName.isEmpty) return {};
+
+    // 2. Get members of these teams
+    final teamIds = teamIdToName.keys.toList();
+    final teamMembersRes = await supabase.from('team_members').select('user_id, team_id').inFilter('team_id', teamIds);
+    final tmList = teamMembersRes as List<dynamic>;
+
+    // 3. Map user_id to List<String> (team names)
+    final Map<String, List<String>> userToTeams = {};
+    for (var tm in tmList) {
+      final userId = tm['user_id'] as String;
+      final teamId = tm['team_id'] as String;
+      final teamName = teamIdToName[teamId] ?? 'Tim';
+      
+      if (!userToTeams.containsKey(userId)) {
+        userToTeams[userId] = [];
+      }
+      if (!userToTeams[userId]!.contains(teamName)) {
+        userToTeams[userId]!.add(teamName);
+      }
+    }
+    
+    return userToTeams;
+  } catch (e) {
+    debugPrint("Error fetching project member teams: $e");
+    return {};
+  }
+});
+
 // Provider to calculate real project progress based on task logs
 final projectRealProgressProvider = FutureProvider.family<double, String>((ref, projectId) async {
   if (projectId.startsWith('local-')) {

@@ -791,21 +791,13 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
               ),
               onPressed: () => Navigator.pop(context),
             ),
-            title: ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFF1E50FF), Color(0xFF7C3AED)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ).createShader(bounds),
-              blendMode: BlendMode.srcIn,
-              child: const Text(
-                'KYU',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 20,
-                  letterSpacing: 2,
-                  color: Colors.white,
-                ),
+            title: Text(
+              'KYU',
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                letterSpacing: 1,
               ),
             ),
             actions: [
