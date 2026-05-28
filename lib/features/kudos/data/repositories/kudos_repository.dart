@@ -119,11 +119,30 @@ class KudosRepository {
           .inFilter('project_id', projectIds);
       final listKudos = kudosRes as List<dynamic>;
 
-      // Kelompokkan Kudos
+      // Kelompokkan Kudos (dari Supabase)
       // Key: taskId untuk tugas, atau 'commit:sha' untuk commit
       Map<String, List<KudosReaction>> reactionsMap = {};
       for (var k in listKudos) {
         final r = KudosReaction.fromJson(k);
+        final tId = k['task_id'] as String?;
+        final pesan = k['pesan_apresiasi'] as String? ?? '';
+        
+        if (tId != null) {
+          reactionsMap.putIfAbsent(tId, () => []).add(r);
+        } else if (pesan.startsWith('commit:')) {
+          final sha = pesan.replaceFirst('commit:', '');
+          reactionsMap.putIfAbsent(sha, () => []).add(r);
+        }
+      }
+
+      // Gabungkan dengan Kudos lokal (fallback) agar UI langsung update jika RLS/Supabase gagal
+      for (var k in _localKudos) {
+        final r = KudosReaction(
+          id: k['id'] ?? '',
+          pengirimId: k['pengirim_id'] ?? userId, // asumsi pengirim adalah user saat ini
+          pengirimNama: 'Anda (Offline)',
+          reaksiEmoji: k['reaksi_emoji'] ?? '👏🏻',
+        );
         final tId = k['task_id'] as String?;
         final pesan = k['pesan_apresiasi'] as String? ?? '';
         
@@ -406,7 +425,8 @@ class KudosRepository {
         }
       }
 
-      return list.map((item) => {
+      // Gabungkan hasil dari view Supabase
+      List<Map<String, dynamic>> combinedList = list.map((item) => {
         'penerima_id': item['penerima_id'],
         'nama': item['nama'] ?? 'User',
         'avatar_url': item['avatar_url'],
@@ -414,6 +434,47 @@ class KudosRepository {
         'score': item['total_kudos'] ?? 0, // di view total_kudos adalah poin totalnya
         'emojis': item['emojis'] ?? [],
       }).toList();
+
+      // Tambahkan poin dari kudos lokal yang tertahan (fallback)
+      for (var k in _localKudos) {
+        if (k['project_id'] == projectId) {
+          final pId = k['penerima_id'] as String;
+          final emoji = k['reaksi_emoji'] as String;
+          final pts = getEmojiPoints(emoji);
+
+          int index = combinedList.indexWhere((e) => e['penerima_id'] == pId);
+          if (index != -1) {
+            combinedList[index]['score'] = (combinedList[index]['score'] as int) + pts;
+            combinedList[index]['total_kudos'] = (combinedList[index]['total_kudos'] as int) + 1;
+            
+            // Gabungkan emojis (List)
+            var currentEmojis = combinedList[index]['emojis'];
+            Set<String> emojiSet = {};
+            if (currentEmojis is List) {
+              emojiSet.addAll(currentEmojis.map((e) => e.toString()));
+            } else if (currentEmojis is Set) {
+              emojiSet.addAll(currentEmojis.map((e) => e.toString()));
+            }
+            emojiSet.add(emoji);
+            combinedList[index]['emojis'] = emojiSet.toList();
+          } else {
+            // Jika penerima belum ada di leaderboard
+            combinedList.add({
+              'penerima_id': pId,
+              'nama': 'User (Lokal)',
+              'avatar_url': null,
+              'total_kudos': 1,
+              'score': pts,
+              'emojis': [emoji],
+            });
+          }
+        }
+      }
+
+      // Urutkan ulang berdasarkan skor terbaru
+      combinedList.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
+
+      return combinedList;
 
     } catch (e) {
       debugPrint("Error fetching leaderboard: $e");

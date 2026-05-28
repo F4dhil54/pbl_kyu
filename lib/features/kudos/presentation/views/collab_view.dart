@@ -799,36 +799,44 @@ class _CollabViewState extends ConsumerState<CollabView> {
                       Expanded(
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: reactions.map((r) {
-                              return Container(
-                                margin: const EdgeInsets.only(right: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: isDark ? AppDarkColors.background.withValues(alpha: 0.5) : AppColors.inputBackground.withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isDark ? AppDarkColors.border.withValues(alpha: 0.3) : AppColors.border.withValues(alpha: 0.3),
-                                    width: 0.5,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(r.reaksiEmoji, style: const TextStyle(fontSize: 12)),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      r.pengirimNama,
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        color: isDark ? Colors.white70 : Colors.black87,
-                                        fontWeight: FontWeight.bold,
+                          child: Builder(
+                            builder: (context) {
+                              final Map<String, int> reactionCounts = {};
+                              for (var r in reactions) {
+                                reactionCounts[r.reaksiEmoji] = (reactionCounts[r.reaksiEmoji] ?? 0) + 1;
+                              }
+                              return Row(
+                                children: reactionCounts.entries.map((entry) {
+                                  return Container(
+                                    margin: const EdgeInsets.only(right: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? AppDarkColors.background.withValues(alpha: 0.5) : AppColors.inputBackground.withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: isDark ? AppDarkColors.border.withValues(alpha: 0.3) : AppColors.border.withValues(alpha: 0.3),
+                                        width: 0.5,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(entry.key, style: const TextStyle(fontSize: 12)),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          '${entry.value}',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: isDark ? Colors.white70 : Colors.black87,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
                               );
-                            }).toList(),
+                            },
                           ),
                         ),
                       ),
