@@ -51,11 +51,11 @@ class TaskModel {
   }) {
     DateTime? dl;
     if (json['deadline'] != null) {
-      dl = DateTime.tryParse(json['deadline'] as String);
+      dl = DateTime.tryParse(json['deadline'] as String)?.toLocal();
     }
     DateTime? sf;
     if (json['scheduled_for'] != null) {
-      sf = DateTime.tryParse(json['scheduled_for'] as String);
+      sf = DateTime.tryParse(json['scheduled_for'] as String)?.toLocal();
     }
 
     // KONVERSI DARI DATABASE (lowercase) KE TEKS UI INDONESIA
@@ -145,11 +145,11 @@ class TaskModel {
       'status_tugas': dbStatus,               // SEKARANG SUDAH DI-MAP KE 'accept' / 'draft'
       'durasi_pomodoro': durasiPomodoro,
       'rejection_reason': rejectionReason,
-      'deadline': deadlineDate?.toIso8601String(),
+      'deadline': deadlineDate?.toUtc().toIso8601String(),
       'dibuat_oleh_role': dibuatOlehRole,
       'keputusan_manajer': keputusanManajer,
       'prioritas': prioritas,
-      'scheduled_for': scheduledFor?.toIso8601String(),
+      'scheduled_for': scheduledFor?.toUtc().toIso8601String(),
     };
   }
 
