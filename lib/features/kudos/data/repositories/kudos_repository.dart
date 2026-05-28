@@ -156,13 +156,18 @@ class KudosRepository {
       final listKudos = kudosRes as List<dynamic>;
 
       // Kelompokkan Kudos (dari Supabase)
-      // Key: taskId untuk tugas, atau 'commit:sha' untuk commit
-      Map<String, List<KudosReaction>> reactionsMap = {};
+      Map<String, List<KudosReaction>> reactionsByLogId = {};
+      Map<String, List<KudosReaction>> reactionsByCommitId = {};
+      Map<String, List<KudosReaction>> reactionsByTaskId = {};
+
       for (var k in listKudos) {
         final r = KudosReaction.fromJson(k);
         final tId = k['task_id'] as String?;
+        final logId = k['task_progress_log_id'] as String?;
         final cId = k['github_commit_id'] as String?;
-        if (tId != null) {
+        if (logId != null) {
+          reactionsByLogId.putIfAbsent(logId, () => []).add(r);
+        } else if (tId != null) {
           reactionsByTaskId.putIfAbsent(tId, () => []).add(r);
         }
         if (cId != null) {
@@ -179,31 +184,20 @@ class KudosRepository {
           reaksiEmoji: k['reaksi_emoji'] ?? '👏🏻',
         );
         final tId = k['task_id'] as String?;
+        final logId = k['task_progress_log_id'] as String?;
         final cId = k['github_commit_id'] as String?;
-        if (tId != null) {
-          reactionsByTaskId.putIfAbsent(tId, () => []).add(r);
-        }
-        if (cId != null) {
-          reactionsByCommitId.putIfAbsent(cId, () => []).add(r);
-        }
-      }
-
-      // Gabungkan dengan Kudos lokal (fallback) agar UI langsung update jika RLS/Supabase gagal
-      for (var k in _localKudos) {
-        final r = KudosReaction(
-          id: k['id'] ?? '',
-          pengirimId: k['pengirim_id'] ?? userId, // asumsi pengirim adalah user saat ini
-          pengirimNama: 'Anda (Offline)',
-          reaksiEmoji: k['reaksi_emoji'] ?? '👏🏻',
-        );
-        final tId = k['task_id'] as String?;
         final pesan = k['pesan_apresiasi'] as String? ?? '';
         
-        if (tId != null) {
-          reactionsMap.putIfAbsent(tId, () => []).add(r);
+        if (logId != null) {
+          reactionsByLogId.putIfAbsent(logId, () => []).add(r);
+        } else if (tId != null) {
+          reactionsByTaskId.putIfAbsent(tId, () => []).add(r);
+        }
+        if (cId != null) {
+          reactionsByCommitId.putIfAbsent(cId, () => []).add(r);
         } else if (pesan.startsWith('commit:')) {
           final sha = pesan.replaceFirst('commit:', '');
-          reactionsMap.putIfAbsent(sha, () => []).add(r);
+          reactionsByCommitId.putIfAbsent(sha, () => []).add(r);
         }
       }
 
@@ -226,13 +220,18 @@ class KudosRepository {
         List<KudosReaction> reactions = [];
 
         if (type == 'progress') {
-          final status = row['status_detail'] as String? ?? 'Sedang Dikerjakan';
+          final status = (row['status_detail'] as String? ?? 'Sedang Dikerjakan').trim();
+          final cleanStatus = status.toLowerCase();
+          if (cleanStatus != 'sedang dikerjakan' && cleanStatus != 'selesai' && cleanStatus != 'selesai dikerjakan') {
+            continue; // Skip logs that aren't 'Sedang Dikerjakan' or 'Selesai'
+          }
+          
           actionText = (status == 'Selesai' || status == 'Selesai Dikerjakan')
               ? 'sudah menyelesaikan'
               : 'sedang mengerjakan';
           taskId = logIdToTaskId[id];
           if (taskId != null) {
-            reactions = reactionsByTaskId[taskId] ?? [];
+            reactions = (reactionsByLogId[id] ?? reactionsByTaskId[taskId]) ?? [];
           }
         } else if (type == 'commit') {
           commitSha = commitIdToSha[id];
@@ -271,13 +270,14 @@ class KudosRepository {
   Future<void> giveKudos({
     required String projectId,
     String? taskId,
+    String? taskProgressLogId,
     required String receiverId,
     required String emoji,
     String? commitSha,
   }) async {
     final user = _supabaseClient.auth.currentUser;
     if (user == null) {
-      _giveLocalKudos(projectId, taskId, receiverId, emoji, commitSha);
+      _giveLocalKudos(projectId, taskId, taskProgressLogId, receiverId, emoji, commitSha);
       return;
     }
 
@@ -289,8 +289,85 @@ class KudosRepository {
     try {
       final poinKudos = getEmojiPoints(emoji);
 
-      if (taskId == null) {
-        // 1. Kudos Umum / Commit
+      if (taskProgressLogId != null) {
+        // 1. Kudos Spesifik Log Progres Tugas
+        final existing = await _supabaseClient
+            .from('kudos')
+            .select('id, reaksi_emoji')
+            .eq('pengirim_id', userId)
+            .eq('task_progress_log_id', taskProgressLogId)
+            .maybeSingle();
+
+        if (existing != null) {
+          final oldEmoji = existing['reaksi_emoji'] as String?;
+          if (oldEmoji != null && oldEmoji.runes.first == emoji.runes.first) {
+            // Retract
+            await _supabaseClient.from('kudos').delete().eq('id', existing['id']);
+            debugPrint("=== INFO: Retracted kudos emoji $emoji for progress log ===");
+            return;
+          } else {
+            // Swap
+            await _supabaseClient.from('kudos').update({
+              'reaksi_emoji': emoji,
+              'poin_kudos': poinKudos,
+            }).eq('id', existing['id']);
+            debugPrint("=== INFO: Swapped kudos emoji to $emoji for progress log ===");
+            return;
+          }
+        }
+
+        await _supabaseClient.from('kudos').insert({
+          'pengirim_id': userId,
+          'penerima_id': receiverId,
+          'project_id': projectId,
+          'task_id': taskId,
+          'task_progress_log_id': taskProgressLogId,
+          'reaksi_emoji': emoji,
+          'pesan_apresiasi': 'Apresiasi log progres',
+          'poin_kudos': poinKudos,
+          'github_commit_id': null,
+        });
+      } else if (taskId != null) {
+        // 2. Kudos Spesifik Tugas (Fallback / jika tidak ada log progres)
+        final existing = await _supabaseClient
+            .from('kudos')
+            .select('id, reaksi_emoji')
+            .eq('pengirim_id', userId)
+            .eq('task_id', taskId)
+            .isFilter('task_progress_log_id', null)
+            .maybeSingle();
+
+        if (existing != null) {
+          final oldEmoji = existing['reaksi_emoji'] as String?;
+          if (oldEmoji != null && oldEmoji.runes.first == emoji.runes.first) {
+            // Retract
+            await _supabaseClient.from('kudos').delete().eq('id', existing['id']);
+            debugPrint("=== INFO: Retracted kudos emoji $emoji for task ===");
+            return;
+          } else {
+            // Swap
+            await _supabaseClient.from('kudos').update({
+              'reaksi_emoji': emoji,
+              'poin_kudos': poinKudos,
+            }).eq('id', existing['id']);
+            debugPrint("=== INFO: Swapped kudos emoji to $emoji for task ===");
+            return;
+          }
+        }
+
+        await _supabaseClient.from('kudos').insert({
+          'pengirim_id': userId,
+          'penerima_id': receiverId,
+          'project_id': projectId,
+          'task_id': taskId,
+          'task_progress_log_id': null,
+          'reaksi_emoji': emoji,
+          'pesan_apresiasi': 'Apresiasi tugas',
+          'poin_kudos': poinKudos,
+          'github_commit_id': null,
+        });
+      } else {
+        // 3. Kudos Umum / Commit
         String? githubCommitId;
         if (commitSha != null) {
           final res = await _supabaseClient
@@ -306,31 +383,52 @@ class KudosRepository {
 
         final targetPesan = commitSha != null ? 'commit:$commitSha' : 'Apresiasi Umum';
 
+        // Check for existing reaction on this commit or general appreciation
+        final query = _supabaseClient
+            .from('kudos')
+            .select('id, reaksi_emoji')
+            .eq('pengirim_id', userId)
+            .eq('project_id', projectId);
+
+        final Map<String, dynamic>? existing;
+        if (githubCommitId != null) {
+          existing = await query.eq('github_commit_id', githubCommitId).maybeSingle();
+        } else {
+          existing = await query.eq('pesan_apresiasi', targetPesan).maybeSingle();
+        }
+
+        if (existing != null) {
+          final oldEmoji = existing['reaksi_emoji'] as String?;
+          if (oldEmoji != null && oldEmoji.runes.first == emoji.runes.first) {
+            // Retract
+            await _supabaseClient.from('kudos').delete().eq('id', existing['id']);
+            debugPrint("=== INFO: Retracted kudos emoji $emoji for commit ===");
+            return;
+          } else {
+            // Swap
+            await _supabaseClient.from('kudos').update({
+              'reaksi_emoji': emoji,
+              'poin_kudos': poinKudos,
+            }).eq('id', existing['id']);
+            debugPrint("=== INFO: Swapped kudos emoji to $emoji for commit ===");
+            return;
+          }
+        }
+
         await _supabaseClient.from('kudos').insert({
           'pengirim_id': userId,
           'penerima_id': receiverId,
           'project_id': projectId,
           'task_id': null,
+          'task_progress_log_id': null,
           'reaksi_emoji': emoji,
           'pesan_apresiasi': targetPesan,
           'poin_kudos': poinKudos,
           'github_commit_id': githubCommitId,
         });
-      } else {
-        // 2. Kudos Spesifik Tugas
-        await _supabaseClient.from('kudos').insert({
-          'pengirim_id': userId,
-          'penerima_id': receiverId,
-          'project_id': projectId,
-          'task_id': taskId,
-          'reaksi_emoji': emoji,
-          'pesan_apresiasi': 'Apresiasi tugas',
-          'poin_kudos': poinKudos,
-          'github_commit_id': null,
-        });
       }
 
-      // 3. Masukkan notifikasi opsional
+      // 4. Masukkan notifikasi opsional
       try {
         await _supabaseClient.from('notifications').insert({
           'user_id': receiverId,
@@ -346,7 +444,7 @@ class KudosRepository {
 
     } catch (e) {
       debugPrint("Error sending kudos to Supabase: $e");
-      _giveLocalKudos(projectId, taskId, receiverId, emoji, commitSha);
+      _giveLocalKudos(projectId, taskId, taskProgressLogId, receiverId, emoji, commitSha);
     }
   }
 
@@ -514,6 +612,7 @@ class KudosRepository {
   void _giveLocalKudos(
     String projectId,
     String? taskId,
+    String? taskProgressLogId,
     String receiverId,
     String emoji,
     String? commitSha,
@@ -526,6 +625,7 @@ class KudosRepository {
       'penerima_id': receiverId,
       'project_id': projectId,
       'task_id': taskId,
+      'task_progress_log_id': taskProgressLogId,
       'reaksi_emoji': emoji,
       'pesan_apresiasi': commitSha != null ? 'commit:$commitSha' : 'Apresiasi tugas',
     });

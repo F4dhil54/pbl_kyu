@@ -7,11 +7,11 @@ import '../../../project/presentation/providers/project_provider.dart';
 import '../../../../core/network/supabase_provider.dart';
 import '../../data/models/activity_model.dart';
 import '../providers/kudos_provider.dart';
-import 'create_post_screen.dart';
 import '../../../../shared/widgets/app_sidebar.dart';
 
 class CollabView extends ConsumerStatefulWidget {
-  const CollabView({super.key});
+  final String? role;
+  const CollabView({super.key, this.role});
 
   @override
   ConsumerState<CollabView> createState() => _CollabViewState();
@@ -19,6 +19,66 @@ class CollabView extends ConsumerStatefulWidget {
 
 class _CollabViewState extends ConsumerState<CollabView> {
   String? _selectedProjectId;
+  String _userRole = 'Tim';
+  bool _isLoadingRole = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserRole();
+  }
+
+  Future<void> _fetchUserRole() async {
+    if (widget.role != null) {
+      if (mounted) {
+        setState(() {
+          _userRole = widget.role!;
+          _isLoadingRole = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final supabase = ref.read(supabaseClientProvider);
+      final user = supabase.auth.currentUser;
+      if (user != null) {
+        final userId = user.id;
+        final profileResponse = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .single();
+        final dbRole = profileResponse['role'] as String? ?? 'Tim';
+        final metaRole = user.userMetadata?['role'] as String?;
+        String role = 'Tim';
+        if (metaRole != null && (dbRole == metaRole || dbRole.split(',').map((e) => e.trim()).contains(metaRole))) {
+          role = metaRole;
+        } else {
+          role = dbRole.split(',').first.trim();
+        }
+        if (mounted) {
+          setState(() {
+            _userRole = role;
+            _isLoadingRole = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoadingRole = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching user role in CollabView: $e");
+      if (mounted) {
+        setState(() {
+          _isLoadingRole = false;
+        });
+      }
+    }
+  }
 
   String _formatActivityTime(DateTime time) {
     final now = DateTime.now();
@@ -88,10 +148,10 @@ class _CollabViewState extends ConsumerState<CollabView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildEmojiOption(context, ref, activity, '👍🏻', '15 Poin'),
-                  _buildEmojiOption(context, ref, activity, '🔥', '15 Poin'),
-                  _buildEmojiOption(context, ref, activity, '👏🏻', '15 Poin'),
-                  _buildEmojiOption(context, ref, activity, '🥰', '10 Poin'),
+                  _buildEmojiOption(context, ref, activity, '👍🏻'),
+                  _buildEmojiOption(context, ref, activity, '🔥'),
+                  _buildEmojiOption(context, ref, activity, '👏🏻'),
+                  _buildEmojiOption(context, ref, activity, '🥰'),
                 ],
               ),
               const SizedBox(height: 24),
@@ -102,7 +162,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
     );
   }
 
-  Widget _buildEmojiOption(BuildContext context, WidgetRef ref, ActivityModel activity, String emoji, String points) {
+  Widget _buildEmojiOption(BuildContext context, WidgetRef ref, ActivityModel activity, String emoji) {
     final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
     final currentUserId = ref.read(supabaseClientProvider).auth.currentUser?.id;
     
@@ -133,6 +193,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
           await ref.read(kudosActionNotifierProvider.notifier).sendKudos(
             projectId: activity.projectId,
             taskId: activity.taskId,
+            taskProgressLogId: activity.type == 'progress' ? activity.id : null,
             receiverId: activity.userId,
             emoji: emoji,
             commitSha: activity.commitSha,
@@ -140,7 +201,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
           if (mounted) {
             ScaffoldMessenger.of(this.context).showSnackBar(
               SnackBar(
-                content: Text('Kudos $emoji berhasil dikirim! ($points)'),
+                content: Text('Kudos $emoji berhasil dikirim!'),
                 backgroundColor: AppColors.successText,
                 behavior: SnackBarBehavior.floating,
               ),
@@ -180,28 +241,125 @@ class _CollabViewState extends ConsumerState<CollabView> {
             )
           ] : null,
         ),
-        child: Column(
-          children: [
-            Text(emoji, style: TextStyle(fontSize: 32, color: (hasVoted || isSelf) ? Colors.grey : null)),
-            const SizedBox(height: 8),
-            Text(
-              hasVoted ? 'Dipilih' : points,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: hasVoted 
-                    ? Colors.blue 
-                    : (isDark ? AppDarkColors.textMain : AppColors.textMain),
+        child: Text(emoji, style: TextStyle(fontSize: 32, color: (hasVoted || isSelf) ? Colors.grey : null)),
+      ),
+    );
+  }
+
+  void _showAggregatedKudosSummarySheet(BuildContext context, List<KudosReaction> reactions) {
+    int thumbsCount = 0;
+    int fireCount = 0;
+    int clapCount = 0;
+    int loveCount = 0;
+
+    for (var r in reactions) {
+      if (r.reaksiEmoji.runes.isEmpty) continue;
+      final baseEmoji = r.reaksiEmoji.runes.first;
+      if (baseEmoji == '👍'.runes.first) {
+        thumbsCount++;
+      } else if (baseEmoji == '🔥'.runes.first) {
+        fireCount++;
+      } else if (baseEmoji == '👏'.runes.first) {
+        clapCount++;
+      } else if (baseEmoji == '🥰'.runes.first || baseEmoji == '😍'.runes.first) {
+        loveCount++;
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? AppDarkColors.surface : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 10,
+                offset: const Offset(0, -4),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[700] : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Ringkasan Kudos',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildSummaryItem('👍', thumbsCount, isDark),
+                  _buildSummaryItem('🔥', fireCount, isDark),
+                  _buildSummaryItem('👏', clapCount, isDark),
+                  _buildSummaryItem('😍', loveCount, isDark),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryItem(String emoji, int count, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: isDark ? AppDarkColors.background : AppColors.inputBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppDarkColors.border : AppColors.border,
+          width: 0.5,
         ),
+      ),
+      child: Column(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 32)),
+          const SizedBox(height: 8),
+          Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingRole) {
+      final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
+      return Scaffold(
+        backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final projectsAsync = ref.watch(projectListProvider);
     final activitiesAsync = ref.watch(collabActivitiesProvider);
 
@@ -226,15 +384,6 @@ class _CollabViewState extends ConsumerState<CollabView> {
               ),
             ),
             actions: [
-              Image.asset(
-                'image/ic_search.png',
-                width: 24,
-                errorBuilder: (context, error, stackTrace) => Icon(
-                  Icons.search, 
-                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
-                ),
-              ),
-              const SizedBox(width: 16),
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -262,7 +411,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
           body: RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(projectListProvider);
-              ref.read(collabActivitiesProvider.notifier).loadActivities(isRefresh: true);
+              ref.read(collabActivitiesProvider.notifier).loadPage(1, isRefresh: true);
               if (_selectedProjectId != null) {
                 ref.invalidate(projectLeaderboardProvider(_selectedProjectId!));
               }
@@ -278,15 +427,6 @@ class _CollabViewState extends ConsumerState<CollabView> {
                     loading: () => const Center(child: CircularProgressIndicator()),
                     error: (err, stack) => Text('Error: $err'),
                     data: (projectsList) {
-                      if (_selectedProjectId == null && projectsList.isNotEmpty) {
-                        // Set selected project to first active project
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          setState(() {
-                            _selectedProjectId = projectsList.first.id;
-                          });
-                        });
-                      }
-
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -310,17 +450,17 @@ class _CollabViewState extends ConsumerState<CollabView> {
                                 ),
                               ),
                               child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
+                                child: DropdownButton<String?>(
                                   dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
-                                  value: _selectedProjectId ?? (projectsList.isNotEmpty ? projectsList.first.id : null),
+                                  value: _selectedProjectId,
                                   icon: Icon(Icons.arrow_drop_down, color: isDark ? Colors.white : Colors.black),
-                                  items: projectsList.map((p) {
-                                    return DropdownMenuItem<String>(
-                                      value: p.id,
+                                  items: [
+                                    DropdownMenuItem<String?>(
+                                      value: null,
                                       child: Container(
                                         constraints: const BoxConstraints(maxWidth: 150),
                                         child: Text(
-                                          p.name,
+                                          'Semua Proyek',
                                           style: TextStyle(
                                             color: isDark ? Colors.white : Colors.black,
                                             fontSize: 12,
@@ -329,8 +469,25 @@ class _CollabViewState extends ConsumerState<CollabView> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                    );
-                                  }).toList(),
+                                    ),
+                                    ...projectsList.map((p) {
+                                      return DropdownMenuItem<String?>(
+                                        value: p.id,
+                                        child: Container(
+                                          constraints: const BoxConstraints(maxWidth: 150),
+                                          child: Text(
+                                            p.name,
+                                            style: TextStyle(
+                                              color: isDark ? Colors.white : Colors.black,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                  ],
                                   onChanged: (val) {
                                     setState(() {
                                       _selectedProjectId = val;
@@ -475,28 +632,16 @@ class _CollabViewState extends ConsumerState<CollabView> {
                             separatorBuilder: (context, index) => const SizedBox(height: 16),
                             itemBuilder: (context, index) {
                               final act = activitiesList[index];
-                              
                               final String formattedTime = _formatActivityTime(act.time);
-                              final String actionDesc;
-                              final String titleText;
-                              final String detailText;
-
-                              if (act.type == 'commit') {
-                                actionDesc = 'melakukan commit';
-                                titleText = act.linkText;
-                                detailText = 'dari proyek ${act.projectName}';
-                              } else {
-                                actionDesc = act.actionText; // 'sedang mengerjakan' atau 'sudah menyelesaikan'
-                                titleText = 'tugas ${act.linkText}';
-                                detailText = 'dari proyek ${act.projectName}';
-                              }
 
                               return _buildActivityCard(
                                 name: act.userName,
                                 avatarUrl: act.userAvatar,
-                                actionText: actionDesc,
-                                linkText: titleText,
-                                projectText: detailText,
+                                actionText: act.type == 'commit' || act.type == 'github'
+                                    ? 'melakukan commit'
+                                    : act.actionText,
+                                linkText: act.linkText,
+                                projectText: act.projectName,
                                 time: formattedTime,
                                 kudosIcon: '👏🏻',
                                 kudosText: 'Beri Kudos',
@@ -507,30 +652,47 @@ class _CollabViewState extends ConsumerState<CollabView> {
                               );
                             },
                           ),
-                          if (activitiesAsync.hasMore && _selectedProjectId == null) ...[
+                          if (activitiesList.isNotEmpty && (activitiesAsync.currentPage > 1 || activitiesAsync.hasMore)) ...[
                             const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton(
-                                onPressed: activitiesAsync.isLoadMore 
-                                  ? null 
-                                  : () => ref.read(collabActivitiesProvider.notifier).loadActivities(),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  side: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: activitiesAsync.currentPage > 1 && !activitiesAsync.isLoading
+                                      ? () => ref.read(collabActivitiesProvider.notifier).loadPage(activitiesAsync.currentPage - 1)
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+                                    foregroundColor: isDark ? Colors.white : Colors.black,
+                                    side: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  ),
+                                  child: const Text('Sebelumnya'),
                                 ),
-                                child: activitiesAsync.isLoadMore
-                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                                  : Text(
-                                      'Lihat aktivitas riwayat lebih banyak',
-                                      style: TextStyle(
-                                        color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                              ),
-                            )
+                                Text(
+                                  'Halaman ${activitiesAsync.currentPage}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                                  ),
+                                ),
+                                ElevatedButton(
+                                  onPressed: activitiesAsync.hasMore && !activitiesAsync.isLoading
+                                      ? () => ref.read(collabActivitiesProvider.notifier).loadPage(activitiesAsync.currentPage + 1)
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
+                                    foregroundColor: isDark ? Colors.white : Colors.black,
+                                    side: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  ),
+                                  child: const Text('Selanjutnya'),
+                                ),
+                              ],
+                            ),
                           ]
                         ],
                       );
@@ -541,6 +703,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
               ),
             ),
           ),
+          // FAB removed
         );
       },
     );
@@ -653,26 +816,6 @@ class _CollabViewState extends ConsumerState<CollabView> {
             ),
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.emoji_events,
-                size: 12,
-                color: isFirst ? avatarColor : (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                score,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isFirst ? avatarColor : (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
-                  fontWeight: isFirst ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -712,14 +855,22 @@ class _CollabViewState extends ConsumerState<CollabView> {
           CircleAvatar(
             radius: 20,
             backgroundColor: isDark ? AppDarkColors.background : AppColors.inputBackground,
-            child: avatarUrl != null && avatarUrl.startsWith('image/')
-                ? Image.asset(avatarUrl)
-                : Image.asset(
-                    'image/ic_avatar_${name.toLowerCase()}.png',
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      type == 'commit' ? Icons.commit : Icons.person,
-                      color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                      size: 24,
+            child: type == 'commit' || type == 'github'
+                ? Icon(
+                    Icons.commit,
+                    color: isDark ? Colors.amberAccent : AppColors.primary,
+                    size: 24,
+                  )
+                : CircleAvatar(
+                    radius: 20,
+                    backgroundColor: isDark ? AppDarkColors.surface : const Color(0xFFE2E8F0),
+                    child: Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                      ),
                     ),
                   ),
           ),
@@ -741,16 +892,33 @@ class _CollabViewState extends ConsumerState<CollabView> {
                             fontFamily: 'Inter',
                           ),
                           children: [
-                            TextSpan(text: '$name ', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            TextSpan(text: '$actionText '),
+                            TextSpan(text: name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            TextSpan(text: ' $actionText '),
+                            if (type == 'progress') ...[
+                              const TextSpan(text: 'tugas '),
+                              TextSpan(
+                                  text: linkText,
+                                  style: TextStyle(
+                                    color: isDark ? Colors.amberAccent : AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                              ),
+                            ] else ...[
+                              TextSpan(
+                                  text: linkText,
+                                  style: TextStyle(
+                                    color: isDark ? Colors.amberAccent : AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                              ),
+                            ],
                             TextSpan(
-                              text: linkText,
+                              text: ' dari proyek $projectText',
                               style: TextStyle(
-                                color: isDark ? Colors.amberAccent : AppColors.primary,
-                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                fontSize: 13,
                               ),
                             ),
-                            TextSpan(text: ' $projectText', style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 13)),
                           ],
                         ),
                       ),
@@ -765,6 +933,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
                     ),
                   ],
                 ),
+                // Reaction chips removed from card
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -795,46 +964,42 @@ class _CollabViewState extends ConsumerState<CollabView> {
                       ),
                     ),
                     if (reactions.isNotEmpty) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => _showAggregatedKudosSummarySheet(context, reactions),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppDarkColors.background : AppColors.inputBackground,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark ? AppDarkColors.border : AppColors.border,
+                              width: 0.5,
+                            ),
+                          ),
                           child: Builder(
                             builder: (context) {
                               final Map<String, int> reactionCounts = {};
                               for (var r in reactions) {
-                                reactionCounts[r.reaksiEmoji] = (reactionCounts[r.reaksiEmoji] ?? 0) + 1;
+                                final emoji = r.reaksiEmoji;
+                                reactionCounts[emoji] = (reactionCounts[emoji] ?? 0) + 1;
                               }
+                              final displayEmojis = reactionCounts.keys.take(3).join(' ');
+                              final totalReactions = reactions.length;
                               return Row(
-                                children: reactionCounts.entries.map((entry) {
-                                  return Container(
-                                    margin: const EdgeInsets.only(right: 6),
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? AppDarkColors.background.withValues(alpha: 0.5) : AppColors.inputBackground.withValues(alpha: 0.5),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: isDark ? AppDarkColors.border.withValues(alpha: 0.3) : AppColors.border.withValues(alpha: 0.3),
-                                        width: 0.5,
-                                      ),
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(displayEmojis, style: const TextStyle(fontSize: 12)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '$totalReactions',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(entry.key, style: const TextStyle(fontSize: 12)),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          '${entry.value}',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: isDark ? Colors.white70 : Colors.black87,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
+                                  ),
+                                ],
                               );
                             },
                           ),
