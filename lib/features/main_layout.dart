@@ -19,7 +19,7 @@ class MainLayout extends ConsumerWidget {
     final views = [
       role == 'Tim' ? const TeamDashboard() : const ManagerDashboard(), // Beranda
       const InboxScreen(),      // Kotak Masuk
-      const CollabView(),       // Kolaborasi
+      CollabView(role: role),       // Kolaborasi
       ProjectListScreen(role: role), // Proyek (for both Manajer and Tim)
     ];
 

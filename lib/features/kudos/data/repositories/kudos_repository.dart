@@ -36,7 +36,24 @@ class KudosRepository {
 
     try {
       final userId = user.id;
-      final role = user.userMetadata?['role'] ?? 'Tim';
+      String role = 'Tim';
+      try {
+        final profileResponse = await _supabaseClient
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .single();
+        final dbRole = profileResponse['role'] as String? ?? 'Tim';
+        final metaRole = user.userMetadata?['role'] as String?;
+        if (metaRole != null && (dbRole == metaRole || dbRole.split(',').map((e) => e.trim()).contains(metaRole))) {
+          role = metaRole;
+        } else {
+          role = dbRole.split(',').first.trim();
+        }
+      } catch (profileError) {
+        debugPrint("=== WARNING: Failed to fetch role in getActivities, falling back to metadata. Error: $profileError ===");
+        role = user.userMetadata?['role'] ?? 'Tim';
+      }
 
       // 1. Ambil proyek yang relevan berdasarkan peran (Manajer vs Tim)
       List<String> projectIds = [];
@@ -80,39 +97,58 @@ class KudosRepository {
 
       if (projectIds.isEmpty) return _getLocalActivities();
 
-      // 2. Ambil semua Tugas terkait proyek-proyek ini
-      final tasksRes = await _supabaseClient
-          .from('tasks')
-          .select('id, judul_tugas, project_id')
-          .inFilter('project_id', projectIds);
-      
-      final tasksList = tasksRes as List<dynamic>;
-      Map<String, Map<String, String>> taskMeta = {}; // taskId -> {judulTugas, projectId, projectName}
-      List<String> taskIds = [];
-      for (var t in tasksList) {
-        final id = t['id'] as String;
-        final pId = t['project_id'] as String;
-        taskIds.add(id);
-        taskMeta[id] = {
-          'judul_tugas': t['judul_tugas'] as String? ?? 'Tugas Tanpa Judul',
-          'project_id': pId,
-          'projectName': projectNames[pId] ?? 'Proyek',
-        };
+      // 2. Query timeline_aktivitas_terbaru view
+      final response = await _supabaseClient
+          .from('timeline_aktivitas_terbaru')
+          .select()
+          .inFilter('project_id', projectIds)
+          .order('waktu_aktivitas', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      final List<dynamic> rows = response as List<dynamic>;
+      if (rows.isEmpty) {
+        return [];
       }
 
-      // 3. Ambil log progress tugas (task_progress_logs)
-      List<Map<String, dynamic>> rawLogs = [];
-      if (taskIds.isNotEmpty) {
-        final logsRes = await _supabaseClient
+      // 3. Batch resolve task_ids and commit_shas
+      final List<String> progressLogIds = [];
+      final List<String> commitIds = [];
+
+      for (var row in rows) {
+        final type = row['tipe_aktivitas'] as String? ?? 'progress';
+        final id = row['aktivitas_id'] as String;
+        if (type == 'progress') {
+          progressLogIds.add(id);
+        } else if (type == 'commit') {
+          commitIds.add(id);
+        }
+      }
+
+      final Map<String, String> logIdToTaskId = {};
+      if (progressLogIds.isNotEmpty) {
+        final logs = await _supabaseClient
             .from('task_progress_logs')
-            .select('*, profiles:logged_by(*)')
-            .inFilter('task_id', taskIds)
-            .order('created_at', ascending: false)
-            .range(offset, offset + limit - 1);
-        rawLogs = List<Map<String, dynamic>>.from(logsRes as List);
+            .select('id, task_id')
+            .inFilter('id', progressLogIds);
+        for (var l in logs as List<dynamic>) {
+          logIdToTaskId[l['id'] as String] = l['task_id'] as String;
+        }
       }
 
-      // 4. Ambil semua Kudos untuk proyek ini (untuk dimuat di card)
+      final Map<String, String> commitIdToSha = {};
+      final Map<String, String?> commitIdToTaskId = {};
+      if (commitIds.isNotEmpty) {
+        final commits = await _supabaseClient
+            .from('github_commits')
+            .select('id, commit_sha, task_id')
+            .inFilter('id', commitIds);
+        for (var c in commits as List<dynamic>) {
+          commitIdToSha[c['id'] as String] = c['commit_sha'] as String;
+          commitIdToTaskId[c['id'] as String] = c['task_id'] as String?;
+        }
+      }
+
+      // 4. Load all Kudos for grouping
       final kudosRes = await _supabaseClient
           .from('kudos')
           .select('*, profiles:profiles!kudos_pengirim_id_fkey(id, nama, avatar_url)')
@@ -120,18 +156,22 @@ class KudosRepository {
       final listKudos = kudosRes as List<dynamic>;
 
       // Kelompokkan Kudos (dari Supabase)
-      // Key: taskId untuk tugas, atau 'commit:sha' untuk commit
-      Map<String, List<KudosReaction>> reactionsMap = {};
+      Map<String, List<KudosReaction>> reactionsByLogId = {};
+      Map<String, List<KudosReaction>> reactionsByCommitId = {};
+      Map<String, List<KudosReaction>> reactionsByTaskId = {};
+
       for (var k in listKudos) {
         final r = KudosReaction.fromJson(k);
         final tId = k['task_id'] as String?;
-        final pesan = k['pesan_apresiasi'] as String? ?? '';
-        
-        if (tId != null) {
-          reactionsMap.putIfAbsent(tId, () => []).add(r);
-        } else if (pesan.startsWith('commit:')) {
-          final sha = pesan.replaceFirst('commit:', '');
-          reactionsMap.putIfAbsent(sha, () => []).add(r);
+        final logId = k['task_progress_log_id'] as String?;
+        final cId = k['github_commit_id'] as String?;
+        if (logId != null) {
+          reactionsByLogId.putIfAbsent(logId, () => []).add(r);
+        } else if (tId != null) {
+          reactionsByTaskId.putIfAbsent(tId, () => []).add(r);
+        }
+        if (cId != null) {
+          reactionsByCommitId.putIfAbsent(cId, () => []).add(r);
         }
       }
 
@@ -144,164 +184,80 @@ class KudosRepository {
           reaksiEmoji: k['reaksi_emoji'] ?? '👏🏻',
         );
         final tId = k['task_id'] as String?;
+        final logId = k['task_progress_log_id'] as String?;
+        final cId = k['github_commit_id'] as String?;
         final pesan = k['pesan_apresiasi'] as String? ?? '';
         
-        if (tId != null) {
-          reactionsMap.putIfAbsent(tId, () => []).add(r);
+        if (logId != null) {
+          reactionsByLogId.putIfAbsent(logId, () => []).add(r);
+        } else if (tId != null) {
+          reactionsByTaskId.putIfAbsent(tId, () => []).add(r);
+        }
+        if (cId != null) {
+          reactionsByCommitId.putIfAbsent(cId, () => []).add(r);
         } else if (pesan.startsWith('commit:')) {
           final sha = pesan.replaceFirst('commit:', '');
-          reactionsMap.putIfAbsent(sha, () => []).add(r);
+          reactionsByCommitId.putIfAbsent(sha, () => []).add(r);
         }
       }
 
-      // 5. Ambil Anggota Proyek untuk mensimulasikan commit GitHub nyata
-      final membersRes = await _supabaseClient
-          .from('project_members')
-          .select('project_id, user_id, profiles:profiles!project_members_user_id_fkey(*)')
-          .inFilter('project_id', projectIds)
-          .eq('status_akses', 'aktif');
-      
-      final membersList = membersRes as List<dynamic>;
-      Map<String, List<Map<String, dynamic>>> projectMembers = {}; // projectId -> member profiles
-      for (var m in membersList) {
-        final pId = m['project_id'] as String;
-        final profile = m['profiles'] as Map<String, dynamic>?;
-        if (profile != null) {
-          projectMembers.putIfAbsent(pId, () => []).add(profile);
+      // 5. Map to ActivityModel
+      final List<ActivityModel> activities = [];
+      for (var row in rows) {
+        final id = row['aktivitas_id'] as String;
+        final type = row['tipe_aktivitas'] as String? ?? 'progress';
+        final pId = row['project_id'] as String;
+        final pName = row['nama_proyek'] as String? ?? projectNames[pId] ?? 'Proyek';
+        final userName = row['nama_user'] as String? ?? 'Anggota';
+        final userAvatar = row['avatar_user'] as String?;
+        final time = DateTime.tryParse(row['waktu_aktivitas'] as String? ?? '')?.toLocal() ?? DateTime.now();
+        final userId = row['user_id'] as String;
+
+        String actionText = '';
+        String linkText = row['konten_utama'] as String? ?? '';
+        String? taskId;
+        String? commitSha;
+        List<KudosReaction> reactions = [];
+
+        if (type == 'progress') {
+          final status = (row['status_detail'] as String? ?? 'Sedang Dikerjakan').trim();
+          final cleanStatus = status.toLowerCase();
+          if (cleanStatus != 'sedang dikerjakan' && cleanStatus != 'selesai' && cleanStatus != 'selesai dikerjakan') {
+            continue; // Skip logs that aren't 'Sedang Dikerjakan' or 'Selesai'
+          }
+          
+          actionText = (status == 'Selesai' || status == 'Selesai Dikerjakan')
+              ? 'sudah menyelesaikan'
+              : 'sedang mengerjakan';
+          taskId = logIdToTaskId[id];
+          if (taskId != null) {
+            reactions = (reactionsByLogId[id] ?? reactionsByTaskId[taskId]) ?? [];
+          }
+        } else if (type == 'commit') {
+          commitSha = commitIdToSha[id];
+          final shortSha = (commitSha != null && commitSha.length > 7) ? commitSha.substring(0, 7) : (commitSha ?? '');
+          actionText = 'melakukan commit "$shortSha"';
+          taskId = commitIdToTaskId[id];
+          reactions = reactionsByCommitId[id] ?? [];
         }
-      }
-
-      List<ActivityModel> activities = [];
-
-      // A. Masukkan aktivitas asli dari progress tugas
-      for (var log in rawLogs) {
-        final tId = log['task_id'] as String;
-        final meta = taskMeta[tId];
-        if (meta == null) continue;
-
-        final status = log['status_progress'] as String? ?? 'Sedang Dikerjakan';
-        final persen = log['persen_selesai'] as int? ?? 0;
-
-        // Validasi status: Hanya "Sedang Dikerjakan", "Selesai Dikerjakan", atau "Selesai"
-        if (status != 'Sedang Dikerjakan' && status != 'Selesai Dikerjakan' && status != 'Selesai') {
-          continue;
-        }
-
-        final profile = log['profiles'] as Map<String, dynamic>? ?? {};
-        final userName = profile['nama'] as String? ?? 'Anggota';
-        final userAvatar = profile['avatar_url'] as String?;
-        final time = DateTime.tryParse(log['created_at'] as String) ?? DateTime.now();
-
-        final actionText = (status == 'Selesai' || status == 'Selesai Dikerjakan')
-            ? 'sudah menyelesaikan'
-            : 'sedang mengerjakan';
 
         activities.add(ActivityModel(
-          id: log['id'] as String,
+          id: id,
           userName: userName,
           userAvatar: userAvatar,
           actionText: actionText,
-          linkText: meta['judul_tugas']!,
+          linkText: linkText,
           time: time,
-          type: 'progress',
-          taskId: tId,
-          projectId: meta['project_id']!,
-          projectName: meta['projectName']!,
-          userId: log['logged_by'] as String,
-          reactions: reactionsMap[tId] ?? [],
+          type: type,
+          taskId: taskId,
+          projectId: pId,
+          projectName: pName,
+          userId: userId,
+          commitSha: commitSha,
+          reactions: reactions,
         ));
       }
 
-      // B. Masukkan aktivitas commit GitHub buatan (Deterministic mock commits agar terhubung dengan Kudos)
-      final now = DateTime.now();
-      for (var pId in projectIds) {
-        final pName = projectNames[pId] ?? 'Proyek';
-        final members = projectMembers[pId] ?? [];
-        if (members.isEmpty) continue;
-
-        // Buat 2 commit per proyek berdasarkan anggota proyek tersebut
-        for (int i = 0; i < members.length; i++) {
-          if (i >= 2) break; // Cukup 2 commit per anggota proyek agar tidak terlalu padat
-          
-          final member = members[i];
-          final mName = member['nama'] as String? ?? 'Anggota';
-          final mId = member['id'] as String;
-          final mAvatar = member['avatar_url'] as String?;
-
-          // Commit 1: Hari ini
-          final sha1 = 'git-commit-${pId.substring(0,4)}-$i-1';
-          final shortSha1 = sha1.substring(sha1.length - 7);
-          activities.add(ActivityModel(
-            id: sha1,
-            userName: mName,
-            userAvatar: mAvatar,
-            actionText: 'melakukan commit "$shortSha1"',
-            linkText: i == 0 
-                ? 'Refactor: navigation logic and layout bindings'
-                : 'Feat: implement responsive components and styles',
-            time: now.subtract(Duration(hours: 2 + i * 3, minutes: 15)),
-            type: 'commit',
-            projectId: pId,
-            projectName: pName,
-            userId: mId,
-            commitSha: shortSha1,
-            reactions: reactionsMap[shortSha1] ?? [],
-          ));
-
-          // Commit 2: Kemarin
-          final sha2 = 'git-commit-${pId.substring(0,4)}-$i-2';
-          final shortSha2 = sha2.substring(sha2.length - 7);
-          activities.add(ActivityModel(
-            id: sha2,
-            userName: mName,
-            userAvatar: mAvatar,
-            actionText: 'melakukan commit "$shortSha2"',
-            linkText: i == 0
-                ? 'Fix: database connection leak on fast refresh'
-                : 'Docs: update codebase architecture documentation',
-            time: now.subtract(Duration(days: 1, hours: i * 2)),
-            type: 'commit',
-            projectId: pId,
-            projectName: pName,
-            userId: mId,
-            commitSha: shortSha2,
-            reactions: reactionsMap[shortSha2] ?? [],
-          ));
-        }
-      }
-
-      // Urutkan aktivitas berdasarkan waktu terbaru
-      activities.sort((a, b) => b.time.compareTo(a.time));
-      
-      // Terapkan pagination lokal pada aktivitas gabungan (jika menggunakan mix)
-      if (activities.length > offset) {
-        activities = activities.sublist(offset, (offset + limit > activities.length) ? activities.length : offset + limit);
-      } else {
-        activities = [];
-      }
-      if (activities.isEmpty) {
-        final localActs = _getLocalActivities();
-        if (projectIds.isNotEmpty) {
-          final realProjectId = projectIds.first;
-          final realProjectName = projectNames[realProjectId] ?? 'Proyek';
-          return localActs.map((act) => ActivityModel(
-            id: act.id,
-            userName: act.userName,
-            userAvatar: act.userAvatar,
-            actionText: act.actionText,
-            linkText: act.linkText,
-            time: act.time,
-            type: act.type,
-            taskId: act.taskId,
-            projectId: realProjectId,
-            projectName: realProjectName,
-            userId: act.userId,
-            commitSha: act.commitSha,
-            reactions: act.reactions,
-          )).toList();
-        }
-        return localActs;
-      }
       return activities;
 
     } catch (e) {
@@ -314,13 +270,14 @@ class KudosRepository {
   Future<void> giveKudos({
     required String projectId,
     String? taskId,
+    String? taskProgressLogId,
     required String receiverId,
     required String emoji,
     String? commitSha,
   }) async {
     final user = _supabaseClient.auth.currentUser;
     if (user == null) {
-      _giveLocalKudos(projectId, taskId, receiverId, emoji, commitSha);
+      _giveLocalKudos(projectId, taskId, taskProgressLogId, receiverId, emoji, commitSha);
       return;
     }
 
@@ -332,33 +289,146 @@ class KudosRepository {
     try {
       final poinKudos = getEmojiPoints(emoji);
 
-      if (taskId == null) {
-        // 1. Kudos Umum / Commit
+      if (taskProgressLogId != null) {
+        // 1. Kudos Spesifik Log Progres Tugas
+        final existing = await _supabaseClient
+            .from('kudos')
+            .select('id, reaksi_emoji')
+            .eq('pengirim_id', userId)
+            .eq('task_progress_log_id', taskProgressLogId)
+            .maybeSingle();
+
+        if (existing != null) {
+          final oldEmoji = existing['reaksi_emoji'] as String?;
+          if (oldEmoji != null && oldEmoji.runes.first == emoji.runes.first) {
+            // Retract
+            await _supabaseClient.from('kudos').delete().eq('id', existing['id']);
+            debugPrint("=== INFO: Retracted kudos emoji $emoji for progress log ===");
+            return;
+          } else {
+            // Swap
+            await _supabaseClient.from('kudos').update({
+              'reaksi_emoji': emoji,
+              'poin_kudos': poinKudos,
+            }).eq('id', existing['id']);
+            debugPrint("=== INFO: Swapped kudos emoji to $emoji for progress log ===");
+            return;
+          }
+        }
+
+        await _supabaseClient.from('kudos').insert({
+          'pengirim_id': userId,
+          'penerima_id': receiverId,
+          'project_id': projectId,
+          'task_id': taskId,
+          'task_progress_log_id': taskProgressLogId,
+          'reaksi_emoji': emoji,
+          'pesan_apresiasi': 'Apresiasi log progres',
+          'poin_kudos': poinKudos,
+          'github_commit_id': null,
+        });
+      } else if (taskId != null) {
+        // 2. Kudos Spesifik Tugas (Fallback / jika tidak ada log progres)
+        final existing = await _supabaseClient
+            .from('kudos')
+            .select('id, reaksi_emoji')
+            .eq('pengirim_id', userId)
+            .eq('task_id', taskId)
+            .isFilter('task_progress_log_id', null)
+            .maybeSingle();
+
+        if (existing != null) {
+          final oldEmoji = existing['reaksi_emoji'] as String?;
+          if (oldEmoji != null && oldEmoji.runes.first == emoji.runes.first) {
+            // Retract
+            await _supabaseClient.from('kudos').delete().eq('id', existing['id']);
+            debugPrint("=== INFO: Retracted kudos emoji $emoji for task ===");
+            return;
+          } else {
+            // Swap
+            await _supabaseClient.from('kudos').update({
+              'reaksi_emoji': emoji,
+              'poin_kudos': poinKudos,
+            }).eq('id', existing['id']);
+            debugPrint("=== INFO: Swapped kudos emoji to $emoji for task ===");
+            return;
+          }
+        }
+
+        await _supabaseClient.from('kudos').insert({
+          'pengirim_id': userId,
+          'penerima_id': receiverId,
+          'project_id': projectId,
+          'task_id': taskId,
+          'task_progress_log_id': null,
+          'reaksi_emoji': emoji,
+          'pesan_apresiasi': 'Apresiasi tugas',
+          'poin_kudos': poinKudos,
+          'github_commit_id': null,
+        });
+      } else {
+        // 3. Kudos Umum / Commit
+        String? githubCommitId;
+        if (commitSha != null) {
+          final res = await _supabaseClient
+              .from('github_commits')
+              .select('id')
+              .eq('project_id', projectId)
+              .eq('commit_sha', commitSha)
+              .maybeSingle();
+          if (res != null) {
+            githubCommitId = res['id'] as String?;
+          }
+        }
+
         final targetPesan = commitSha != null ? 'commit:$commitSha' : 'Apresiasi Umum';
+
+        // Check for existing reaction on this commit or general appreciation
+        final query = _supabaseClient
+            .from('kudos')
+            .select('id, reaksi_emoji')
+            .eq('pengirim_id', userId)
+            .eq('project_id', projectId);
+
+        final Map<String, dynamic>? existing;
+        if (githubCommitId != null) {
+          existing = await query.eq('github_commit_id', githubCommitId).maybeSingle();
+        } else {
+          existing = await query.eq('pesan_apresiasi', targetPesan).maybeSingle();
+        }
+
+        if (existing != null) {
+          final oldEmoji = existing['reaksi_emoji'] as String?;
+          if (oldEmoji != null && oldEmoji.runes.first == emoji.runes.first) {
+            // Retract
+            await _supabaseClient.from('kudos').delete().eq('id', existing['id']);
+            debugPrint("=== INFO: Retracted kudos emoji $emoji for commit ===");
+            return;
+          } else {
+            // Swap
+            await _supabaseClient.from('kudos').update({
+              'reaksi_emoji': emoji,
+              'poin_kudos': poinKudos,
+            }).eq('id', existing['id']);
+            debugPrint("=== INFO: Swapped kudos emoji to $emoji for commit ===");
+            return;
+          }
+        }
 
         await _supabaseClient.from('kudos').insert({
           'pengirim_id': userId,
           'penerima_id': receiverId,
           'project_id': projectId,
           'task_id': null,
+          'task_progress_log_id': null,
           'reaksi_emoji': emoji,
           'pesan_apresiasi': targetPesan,
           'poin_kudos': poinKudos,
-        });
-      } else {
-        // 2. Kudos Spesifik Tugas
-        await _supabaseClient.from('kudos').insert({
-          'pengirim_id': userId,
-          'penerima_id': receiverId,
-          'project_id': projectId,
-          'task_id': taskId,
-          'reaksi_emoji': emoji,
-          'pesan_apresiasi': 'Apresiasi tugas',
-          'poin_kudos': poinKudos,
+          'github_commit_id': githubCommitId,
         });
       }
 
-      // 3. Masukkan notifikasi opsional
+      // 4. Masukkan notifikasi opsional
       try {
         await _supabaseClient.from('notifications').insert({
           'user_id': receiverId,
@@ -374,7 +444,7 @@ class KudosRepository {
 
     } catch (e) {
       debugPrint("Error sending kudos to Supabase: $e");
-      _giveLocalKudos(projectId, taskId, receiverId, emoji, commitSha);
+      _giveLocalKudos(projectId, taskId, taskProgressLogId, receiverId, emoji, commitSha);
     }
   }
 
@@ -542,6 +612,7 @@ class KudosRepository {
   void _giveLocalKudos(
     String projectId,
     String? taskId,
+    String? taskProgressLogId,
     String receiverId,
     String emoji,
     String? commitSha,
@@ -554,6 +625,7 @@ class KudosRepository {
       'penerima_id': receiverId,
       'project_id': projectId,
       'task_id': taskId,
+      'task_progress_log_id': taskProgressLogId,
       'reaksi_emoji': emoji,
       'pesan_apresiasi': commitSha != null ? 'commit:$commitSha' : 'Apresiasi tugas',
     });

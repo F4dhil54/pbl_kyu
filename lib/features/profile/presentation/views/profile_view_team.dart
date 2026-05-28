@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -42,7 +43,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
   final String clientId = 'Ov23liyhzVvur2XKSlmg';
   final String clientSecret = '2532f44f75ea3f045b886a02257cb30b1ab6bf13'; 
 
-  Future<void> _hubungkanGitHub() async {
+  Future<void> hubungkanAkunGithub() async {
     setState(() => _isConnecting = true);
 
     try {
@@ -65,7 +66,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
         );
 
         final data = json.decode(response.body);
-        final token = data['access_token'];
+        final token = data['access_token'] as String?;
 
         if (token != null) {
           final userResponse = await http.get(
@@ -73,36 +74,96 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
             headers: {'Authorization': 'Bearer $token'},
           );
           final userData = json.decode(userResponse.body);
-          
+          final githubUsername = userData['login'] as String;
+
+          final supabase = ref.read(supabaseClientProvider);
+          final user = supabase.auth.currentUser;
+          if (user != null) {
+            await supabase.from('profiles').update({
+              'github_username': githubUsername,
+              'github_token': token,
+            }).eq('id', user.id);
+          }
+
+          await GitHubStatus.saveStatus(true, githubUsername, true);
+
           if (mounted) {
             setState(() {
               _isConnected = true;
-              _githubUsername = userData['login'];
-
-              GitHubStatus.isConnected = true;
-              GitHubStatus.username = userData['login'];
-              GitHubStatus.isSyncActive = true;
+              _githubUsername = githubUsername;
             });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Akun GitHub berhasil terhubung!'),
+                backgroundColor: AppColors.successText,
+              ),
+            );
           }
+        } else {
+          throw Exception('Token akses tidak valid.');
         }
+      } else {
+        throw Exception('Kode otorisasi tidak ditemukan.');
       }
     } catch (e) {
-      debugPrint("Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghubungkan GitHub: $e'), backgroundColor: AppColors.alertText),
+        );
+      }
     } finally {
-      if (mounted) setState(() => _isConnecting = false);
+      if (mounted) {
+        setState(() => _isConnecting = false);
+      }
+    }
+  }
+
+  Future<void> _loadGithubStatus() async {
+    final supabase = ref.read(supabaseClientProvider);
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      try {
+        final res = await supabase
+            .from('profiles')
+            .select('github_username, github_token')
+            .eq('id', user.id)
+            .maybeSingle();
+        if (res != null) {
+          final username = res['github_username'] as String?;
+          final token = res['github_token'] as String?;
+          if (username != null && token != null && username.isNotEmpty && token.isNotEmpty) {
+            await GitHubStatus.saveStatus(true, username, true);
+            if (mounted) {
+              setState(() {
+                _isConnected = true;
+                _githubUsername = username;
+              });
+            }
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint("Error loading GitHub status from DB: $e");
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _isConnected = GitHubStatus.isConnected;
+        _githubUsername = GitHubStatus.username.isNotEmpty ? GitHubStatus.username : null;
+      });
     }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadData();
+    _loadGithubStatus();
   }
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadGithubStatus();
     _loadUserProfile();
     _subscribePomodoroRealtime();
   }
@@ -127,15 +188,6 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
         },
       )
       .subscribe();
-  }
-
-  void _loadData() {
-    if (mounted) {
-      setState(() {
-        _isConnected = GitHubStatus.isConnected;
-        _githubUsername = GitHubStatus.username;
-      });
-    }
   }
 
   void _loadUserProfile() {
@@ -588,7 +640,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton.icon(
-                    onPressed: _isConnected ? null : _hubungkanGitHub,
+                    onPressed: _isConnected ? null : hubungkanAkunGithub,
                     icon: _isConnecting 
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                         : Icon(_isConnected ? Icons.check_circle : Icons.sync_alt, color: Colors.white, size: 20),

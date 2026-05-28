@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -9,6 +13,7 @@ import 'package:pbl_kyu/features/auth/presentation/views/onboarding_screen.dart'
 import 'package:pbl_kyu/core/theme/colors.dart';
 import 'package:pbl_kyu/core/theme/theme_mode.dart';
 import 'package:pbl_kyu/core/network/supabase_provider.dart';
+import 'package:pbl_kyu/core/services/github_status.dart';
 import '../providers/profile_provider.dart';
 import 'edit_team_screen.dart';
 import 'edit_member_screen.dart';
@@ -39,10 +44,136 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
   List<Map<String, dynamic>> _members = [];
   bool _isLoadingMembers = false;
 
+  bool _isConnected = false;
+  bool _isConnecting = false;
+  String? _githubUsername;
+
+  // Konfigurasi GitHub OAuth
+  final String clientId = 'Ov23liyhzVvur2XKSlmg';
+  final String clientSecret = '2532f44f75ea3f045b886a02257cb30b1ab6bf13'; 
+
+  Future<void> hubungkanAkunGithub() async {
+    setState(() => _isConnecting = true);
+
+    try {
+      final result = await FlutterWebAuth2.authenticate(
+        url: "https://github.com/login/oauth/authorize?client_id=$clientId&scope=repo,user",
+        callbackUrlScheme: "kyu",
+      );
+
+      final code = Uri.parse(result).queryParameters['code'];
+
+      if (code != null) {
+        final response = await http.post(
+          Uri.parse('https://github.com/login/oauth/access_token'),
+          headers: {'Accept': 'application/json'},
+          body: {
+            'client_id': clientId,
+            'client_secret': clientSecret,
+            'code': code,
+          },
+        );
+
+        final data = json.decode(response.body);
+        final token = data['access_token'] as String?;
+
+        if (token != null) {
+          final userResponse = await http.get(
+            Uri.parse('https://api.github.com/user'),
+            headers: {'Authorization': 'Bearer $token'},
+          );
+          final userData = json.decode(userResponse.body);
+          final githubUsername = userData['login'] as String;
+
+          final supabase = ref.read(supabaseClientProvider);
+          final user = supabase.auth.currentUser;
+          if (user != null) {
+            await supabase.from('profiles').update({
+              'github_username': githubUsername,
+              'github_token': token,
+            }).eq('id', user.id);
+          }
+
+          await GitHubStatus.saveStatus(true, githubUsername, true);
+
+          if (mounted) {
+            setState(() {
+              _isConnected = true;
+              _githubUsername = githubUsername;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Akun GitHub berhasil terhubung!'),
+                backgroundColor: AppColors.successText,
+              ),
+            );
+          }
+        } else {
+          throw Exception('Token akses tidak valid.');
+        }
+      } else {
+        throw Exception('Kode otorisasi tidak ditemukan.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghubungkan GitHub: $e'), backgroundColor: AppColors.alertText),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isConnecting = false);
+      }
+    }
+  }
+
+  Future<void> _loadGithubStatus() async {
+    final supabase = ref.read(supabaseClientProvider);
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      try {
+        final res = await supabase
+            .from('profiles')
+            .select('github_username, github_token')
+            .eq('id', user.id)
+            .maybeSingle();
+        if (res != null) {
+          final username = res['github_username'] as String?;
+          final token = res['github_token'] as String?;
+          if (username != null && token != null && username.isNotEmpty && token.isNotEmpty) {
+            await GitHubStatus.saveStatus(true, username, true);
+            if (mounted) {
+              setState(() {
+                _isConnected = true;
+                _githubUsername = username;
+              });
+            }
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint("Error loading GitHub status from DB: $e");
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _isConnected = GitHubStatus.isConnected;
+        _githubUsername = GitHubStatus.username.isNotEmpty ? GitHubStatus.username : null;
+      });
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadGithubStatus();
+  }
+
   @override
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadGithubStatus();
   }
 
   @override
@@ -506,6 +637,39 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Hubungkan Akun Github Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: _isConnected ? null : hubungkanAkunGithub,
+                    icon: _isConnecting 
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Icon(_isConnected ? Icons.check_circle : Icons.sync_alt, color: Colors.white, size: 20),
+                    label: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _isConnected ? 'Terhubung dengan akun GitHub' : 'Hubungkan Akun Github',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        if (_isConnected && _githubUsername != null)
+                          Text(
+                            '@$_githubUsername',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: Colors.white70),
+                          ),
+                      ],
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isConnected ? const Color(0xFF2EA043) : AppColors.rank1Background,
+                      disabledBackgroundColor: const Color(0xFF2EA043), 
+                      disabledForegroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

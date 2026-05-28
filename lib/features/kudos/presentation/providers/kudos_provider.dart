@@ -13,35 +13,31 @@ final kudosRepositoryProvider = Provider<KudosRepository>((ref) {
 
 class ActivitiesState {
   final bool isLoading;
-  final bool isLoadMore;
   final List<ActivityModel> activities;
   final String? error;
-  final int offset;
+  final int currentPage;
   final bool hasMore;
 
   ActivitiesState({
     this.isLoading = true,
-    this.isLoadMore = false,
     this.activities = const [],
     this.error,
-    this.offset = 0,
+    this.currentPage = 1,
     this.hasMore = true,
   });
 
   ActivitiesState copyWith({
     bool? isLoading,
-    bool? isLoadMore,
     List<ActivityModel>? activities,
     String? error,
-    int? offset,
+    int? currentPage,
     bool? hasMore,
   }) {
     return ActivitiesState(
       isLoading: isLoading ?? this.isLoading,
-      isLoadMore: isLoadMore ?? this.isLoadMore,
       activities: activities ?? this.activities,
       error: error ?? this.error,
-      offset: offset ?? this.offset,
+      currentPage: currentPage ?? this.currentPage,
       hasMore: hasMore ?? this.hasMore,
     );
   }
@@ -56,31 +52,23 @@ class ActivitiesNotifier extends StateNotifier<ActivitiesState> {
 
   ActivitiesNotifier(this._repo, this._supabase) : super(ActivitiesState()) {
     _initRealtime();
-    loadActivities(isInitial: true);
+    loadPage(1);
   }
 
-  Future<void> loadActivities({bool isRefresh = false, bool isInitial = false}) async {
-    if (isRefresh) {
-      state = state.copyWith(isLoading: true, offset: 0, hasMore: true, activities: []);
-    } else if (isInitial) {
-      state = state.copyWith(isLoading: true, offset: 0, hasMore: true);
-    } else if (state.isLoading || state.isLoadMore || !state.hasMore) {
-      return;
-    } else {
-      state = state.copyWith(isLoadMore: true);
-    }
-
+  Future<void> loadPage(int page, {bool isRefresh = false}) async {
+    if (!isRefresh && state.isLoading && state.activities.isNotEmpty) return;
+    
+    state = state.copyWith(isLoading: true, currentPage: page);
     try {
-      final newActs = await _repo.getActivities(limit: _limit, offset: state.offset);
+      final offset = (page - 1) * _limit;
+      final newActs = await _repo.getActivities(limit: _limit, offset: offset);
       state = state.copyWith(
         isLoading: false,
-        isLoadMore: false,
-        activities: isRefresh ? newActs : [...state.activities, ...newActs],
-        offset: state.offset + newActs.length,
+        activities: newActs,
         hasMore: newActs.length >= _limit,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, isLoadMore: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -91,8 +79,7 @@ class ActivitiesNotifier extends StateNotifier<ActivitiesState> {
           schema: 'public',
           table: 'task_progress_logs',
           callback: (payload) {
-            // Silently refresh to keep top items updated
-            loadActivities(isRefresh: true);
+            loadPage(state.currentPage, isRefresh: true);
           },
         )
         .subscribe();
@@ -103,7 +90,7 @@ class ActivitiesNotifier extends StateNotifier<ActivitiesState> {
           schema: 'public',
           table: 'kudos',
           callback: (payload) {
-            loadActivities(isRefresh: true);
+            loadPage(state.currentPage, isRefresh: true);
           },
         )
         .subscribe();
@@ -138,6 +125,7 @@ class KudosActionNotifier extends StateNotifier<AsyncValue<void>> {
   Future<void> sendKudos({
     required String projectId,
     String? taskId,
+    String? taskProgressLogId,
     required String receiverId,
     required String emoji,
     String? commitSha,
@@ -147,6 +135,7 @@ class KudosActionNotifier extends StateNotifier<AsyncValue<void>> {
       await _repository.giveKudos(
         projectId: projectId,
         taskId: taskId,
+        taskProgressLogId: taskProgressLogId,
         receiverId: receiverId,
         emoji: emoji,
         commitSha: commitSha,
@@ -154,8 +143,8 @@ class KudosActionNotifier extends StateNotifier<AsyncValue<void>> {
       state = const AsyncValue.data(null);
       // Invalidate leaderboard to refresh points
       _ref.invalidate(projectLeaderboardProvider(projectId));
-      // No need to invalidate collabActivitiesProvider manually, realtime will catch it, but we can do it if no realtime
-      _ref.read(collabActivitiesProvider.notifier).loadActivities(isRefresh: true);
+      // Refresh current page of activities
+      _ref.read(collabActivitiesProvider.notifier).loadPage(_ref.read(collabActivitiesProvider).currentPage, isRefresh: true);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
       rethrow;

@@ -16,6 +16,8 @@ class TaskModel {
   final String prioritas; // 'Do' | 'Schedule' | 'Delegate'
   final DateTime? scheduledFor;
   
+  final int? taskNumber;
+  
   // Custom relations
   final List<String> assignees; // User IDs
   final List<AttachmentModel> attachments;
@@ -37,6 +39,7 @@ class TaskModel {
     required this.keputusanManajer,
     required this.prioritas,
     this.scheduledFor,
+    this.taskNumber,
     required this.assignees,
     required this.attachments,
     this.projectTeamId,
@@ -101,6 +104,7 @@ class TaskModel {
       keputusanManajer: json['keputusan_manajer'] as String? ?? 'Setujui',
       prioritas: json['prioritas'] as String? ?? json['kuadran_eisenhower'] as String? ?? 'Schedule',
       scheduledFor: sf,
+      taskNumber: json['task_number'] as int?,
       assignees: assignees ?? [],
       attachments: attachments ?? [],
       projectTeamId: projectTeamId,
@@ -136,13 +140,13 @@ class TaskModel {
         dbStatus = 'draft'; // Fallback aman sesuai default struktur tabel
     }
 
-    return {
+    final data = {
       'project_id': projectId,
       'created_by': createdBy,
       'judul_tugas': judulTugas,
       'deskripsi_tugas': deskripsiTugas,
-      'kuadran_eisenhower': kuadranEisenhower, // Sudah aman karena alter table kemarin
-      'status_tugas': dbStatus,               // SEKARANG SUDAH DI-MAP KE 'accept' / 'draft'
+      'kuadran_eisenhower': kuadranEisenhower, 
+      'status_tugas': dbStatus,               
       'durasi_pomodoro': durasiPomodoro,
       'rejection_reason': rejectionReason,
       'deadline': deadlineDate?.toUtc().toIso8601String(),
@@ -151,6 +155,12 @@ class TaskModel {
       'prioritas': prioritas,
       'scheduled_for': scheduledFor?.toUtc().toIso8601String(),
     };
+
+    if (taskNumber != null) {
+      data['task_number'] = taskNumber;
+    }
+
+    return data;
   }
 
   TaskModel copyWith({
@@ -168,6 +178,7 @@ class TaskModel {
     String? keputusanManajer,
     String? prioritas,
     DateTime? scheduledFor,
+    int? taskNumber,
     List<String>? assignees,
     List<AttachmentModel>? attachments,
     String? projectTeamId,
@@ -188,6 +199,7 @@ class TaskModel {
       keputusanManajer: keputusanManajer ?? this.keputusanManajer,
       prioritas: prioritas ?? this.prioritas,
       scheduledFor: scheduledFor ?? this.scheduledFor,
+      taskNumber: taskNumber ?? this.taskNumber,
       assignees: assignees ?? this.assignees,
       attachments: attachments ?? this.attachments,
       projectTeamId: projectTeamId ?? this.projectTeamId,

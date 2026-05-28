@@ -17,6 +17,7 @@ import '../../../project/data/models/project_model.dart';
 import '../providers/task_provider.dart';
 import '../../../project/presentation/providers/project_provider.dart';
 import 'team_progress_screen.dart';
+import 'github_commits_screen.dart';
 
 
 class TaskDetailTeamScreen extends ConsumerStatefulWidget {
@@ -713,7 +714,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
       children: [
         // Title card
         Text(
-          _activeTask.judulTugas,
+          _activeTask.taskNumber != null ? '#${_activeTask.taskNumber} ${_activeTask.judulTugas}' : _activeTask.judulTugas,
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -838,6 +839,8 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
             ),
           ),
         ],
+
+        _buildGithubCommitsSection(isDark),
 
         // Riwayat Progress Tim
         Row(
@@ -1120,7 +1123,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
           children: [
             Expanded(
               child: Text(
-                _activeTask.judulTugas,
+                _activeTask.taskNumber != null ? '#${_activeTask.taskNumber} ${_activeTask.judulTugas}' : _activeTask.judulTugas,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -1294,6 +1297,8 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
             ),
           ),
         ],
+
+        _buildGithubCommitsSection(isDark),
 
         // Initial attachments
         _buildSectionLabel('Lampiran Tugas Awal', isDark),
@@ -1622,6 +1627,68 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGithubCommitsSection(bool isDark) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: ref.read(taskRepositoryProvider).getTaskCommits(_activeTask.id),
+      builder: (context, snapshot) {
+        final commits = snapshot.data;
+        final count = commits?.length ?? 0;
+        final hasCommits = snapshot.hasData && count > 0;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _buildSectionLabel('Riwayat Commit GitHub', isDark),
+                if (hasCommits)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => GithubCommitsScreen(task: _activeTask),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.history, size: 16, color: AppColors.primary),
+                      label: Text(
+                        'Lihat Commit ($count)',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (!hasCommits && snapshot.connectionState != ConnectionState.waiting)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(
+                  'Belum ada commit GitHub yang terhubung dengan tugas ini.',
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black87,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            if (hasCommits)
+              const SizedBox(height: 16)
+            else
+              const SizedBox(height: 24),
+          ],
         );
       },
     );

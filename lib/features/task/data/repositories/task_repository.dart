@@ -977,4 +977,21 @@ class TaskRepository {
       default: return 'application/octet-stream';
     }
   }
+
+  Future<List<Map<String, dynamic>>> getTaskCommits(String taskId) async {
+    if (taskId.startsWith('local-')) {
+      return [];
+    }
+    try {
+      final response = await _supabaseClient
+          .from('github_commits')
+          .select('id, commit_sha, message, created_at, profiles:user_id(id, nama, email, avatar_url)')
+          .eq('task_id', taskId)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response as List<dynamic>);
+    } catch (e) {
+      debugPrint("Error fetching task commits: $e");
+      return [];
+    }
+  }
 }
