@@ -50,7 +50,7 @@ class OnboardingScreen extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              // Pagination Dots
+              //Dots
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

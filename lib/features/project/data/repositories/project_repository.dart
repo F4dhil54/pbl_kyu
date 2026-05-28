@@ -61,7 +61,7 @@ class ProjectRepository {
 
   ProjectRepository(this._supabaseClient);
 
-  /// Fetch projects depending on role
+  // Fetch projects depending on role
   Future<List<ProjectModel>> getProjects() async {
     try {
       final user = _supabaseClient.auth.currentUser;
@@ -166,7 +166,7 @@ class ProjectRepository {
     }
   }
 
-  /// Create a new project
+  // Create a new project
   Future<ProjectModel> createProject(ProjectModel project) async {
     try {
       final user = _supabaseClient.auth.currentUser;
@@ -205,7 +205,7 @@ class ProjectRepository {
     }
   }
 
-  /// Update an existing project
+  // Update an existing project
   Future<ProjectModel> updateProject(ProjectModel project) async {
     if (project.id.startsWith('local-')) {
       final index = _localProjects.indexWhere((p) => p.id == project.id);
@@ -249,7 +249,7 @@ class ProjectRepository {
     }
   }
 
-  /// Update project active/inactive status
+  // Update project active/inactive status
   Future<void> updateProjectStatus(String id, bool statusAktif) async {
     if (id.startsWith('local-')) {
       final index = _localProjects.indexWhere((p) => p.id == id);
@@ -273,7 +273,7 @@ class ProjectRepository {
     }
   }
 
-  /// Delete a project by ID
+  // Delete a project by ID
   Future<void> deleteProject(String id) async {
     if (id.startsWith('local-')) {
       _localProjects.removeWhere((p) => p.id == id);
@@ -323,7 +323,7 @@ class ProjectRepository {
       return;
     }
 
-    // 1. Fetch project repository details
+    // Fetch project repository details
     final projectRes = await _supabaseClient
         .from('projects')
         .select('github_repo_url, manager_github_token, pembuat_id')
@@ -345,7 +345,7 @@ class ProjectRepository {
       throw Exception("Token GitHub manajer tidak ditemukan. Silakan hubungkan akun GitHub terlebih dahulu.");
     }
 
-    // 2. Fetch all members with their github usernames
+    // Fetch all members with their github usernames
     final membersRes = await _supabaseClient
         .from('project_members')
         .select('user_id, profiles:profiles!project_members_user_id_fkey(id, github_username)')
@@ -379,7 +379,7 @@ class ProjectRepository {
       }
     }
 
-    // 3. Make HTTP request to GitHub API to pull the 100 latest commits
+    // Make HTTP request to GitHub API to pull the 100 latest commits
     final url = Uri.parse('https://api.github.com/repos/$repoUrl/commits?per_page=100');
     final response = await http.get(
       url,
@@ -396,7 +396,7 @@ class ProjectRepository {
 
     final List<dynamic> commitsJson = jsonDecode(response.body);
 
-    // 4. Parse and Upsert each commit
+    // Parse and Upsert each commit
     final List<Map<String, dynamic>> commitsToUpsert = [];
     final regex = RegExp(r'#(\d+)');
 

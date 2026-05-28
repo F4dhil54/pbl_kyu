@@ -204,7 +204,7 @@ final projectMembersTeamsProvider = FutureProvider.family<Map<String, List<Strin
   if (projectId.startsWith('local-')) return {};
   final supabase = ref.watch(supabaseClientProvider);
   try {
-    // 1. Get teams in this project
+    // Get teams in this project
     final projectTeamsRes = await supabase.from('project_teams').select('team_id, teams(nama_tim)').eq('project_id', projectId);
     final pTeamsList = projectTeamsRes as List<dynamic>;
     if (pTeamsList.isEmpty) return {};
@@ -219,12 +219,12 @@ final projectMembersTeamsProvider = FutureProvider.family<Map<String, List<Strin
 
     if (teamIdToName.isEmpty) return {};
 
-    // 2. Get members of these teams
+    // Get members of these teams
     final teamIds = teamIdToName.keys.toList();
     final teamMembersRes = await supabase.from('team_members').select('user_id, team_id').inFilter('team_id', teamIds);
     final tmList = teamMembersRes as List<dynamic>;
 
-    // 3. Map user_id to List<String> (team names)
+    // Map user_id to List<String> (team names)
     final Map<String, List<String>> userToTeams = {};
     for (var tm in tmList) {
       final userId = tm['user_id'] as String;

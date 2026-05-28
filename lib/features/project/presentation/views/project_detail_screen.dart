@@ -23,7 +23,7 @@ class ProjectDetailScreen extends ConsumerStatefulWidget {
 
 class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   int _activeTabIndex = 0; // 0: Tugas, 1: Orang
-  String _selectedEisenhowerFilter = 'Semua'; // Semua, Do, Schedule, Delegate, Done
+  String _selectedEisenhowerFilter = 'Semua';
   bool _isSyncing = false;
 
 
@@ -284,7 +284,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                     final user = supabase.auth.currentUser;
                                                     if (user == null) return;
 
-                                                    // 1. Fetch team members
+                                                    // Fetch team members
                                                     final teamMembersRes = await supabase
                                                         .from('team_members')
                                                         .select('user_id')
@@ -292,7 +292,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                     
                                                     final teamMembersList = teamMembersRes as List<dynamic>;
 
-                                                    // 2. Insert each team member to project_members
+                                                    // Insert each team member to project_members
                                                     for (final tm in teamMembersList) {
                                                       await supabase.from('project_members').upsert({
                                                         'project_id': project.id,
@@ -302,7 +302,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                       }, onConflict: 'project_id, user_id');
                                                     }
 
-                                                    // 3. Insert relationship into project_teams
+                                                    // Insert relationship into project_teams
                                                     await supabase.from('project_teams').insert({
                                                       'project_id': project.id,
                                                       'team_id': team['id'],
@@ -479,8 +479,6 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         widget.project;
 
     final user = Supabase.instance.client.auth.currentUser;
-    // Gunakan role dari auth metadata (ditetapkan saat registrasi, bersifat static)
-    // BUKAN creatorId == userId karena manajer lain akan tampil sebagai Tim
     final userRole = user?.userMetadata?['role'] as String? ?? 'Tim';
     final isManager = userRole == 'Manajer';
     final role = userRole;
@@ -904,15 +902,15 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             if (!isManager) {
               final now = DateTime.now();
               visibleTasks = allTasks.where((t) {
-                // 1. Tugas aktif yang sudah di-acc manajer
+                // Tugas aktif yang sudah di-acc manajer
                 if (t.statusTugas == 'Akan Dikerjakan') return true;
-                // 2. Tugas yang sudah selesai
+                // Tugas yang sudah selesai
                 if (t.statusTugas == 'Selesai') return true;
-                // 3. Tugas terjadwal yang sudah tiba waktunya
+                // Tugas terjadwal yang sudah tiba waktunya
                 if (t.statusTugas == 'Dijadwalkan' && t.scheduledFor != null && t.scheduledFor!.isBefore(now)) {
                   return true;
                 }
-                // 4. Tugas review (usulan Tim) yang dibuat oleh anggota ini sendiri
+                // Tugas review (usulan Tim) yang dibuat oleh anggota ini sendiri
                 if (t.statusTugas == 'Ditinjau' && t.createdBy == currentUserId) {
                   return true;
                 }

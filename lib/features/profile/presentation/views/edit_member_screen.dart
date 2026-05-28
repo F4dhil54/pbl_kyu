@@ -49,7 +49,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
             backgroundColor: AppColors.successText,
           ),
         );
-        Navigator.pop(context, true); // return true to refresh the parent list
+        Navigator.pop(context, true);
       }
     } catch (e) {
       debugPrint('Error updating member status: $e');
@@ -256,13 +256,13 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
   Widget _buildTextField(String text, {required bool isDark}) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.background : const Color(0xFFF8FAFC), // slightly darker to indicate read-only
+        color: isDark ? AppDarkColors.background : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
       ),
       child: TextField(
         controller: TextEditingController(text: text),
-        readOnly: true, // As requested, fields are read-only
+        readOnly: true,
         decoration: const InputDecoration(
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),

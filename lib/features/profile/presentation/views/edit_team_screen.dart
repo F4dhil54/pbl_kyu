@@ -43,7 +43,7 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
       final user = ref.read(supabaseClientProvider).auth.currentUser;
       if (user == null) return;
 
-      // 1. Load team members
+      // Load team members
       final teamMembersRes = await profileRepo.getTeamMembers(widget.teamId);
 
       final List<Map<String, dynamic>> currentMembers = [];
@@ -54,7 +54,7 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
         });
       }
 
-      // 2. Load all colleagues to see who is available
+      // Load all colleagues to see who is available
       final colleaguesRes = await profileRepo.getActiveColleagues(user.id);
 
       final List<Map<String, dynamic>> availableMembers = [];
@@ -97,12 +97,12 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
     try {
       final profileRepo = ref.read(profileRepositoryProvider);
 
-      // 1. Update team name if changed
+      // Update team name if changed
       if (teamName != widget.teamName) {
         await profileRepo.updateTeamName(widget.teamId, teamName);
       }
 
-      // 2. Sync team_members (simplest way: delete all and insert current selection)
+      //Sync team_members (simplest way: delete all and insert current selection)
       final memberIds = _selectedMembers.map((m) => m['id'] as String).toList();
       await profileRepo.syncTeamMembers(widget.teamId, memberIds);
 
@@ -112,7 +112,7 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Berhasil menyimpan perubahan'), backgroundColor: AppColors.successText),
         );
-        Navigator.pop(context, true); // return true to trigger refresh
+        Navigator.pop(context, true);
       }
     } catch (e) {
       debugPrint('Error saving team: $e');

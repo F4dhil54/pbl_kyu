@@ -6,7 +6,7 @@ class ProfileRepository {
 
   ProfileRepository(this._supabaseClient);
 
-  // Load invitations / members
+  // Load invitations
   Future<List<dynamic>> getInvitations(String invitedById) async {
     final response = await _supabaseClient
         .from('invitations')
@@ -40,7 +40,7 @@ class ProfileRepository {
     required String memberId,
     required String managerName,
   }) async {
-    // 1. Insert team
+    // Insert team
     final teamResponse = await _supabaseClient.from('teams').insert({
       'nama_tim': teamName,
       'manajer_id': managerId,
@@ -49,17 +49,16 @@ class ProfileRepository {
 
     final teamId = teamResponse['id'] as String;
 
-    // 2. Insert team member
+    // Insert team member
     await _supabaseClient.from('team_members').insert({
       'team_id': teamId,
       'user_id': memberId,
     });
   }
 
-  // Upload avatar to storage bucket (MODULE B: Profile Picture Update Workflow)
+  // Upload avatar to storage bucket
   Future<String> uploadAvatar(String userId, Uint8List imageBytes) async {
-    // Step 1: Upload ke bucket 'avatars' dengan nama file kanonik
-    // Menggunakan upsert: true agar foto lama tertimpa secara seamless
+    // Upload ke bucket 'avatars' dengan nama file kanonik
     const bucketName = 'avatars';
     final canonicalFileName = 'avatar_$userId.png';
 
@@ -69,7 +68,7 @@ class ProfileRepository {
         imageBytes,
         fileOptions: const FileOptions(
           contentType: 'image/png',
-          upsert: true, // overwrite existing avatar without error
+          upsert: true,
         ),
       );
       debugPrint('=== INFO: Avatar uploaded to $bucketName/$canonicalFileName ===');
@@ -78,11 +77,11 @@ class ProfileRepository {
       rethrow;
     }
 
-    // Step 2: Resolve public URL — harus berupa string HTTP/HTTPS bersih
+    // Resolve public URL — harus berupa string HTTP/HTTPS bersih
     final publicUrl = _supabaseClient.storage.from(bucketName).getPublicUrl(canonicalFileName);
     debugPrint('=== INFO: Avatar public URL: $publicUrl ===');
 
-    // Step 3: Commit ke public.profiles.avatar_url (Pure String Rule: hanya HTTP/HTTPS)
+    // Commit ke public.profiles.avatar_url (Pure String Rule: hanya HTTP/HTTPS)
     await updateProfileTable(userId: userId, avatarUrl: publicUrl);
 
     return publicUrl;

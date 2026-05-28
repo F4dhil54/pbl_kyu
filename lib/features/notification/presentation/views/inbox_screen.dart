@@ -85,7 +85,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           final response = await supabase.from('projects').select().eq('id', notif.projectId!).single();
           final project = ProjectModel.fromJson(response);
           if (mounted) {
-            Navigator.pop(context); // dismiss loading
+            Navigator.pop(context);
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -95,7 +95,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           }
         } catch (e) {
           if (mounted) {
-            Navigator.pop(context); // dismiss loading
+            Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat proyek: $e')));
           }
         }

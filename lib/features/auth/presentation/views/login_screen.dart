@@ -63,7 +63,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final dbRole = response['role'] as String? ?? '';
       
       if (isGoogleAuth) {
-        // Fix for "User Baru" bug: Sync name from Google metadata to profiles table
         final user = supabase.auth.currentUser;
         if (user != null) {
           final googleName = user.userMetadata?['name'] ?? user.userMetadata?['full_name'];
@@ -109,7 +108,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ref.invalidate(notificationFilterProvider);
       ref.invalidate(notificationSearchProvider);
 
-      // Reset navigation index to 0 (Task 8)
       ref.read(navigationIndexProvider.notifier).state = 0;
 
       if (mounted) {
@@ -161,7 +159,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
-    _authStateSubscription?.cancel(); // Bersihkan listener saat halaman ditutup
+    _authStateSubscription?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -236,7 +234,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     setState(() {
       _isGoogleLoading = true;
-      _isGoogleAuthFlowActive = true; // Tandai bahwa Google Auth sedang berjalan
+      _isGoogleAuthFlowActive = true;
     });
 
     try {
@@ -321,8 +319,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Logo Box Adaptif
-                      // Logo Box Adaptif
+                      // Logo
                       Image.asset(
                         'image/logoSemua.png',
                         width: 64,
@@ -353,7 +350,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 40),
 
-                      // Peran Selector (Dibungkus FormField untuk Validasi bersamaan)
+                      // Peran Selector
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -386,7 +383,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 decoration: BoxDecoration(
                                   color: isDark ? AppDarkColors.surface : const Color(0xFFEAEAEA),
                                   borderRadius: BorderRadius.circular(12),
-                                  // Garis tepi merah menyala jika error
                                   border: Border.all(
                                     color: state.hasError ? Colors.redAccent : Colors.transparent,
                                     width: 1.5,

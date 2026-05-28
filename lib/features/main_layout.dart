@@ -27,7 +27,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
   Future<void> _simpanTokenFCM() async {
     try {
-      // 1. Meminta izin notifikasi (diperlukan untuk iOS dan Android 13+)
+      // Meminta izin notifikasi
       final messaging = FirebaseMessaging.instance;
       final settings = await messaging.requestPermission(
         alert: true,
@@ -39,14 +39,14 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
-        // 2. Ambil token unik dari perangkat HP ini
+        // Ambil token unik dari perangkat HP ini
         String? token = await messaging.getToken();
         
         if (token != null) {
           await _uploadTokenToSupabase(token);
         }
 
-        // 3. Dengarkan jika token diperbarui
+        // Dengarkan jika token diperbarui
         messaging.onTokenRefresh.listen((newToken) async {
           if (mounted) {
             await _uploadTokenToSupabase(newToken);
@@ -82,10 +82,10 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
     final currentIndex = ref.watch(navigationIndexProvider);
 
     final views = [
-      widget.role == 'Tim' ? const TeamDashboard() : const ManagerDashboard(), // Beranda
-      const InboxScreen(),      // Kotak Masuk
-      CollabView(role: widget.role),       // Kolaborasi
-      ProjectListScreen(role: widget.role), // Proyek (for both Manajer and Tim)
+      widget.role == 'Tim' ? const TeamDashboard() : const ManagerDashboard(),    // Beranda
+      const InboxScreen(),                                                        // Kotak Masuk
+      CollabView(role: widget.role),                                              // Kolaborasi
+      ProjectListScreen(role: widget.role),                                       // Proyek
     ];
 
     return Scaffold(

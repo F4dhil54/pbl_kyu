@@ -417,7 +417,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
     try {
       final profileRepo = ref.read(profileRepositoryProvider);
       
-      // 1. Upload image if selected → stores to avatars bucket + updates profiles table
+      // Upload image if selected → stores to avatars bucket + updates profiles table
       if (_selectedImageBytes != null) {
         final userId = _currentUser?.id ?? 'user';
         _avatarUrl = await profileRepo.uploadAvatar(
@@ -426,7 +426,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
         );
       }
       
-      // 2. Update user metadata
+      // Update user metadata
       final response = await profileRepo.updateUserProfile(
         name: _nameController.text.trim(),
         avatarUrl: _avatarUrl,
@@ -436,7 +436,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
       if (mounted) {
         setState(() {
           _currentUser = response.user;
-          _selectedImageBytes = null; // Clear local preview since it's uploaded
+          _selectedImageBytes = null;
           if (response.user != null) {
             _avatarUrl = response.user!.userMetadata?['avatar_url'] ?? 
                          response.user!.userMetadata?['picture'] ?? 
@@ -548,7 +548,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Kelola profil, anggota tim, dan grup proyek Anda dari\ndasbor terpusat.',
+                            'Kelola profil, anggota tim, dan grup proyek Anda dari dasbor terpusat.',
                             style: TextStyle(
                               fontSize: 12,
                               color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
