@@ -360,48 +360,77 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
 
 
   Widget _buildTagsInput({required bool isDark}) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.background : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _selectedMembers.map((m) => _buildTagChip(m, isDark: isDark)).toList(),
-          ),
-          if (_selectedMembers.isNotEmpty) const SizedBox(height: 12),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<Map<String, dynamic>>(
-              isExpanded: true,
-              hint: Text(
-                'Tambah anggota ke tim...',
-                style: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 14),
+    return FormField<List<Map<String, dynamic>>>(
+      initialValue: _selectedMembers,
+      validator: (value) {
+        if (_selectedMembers.isEmpty) {
+          return 'Pilih anggota terlebih dahulu';
+        }
+        return null;
+      },
+      builder: (FormFieldState<List<Map<String, dynamic>>> state) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? AppDarkColors.background : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: state.hasError ? Colors.red : (isDark ? AppDarkColors.border : AppColors.border),
+                ),
               ),
-              dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
-              icon: Icon(Icons.add, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
-              items: _availableMembers.map((member) {
-                return DropdownMenuItem<Map<String, dynamic>>(
-                  value: member,
-                  child: Text(member['name'] as String, style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
-                );
-              }).toList(),
-              onChanged: (member) {
-                if (member != null) _addMember(member);
-              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _selectedMembers.map((m) => _buildTagChip(m, isDark: isDark, state: state)).toList(),
+                  ),
+                  if (_selectedMembers.isNotEmpty) const SizedBox(height: 12),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<Map<String, dynamic>>(
+                      isExpanded: true,
+                      hint: Text(
+                        'Tambah anggota ke tim...',
+                        style: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 14),
+                      ),
+                      dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
+                      icon: Icon(Icons.add, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+                      items: _availableMembers.map((member) {
+                        return DropdownMenuItem<Map<String, dynamic>>(
+                          value: member,
+                          child: Text(member['name'] as String, style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
+                        );
+                      }).toList(),
+                      onChanged: (member) {
+                        if (member != null) {
+                          _addMember(member);
+                          state.didChange(_selectedMembers);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+            if (state.hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 16),
+                child: Text(
+                  state.errorText!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildTagChip(Map<String, dynamic> member, {required bool isDark}) {
+  Widget _buildTagChip(Map<String, dynamic> member, {required bool isDark, FormFieldState<List<Map<String, dynamic>>>? state}) {
     return Container(
       padding: const EdgeInsets.only(left: 10, top: 6, bottom: 6, right: 4),
       decoration: BoxDecoration(
@@ -422,7 +451,10 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
           ),
           const SizedBox(width: 4),
           InkWell(
-            onTap: () => _removeMember(member),
+            onTap: () {
+              _removeMember(member);
+              state?.didChange(_selectedMembers);
+            },
             child: Icon(
               Icons.close,
               size: 16,

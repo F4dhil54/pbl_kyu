@@ -373,6 +373,17 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
 
         if (croppedFile != null) {
           final bytes = await croppedFile.readAsBytes();
+          if (bytes.length > 2 * 1024 * 1024) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Ukuran foto profil tidak boleh lebih dari 2 MB'),
+                  backgroundColor: AppColors.alertText,
+                ),
+              );
+            }
+            return;
+          }
           setState(() {
             _selectedImageBytes = bytes;
           });

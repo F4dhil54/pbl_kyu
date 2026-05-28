@@ -315,7 +315,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                 onTap: () async {
                   Navigator.pop(context);
                   final picker = ImagePicker();
-                  final pickedFile = await picker.pickImage(source: ImageSource.camera);
+                  final pickedFile = await picker.pickImage(source: ImageSource.camera, imageQuality: 70, maxWidth: 1080);
                   if (pickedFile != null) {
                     final size = await pickedFile.length();
                     if (size > 5 * 1024 * 1024) {
@@ -349,7 +349,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                 onTap: () async {
                   Navigator.pop(context);
                   final picker = ImagePicker();
-                  final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                  final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 1080);
                   if (pickedFile != null) {
                     final size = await pickedFile.length();
                     if (size > 5 * 1024 * 1024) {
@@ -1273,6 +1273,15 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: AppColors.primary),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '* Maksimal ukuran lampiran adalah 5 MB.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
                       const SizedBox(height: 32),
