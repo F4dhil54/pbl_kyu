@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
-import '../../../profile/presentation/views/profile_view_team.dart';
-import 'task_detail_team_screen.dart' as task_detail;
+import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
+import '../providers/task_provider.dart';
+import '../../../project/presentation/providers/project_provider.dart';
+import '../../../project/data/models/project_model.dart';
+import '../../../project/presentation/views/project_detail_screen.dart';
 
-class TeamTaskListScreen extends StatelessWidget {
+class TeamTaskListScreen extends ConsumerWidget {
   const TeamTaskListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final myTasksAsync = ref.watch(myTasksProvider);
+    final projectsAsync = ref.watch(projectListProvider);
+
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeControl.themeNotifier,
       builder: (context, currentMode, child) {
@@ -39,37 +46,24 @@ class TeamTaskListScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ProfileViewTeam()),
-                  );
-                },
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                  child: Image.asset(
-                    'image/ic_profile.png',
-                    width: 24,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.person, 
-                      color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
-                      size: 24
-                    ),
-                  ),
-                ),
-              ),
+              const ProfileAvatarButton(),
               const SizedBox(width: 20),
             ],
           ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Daftar Tugas',
+          body: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(myTasksProvider);
+              ref.invalidate(projectListProvider);
+              await Future.delayed(const Duration(milliseconds: 500));
+            },
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Daftar Tugas',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -80,7 +74,7 @@ class TeamTaskListScreen extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      'Tugas Prioritas',
+                      'Semua Tugas',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -92,7 +86,7 @@ class TeamTaskListScreen extends StatelessWidget {
                       width: 8,
                       height: 8,
                       decoration: const BoxDecoration(
-                        color: AppColors.alertText, // Red dot tetap merah di kedua mode
+                        color: AppColors.primary, 
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -100,75 +94,109 @@ class TeamTaskListScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Task Card 1
-                _buildTaskCard(
-                  isDark: isDark,
-                  badgeText: 'Sedang Dikerjakan',
-                  badgeColor: isDark ? const Color(0xFF115E59) : const Color(0xFFCCFBF1), // Teal gelap vs Teal terang
-                  badgeTextColor: isDark ? const Color(0xFF99F6E4) : const Color(0xFF0F766E),
-                  title: 'Projek Q4 Brand',
-                  description: 'Mengintegrasikan komponen bento grid untuk\nvisualisasi data proyek utama. Melibatkan\nsistem kampanye digital untuk meningkatkan\nawareness dan engagement pelanggan.',
-                  dateIcon: Icons.calendar_today_outlined,
-                  dateText: '24 Okt 2026',
-                  dateColor: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                  topRightIcon: Icons.more_vert,
-                  bottomRightWidget: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white : const Color(0xFF020617), // Putih di mode gelap, Navy pekat di terang
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.close, 
-                      color: isDark ? AppDarkColors.background : Colors.white, 
-                      size: 14
-                    ),
-                  ),
-                  leftBorderColor: isDark ? Colors.white : const Color(0xFF020617),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const task_detail.TaskDetailTeamScreen()),
+                myTasksAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (err, stack) => Text('Gagal memuat tugas: $err'),
+                  data: (tasks) {
+                    if (tasks.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Text(
+                            'Tidak ada tugas.',
+                            style: TextStyle(
+                              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: tasks.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final task = tasks[index];
+                        final isCompleted = task.statusTugas == 'Selesai';
+                        
+                        ProjectModel? matchedProject;
+                        projectsAsync.whenData((projectList) {
+                          try {
+                            matchedProject = projectList.firstWhere((p) => p.id == task.projectId);
+                          } catch (_) {}
+                        });
+
+                        String dateText = 'Tidak ada tenggat';
+                        Color dateColor = isDark ? AppDarkColors.textSecondary : AppColors.textSecondary;
+                        if (isCompleted) {
+                          dateText = 'Selesai';
+                          dateColor = AppColors.successText;
+                        } else if (task.deadlineDate != null) {
+                          final deadline = task.deadlineDate!;
+                          dateText = '${deadline.day} ${[
+                            'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+                            'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'
+                          ][deadline.month - 1]} ${deadline.year}';
+                          
+                          // If deadline is passed and not completed
+                          if (deadline.isBefore(DateTime.now()) && !isCompleted) {
+                            dateColor = AppColors.alertText;
+                          }
+                        }
+
+                        // Status styling
+                        String badgeText = task.statusTugas;
+                        Color badgeColor;
+                        Color badgeTextColor;
+
+                        if (isCompleted) {
+                          badgeColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFD1FAE5);
+                          badgeTextColor = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF047857);
+                        } else if (task.statusTugas == 'Sedang Dikerjakan') {
+                          badgeColor = isDark ? const Color(0xFF115E59) : const Color(0xFFCCFBF1);
+                          badgeTextColor = isDark ? const Color(0xFF99F6E4) : const Color(0xFF0F766E);
+                        } else {
+                          // Draft, Akan Dikerjakan, Ditinjau, Dijadwalkan
+                          badgeColor = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+                          badgeTextColor = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569);
+                        }
+
+                        return _buildTaskCard(
+                          isDark: isDark,
+                          badgeText: badgeText,
+                          badgeColor: badgeColor,
+                          badgeTextColor: badgeTextColor,
+                          title: task.taskNumber != null ? '#${task.taskNumber} ${task.judulTugas}' : task.judulTugas,
+                          description: task.deskripsiTugas.isNotEmpty ? task.deskripsiTugas : 'Tidak ada deskripsi',
+                          dateIcon: isCompleted ? Icons.check_circle_outline : Icons.calendar_today_outlined,
+                          dateText: dateText,
+                          dateColor: dateColor,
+                          topRightIcon: Icons.more_vert,
+                          leftBorderColor: isDark ? Colors.white : const Color(0xFF020617),
+                          onTap: () {
+                            if (matchedProject != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProjectDetailScreen(project: matchedProject!),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Proyek tidak ditemukan')),
+                              );
+                            }
+                          },
+                        );
+                      },
                     );
                   },
-                ),
-                const SizedBox(height: 16),
-
-                // Task Card 2
-                _buildTaskCard(
-                  isDark: isDark,
-                  badgeText: 'Belum Selesai',
-                  badgeColor: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9), // Abu-abu gelap vs terang
-                  badgeTextColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
-                  title: 'Migrasi Cloud Fase 2',
-                  description: 'Memastikan sinkronisasi endpoint untuk fitur\nkolaborasi tim.',
-                  dateIcon: Icons.history,
-                  dateText: 'Besok',
-                  dateColor: AppColors.alertText, // Tetap merah peringatan
-                  topRightIcon: Icons.bookmark_border,
-                  bottomRightWidget: null,
-                ),
-                const SizedBox(height: 16),
-
-                // Task Card 3
-                _buildTaskCard(
-                  isDark: isDark,
-                  badgeText: 'Sedang Dikerjakan',
-                  badgeColor: isDark ? const Color(0xFF115E59) : const Color(0xFFCCFBF1),
-                  badgeTextColor: isDark ? const Color(0xFF99F6E4) : const Color(0xFF0F766E),
-                  title: 'Persiapan Audit Tahunan',
-                  description: 'Optimasi query untuk laporan performa anggota\nbulanan.',
-                  dateIcon: Icons.calendar_today_outlined,
-                  dateText: '28 Okt  2026',
-                  dateColor: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                  topRightIcon: Icons.more_vert,
-                  bottomRightWidget: null,
-                  leftBorderColor: isDark ? Colors.white : const Color(0xFF020617),
                 ),
                 const SizedBox(height: 40),
               ],
             ),
+          ),
           ),
         );
       },
@@ -204,7 +232,7 @@ class TeamTaskListScreen extends StatelessWidget {
               ? [] // Hilangkan bayangan hitam di mode gelap agar tidak kotor
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
+                    color: Colors.black.withValues(alpha: 0.02),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -283,7 +311,7 @@ class TeamTaskListScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    if (bottomRightWidget != null) bottomRightWidget,
+                    ?bottomRightWidget,
                   ],
                 ),
               ],

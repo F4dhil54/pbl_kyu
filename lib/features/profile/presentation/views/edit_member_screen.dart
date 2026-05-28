@@ -1,16 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
+import '../providers/profile_provider.dart';
 
-class EditMemberScreen extends StatefulWidget {
-  const EditMemberScreen({super.key});
+class EditMemberScreen extends ConsumerStatefulWidget {
+  final String invitationId;
+  final String name;
+  final String email;
+  final String status;
+
+  const EditMemberScreen({
+    super.key,
+    required this.invitationId,
+    required this.name,
+    required this.email,
+    required this.status,
+  });
 
   @override
-  State<EditMemberScreen> createState() => _EditMemberScreenState();
+  ConsumerState<EditMemberScreen> createState() => _EditMemberScreenState();
 }
 
-class _EditMemberScreenState extends State<EditMemberScreen> {
-  int _statusAkses = 1; // 1 for Aktif, 0 for Nonaktif
+class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
+  late int _statusAkses; // 1 for Aktif, 0 for Nonaktif
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _statusAkses = widget.status == 'aktif' ? 1 : 0;
+  }
+
+  Future<void> _saveChanges() async {
+    setState(() => _isSaving = true);
+    try {
+      final newStatus = _statusAkses == 1 ? 'aktif' : 'nonaktif';
+      
+      await ref.read(profileRepositoryProvider).updateInvitationStatus(
+        widget.invitationId,
+        newStatus,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Status anggota berhasil diperbarui'),
+            backgroundColor: AppColors.successText,
+          ),
+        );
+        Navigator.pop(context, true); // return true to refresh the parent list
+      }
+    } catch (e) {
+      debugPrint('Error updating member status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memperbarui status: $e'),
+            backgroundColor: AppColors.alertText,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,22 +98,6 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                 ),
               ],
             ),
-            actions: [
-              Container(
-                margin: const EdgeInsets.only(right: 20),
-                decoration: BoxDecoration(
-                  color: isDark ? AppDarkColors.surface : const Color(0xFF020617),
-                  shape: BoxShape.circle,
-                  border: isDark ? Border.all(color: AppDarkColors.border) : null,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 20),
-                  onPressed: () => Navigator.pop(context),
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(8),
-                ),
-              ),
-            ],
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -93,7 +133,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                     boxShadow: [
                       if (!isDark)
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
+                          color: Colors.black.withValues(alpha: 0.02),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -113,15 +153,15 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                       const SizedBox(height: 24),
 
                       _buildInputLabel('Nama Lengkap', isDark: isDark),
-                      _buildTextField('Sukma Ananda', isDark: isDark),
+                      _buildTextField(widget.name, isDark: isDark),
                       const SizedBox(height: 20),
 
                       _buildInputLabel('Alamat Email', isDark: isDark),
-                      _buildTextField('sukmaaa@gmail.com', isDark: isDark),
+                      _buildTextField(widget.email, isDark: isDark),
                       const SizedBox(height: 20),
 
                       _buildInputLabel('Jabatan', isDark: isDark),
-                      _buildDropdown('Project Lead', isDark: isDark),
+                      _buildTextField('Anggota', isDark: isDark),
                       const SizedBox(height: 20),
 
                       _buildInputLabel('Status Akses', isDark: isDark),
@@ -140,30 +180,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFB91C1C),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            'Hapus',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {},
+                          onPressed: _isSaving ? null : _saveChanges,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isDark ? AppColors.primary : const Color(0xFF020617),
                             shape: RoundedRectangleBorder(
@@ -172,7 +189,13 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             elevation: 0,
                           ),
-                          child: const Text(
+                          child: _isSaving 
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text(
                             'Simpan Perubahan',
                             style: TextStyle(
                               color: Colors.white,
@@ -233,47 +256,31 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   Widget _buildTextField(String text, {required bool isDark}) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.background : Colors.white,
+        color: isDark ? AppDarkColors.background : const Color(0xFFF8FAFC), // slightly darker to indicate read-only
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
       ),
       child: TextField(
         controller: TextEditingController(text: text),
+        readOnly: true, // As requested, fields are read-only
         decoration: const InputDecoration(
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
-        style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontSize: 14),
-      ),
-    );
-  }
-
-  Widget _buildDropdown(String text, {required bool isDark}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.background : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(text, style: TextStyle(fontSize: 14, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
-          Icon(Icons.keyboard_arrow_down, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
-        ],
+        style: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 14),
       ),
     );
   }
 
   Widget _buildRadioButton(String title, int value, {required bool isDark}) {
-    return GestureDetector(
+    return InkWell(
       onTap: () {
         setState(() {
           _statusAkses = value;
         });
       },
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 20,
@@ -293,8 +300,8 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                       width: 10,
                       height: 10,
                       decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
                         color: AppColors.primary,
+                        shape: BoxShape.circle,
                       ),
                     ),
                   )

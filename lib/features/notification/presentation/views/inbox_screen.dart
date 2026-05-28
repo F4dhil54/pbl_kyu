@@ -1,210 +1,149 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
-import '../../../profile/presentation/views/profile_view_manager.dart';
+import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
+import 'package:pbl_kyu/shared/widgets/app_sidebar.dart';
+import '../../data/models/notification_model.dart';
+import '../providers/notification_provider.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
 import 'message_detail_screen.dart' as message_detail;
+import 'compose_message_screen.dart';
 
-class InboxScreen extends StatelessWidget {
+import 'package:pbl_kyu/features/project/presentation/views/project_detail_screen.dart';
+import 'package:pbl_kyu/features/project/data/models/project_model.dart';
+
+class InboxScreen extends ConsumerStatefulWidget {
   const InboxScreen({super.key});
 
   @override
+  ConsumerState<InboxScreen> createState() => _InboxScreenState();
+}
+
+class _InboxScreenState extends ConsumerState<InboxScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Load data initially
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(notificationNotifierProvider.notifier).loadNotifications();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  String _formatNotificationTime(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date).inDays;
+    final isToday = now.year == date.year && now.month == date.month && now.day == date.day;
+    final isYesterday = now.subtract(const Duration(days: 1)).day == date.day && now.month == date.month;
+    
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    if (isToday) {
+      return '$hour:$minute';
+    } else if (isYesterday) {
+      return 'Kemarin $hour:$minute';
+    } else if (difference >= 2 && difference <= 7) {
+      // 3 to 7 days (difference of 2 days = 3rd day)
+      final days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+      return '${days[date.weekday - 1]} $hour:$minute';
+    } else {
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      return '${date.day} ${months[date.month - 1]} ${date.year} $hour:$minute';
+    }
+  }
+
+  void _handleNotificationTap(NotificationModel notif) async {
+    // Mark as read
+    if (!notif.isRead) {
+      ref.read(notificationNotifierProvider.notifier).markAsRead(notif.id);
+    }
+
+    if (notif.tipeNotifikasi == 'pesan' || notif.tipeNotifikasi == 'mention' || notif.tipeNotifikasi == 'undangan') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => message_detail.MessageDetailScreen(
+            notification: notif,
+          ),
+        ),
+      );
+    } else if (notif.tipeNotifikasi == 'proyek' || notif.tipeNotifikasi == 'tugas') {
+      if (notif.projectId != null) {
+        showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+        try {
+          final supabase = Supabase.instance.client;
+          final response = await supabase.from('projects').select().eq('id', notif.projectId!).single();
+          final project = ProjectModel.fromJson(response);
+          if (mounted) {
+            Navigator.pop(context); // dismiss loading
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProjectDetailScreen(project: project),
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            Navigator.pop(context); // dismiss loading
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat proyek: $e')));
+          }
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Proyek tidak ditemukan')));
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final asyncNotifications = ref.watch(filteredNotificationsProvider);
+    final currentFilter = ref.watch(notificationFilterProvider);
+
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeControl.themeNotifier,
       builder: (context, currentMode, child) {
         bool isDark = currentMode == ThemeMode.dark;
 
-        Widget buildTab(String text, bool isSelected) {
+        Widget buildTab(String text, NotificationFilter filter) {
+          final isSelected = currentFilter == filter;
           Color selectedBg = isDark ? Colors.white : AppColors.textMain;
           Color unselectedBg = isDark ? AppDarkColors.surface : Colors.white;
           Color borderColor = isDark ? AppDarkColors.border : AppColors.border;
 
-          return Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: isSelected ? selectedBg : unselectedBg,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected ? selectedBg : borderColor,
-              ),
-            ),
-            child: Text(
-              text,
-              style: TextStyle(
-                color: isSelected 
-                    ? (isDark ? AppDarkColors.background : Colors.white) 
-                    : (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          );
-        }
-
-        Widget buildDateDivider(String date) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Text(
-                  date,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Divider(
-                    color: isDark ? AppDarkColors.border : AppColors.border
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        Widget buildNotificationCard({
-          required Color iconBgColor,
-          required String iconAsset,
-          required IconData fallbackIcon,
-          required Color iconColor,
-          required String title,
-          required String subtitle,
-          required String time,
-          required String content,
-          bool isUnread = false,
-          String? badgeText,
-          Color? badgeColor,
-          Color? badgeTextColor,
-          VoidCallback? onTap,
-        }) {
           return GestureDetector(
-            onTap: onTap,
+            onTap: () {
+              ref.read(notificationFilterProvider.notifier).state = filter;
+            },
             child: Container(
-              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: isDark ? AppDarkColors.surface : Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                color: isSelected ? selectedBg : unselectedBg,
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: isDark ? AppDarkColors.border : AppColors.border, 
-                  width: 0.5
+                  color: isSelected ? selectedBg : borderColor,
                 ),
-                boxShadow: isDark 
-                    ? [] 
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.01),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: iconBgColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Image.asset(
-                        iconAsset,
-                        width: 20,
-                        color: isDark ? Colors.white : null,
-                        errorBuilder: (context, error, stackTrace) => Icon(fallbackIcon, color: iconColor, size: 20),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: RichText(
-                                text: TextSpan(
-                                  style: TextStyle(
-                                    fontSize: 12, 
-                                    color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
-                                    height: 1.4
-                                  ),
-                                  children: [
-                                    TextSpan(text: title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    TextSpan(
-                                      text: subtitle, 
-                                      style: TextStyle(
-                                        color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
-                                      )
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              time,
-                              style: TextStyle(
-                                fontSize: 10, 
-                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
-                              ),
-                            ),
-                            if (isUnread) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                width: 6,
-                                height: 6,
-                                margin: const EdgeInsets.only(top: 4),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ] else ...[
-                              const SizedBox(width: 12),
-                            ]
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          content,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                            height: 1.4,
-                          ),
-                        ),
-                        if (badgeText != null) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: badgeColor,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              badgeText,
-                              style: TextStyle(
-                                color: badgeTextColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+              child: Text(
+                text,
+                style: TextStyle(
+                  color: isSelected 
+                      ? (isDark ? AppDarkColors.background : Colors.white) 
+                      : (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
               ),
             ),
           );
@@ -212,9 +151,27 @@ class InboxScreen extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
+          drawer: const AppSidebar(),
+          floatingActionButton: FloatingActionButton(
+            heroTag: 'inbox_screen_fab',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ComposeMessageScreen()),
+              );
+            },
+            backgroundColor: AppColors.primary,
+            child: const Icon(Icons.edit, color: Colors.white),
+          ),
           appBar: AppBar(
             backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
             elevation: 0,
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: Icon(Icons.menu, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
             title: Text(
               'KYU',
               style: TextStyle(
@@ -225,254 +182,393 @@ class InboxScreen extends StatelessWidget {
               ),
             ),
             actions: [
-              Image.asset(
-                'image/ic_search.png',
-                width: 24,
-                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                errorBuilder: (context, error, stackTrace) => Icon(
-                  Icons.search, 
-                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
+              const ProfileAvatarButton(),
+              const SizedBox(width: 20),
+            ],
+          ),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Kotak Masuk',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white : AppColors.textMain,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: asyncNotifications.when(
+                        data: (notifications) {
+                          final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+                          final unreadCount = notifications.where((n) {
+                            final isSentByMe = n.senderId == currentUserId && n.userId != currentUserId;
+                            return !n.isRead && !isSentByMe;
+                          }).length;
+                          return Text(
+                            '$unreadCount Baru',
+                            style: TextStyle(
+                              color: isDark ? AppDarkColors.background : Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
+                        loading: () => const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 2)),
+                        error: (err, stack) => const Text('Error', style: TextStyle(color: Colors.red, fontSize: 10)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 16),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ProfileViewManager()),
-                  );
-                },
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                  child: Image.asset(
-                    'image/ic_profile.png',
-                    width: 24,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.person, 
-                      color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
-                      size: 24
+
+              // Search Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (value) {
+                    ref.read(notificationSearchProvider.notifier).state = value;
+                  },
+                  style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+                  decoration: InputDecoration(
+                    hintText: 'Cari pesan atau notifikasi...',
+                    hintStyle: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+                    prefixIcon: Icon(Icons.search, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+                    filled: true,
+                    fillColor: isDark ? AppDarkColors.surface : Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 20),
+              
+              // Tabs Section
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    buildTab('Semua', NotificationFilter.semua),
+                    buildTab('Belum Dibaca', NotificationFilter.belumDibaca),
+                    buildTab('Mention & Pesan', NotificationFilter.mention),
+                    buildTab('Tugas & Proyek', NotificationFilter.tugas),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Notification List
+              Expanded(
+                child: asyncNotifications.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (err, stack) => Center(child: Text('Error: $err', style: TextStyle(color: AppColors.alertText))),
+                  data: (notifications) {
+                    if (notifications.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: isDark ? AppDarkColors.surface : const Color(0xFFEEEEEE),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  Icons.inbox, 
+                                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, 
+                                  size: 28
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Tidak ada notifikasi',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh: () => ref.read(notificationNotifierProvider.notifier).loadNotifications(),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 10, 20, 80),
+                        itemCount: notifications.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final notif = notifications[index];
+                          final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+                          final isSentByMe = notif.senderId == currentUserId && notif.userId != currentUserId;
+                          
+                          // Determine icon/color based on type
+                          IconData iconData = Icons.notifications;
+                          Color iconColor = AppColors.primary;
+                          Color iconBgColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F4FF);
+                          
+                          bool isAccepted = notif.tipeNotifikasi == 'undangan' && notif.pesan == 'Undangan diterima!';
+                          bool isRejected = notif.tipeNotifikasi == 'undangan' && notif.pesan == 'Undangan ditolak.';
+
+                          if (isSentByMe) {
+                            iconData = Icons.outbox;
+                            iconColor = isDark ? Colors.blue[300]! : Colors.blue;
+                            iconBgColor = isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.3) : const Color(0xFFE0F2FE);
+                          } else if (notif.tipeNotifikasi == 'pesan' || notif.tipeNotifikasi == 'mention') {
+                            iconData = Icons.chat_bubble_outline;
+                            iconColor = AppColors.primary;
+                          } else if (notif.tipeNotifikasi == 'tugas') {
+                            iconData = Icons.assignment_outlined;
+                            iconColor = isDark ? const Color(0xFF34D399) : AppColors.successText;
+                            iconBgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFE8F5E9);
+                          } else if (notif.tipeNotifikasi == 'proyek') {
+                            iconData = Icons.folder_open;
+                            iconColor = Colors.orange;
+                            iconBgColor = isDark ? const Color(0xFF422006) : const Color(0xFFFFF7ED);
+                          } else if (notif.tipeNotifikasi == 'kudos') {
+                            iconData = Icons.star_border;
+                            iconColor = Colors.amber;
+                            iconBgColor = isDark ? const Color(0xFF422006) : const Color(0xFFFFFBEB);
+                          } else if (isAccepted) {
+                            iconData = Icons.check_circle_outline;
+                            iconColor = AppColors.successText;
+                            iconBgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFE8F5E9);
+                          } else if (isRejected) {
+                            iconData = Icons.cancel_outlined;
+                            iconColor = AppColors.alertText;
+                            iconBgColor = isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFFEBEB);
+                          }
+
+                          Color notifBgColor = isAccepted 
+                              ? (isDark ? AppColors.successText.withValues(alpha: 0.15) : AppColors.successBackground)
+                              : (isRejected 
+                                  ? (isDark ? AppColors.alertText.withValues(alpha: 0.15) : const Color(0xFFFFEBEB))
+                                  : (isSentByMe || notif.isRead 
+                                      ? (isDark ? AppDarkColors.background : Colors.white)
+                                      : (isDark ? AppDarkColors.surface : AppColors.inputBackground)));
+
+                          String? displayAvatar = isSentByMe ? notif.receiverAvatar : notif.senderAvatar;
+
+                          return GestureDetector(
+                            onTap: () => _handleNotificationTap(notif),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: notifBgColor,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isAccepted 
+                                      ? AppColors.successText.withValues(alpha: 0.3)
+                                      : (isRejected 
+                                          ? AppColors.alertText.withValues(alpha: 0.3) 
+                                          : (isDark ? AppDarkColors.border : AppColors.border)), 
+                                  width: 0.5
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (displayAvatar != null && displayAvatar.isNotEmpty)
+                                    CircleAvatar(
+                                      radius: 20,
+                                      backgroundImage: NetworkImage(displayAvatar),
+                                    )
+                                  else
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: iconBgColor,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Center(
+                                        child: Icon(iconData, color: iconColor, size: 20),
+                                      ),
+                                    ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                isSentByMe 
+                                                    ? 'Terkirim ke: ${notif.receiverName ?? 'Pengguna'}'
+                                                    : notif.judul,
+                                                style: TextStyle(
+                                                  fontSize: 14, 
+                                                  color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
+                                                  fontWeight: (isSentByMe || notif.isRead) ? FontWeight.normal : FontWeight.bold
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              _formatNotificationTime(notif.createdAt),
+                                              style: TextStyle(
+                                                  fontSize: 10, 
+                                                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
+                                              ),
+                                            ),
+                                            if (!notif.isRead && !isSentByMe) ...[
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                width: 8,
+                                                height: 8,
+                                                margin: const EdgeInsets.only(top: 2),
+                                                decoration: const BoxDecoration(
+                                                  color: AppColors.primary,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                            ]
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Builder(
+                                          builder: (context) {
+                                            String displayPesan = notif.pesan;
+                                            if (notif.tipeNotifikasi == 'undangan' && notif.senderName != null && !isAccepted && !isRejected) {
+                                              displayPesan = displayPesan.replaceAll('Anda telah diundang', '${notif.senderName} mengundang Anda');
+                                            }
+                                            return Text(
+                                              displayPesan,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: (notif.isRead || isSentByMe) 
+                                                    ? (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary)
+                                                    : (isDark ? AppDarkColors.textMain : AppColors.textMain),
+                                                height: 1.4,
+                                              ),
+                                            );
+                                          }
+                                        ),
+                                        if (notif.projectName != null && notif.projectName!.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: isDark ? AppDarkColors.surface : AppColors.inputBackground,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              notif.projectName!,
+                                              style: TextStyle(
+                                                color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        if (notif.tipeNotifikasi == 'undangan' && !isAccepted && !isRejected) ...[
+                                          const SizedBox(height: 12),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: ElevatedButton(
+                                                  onPressed: () async {
+                                                    if (notif.senderId != null) {
+                                                      try {
+                                                        await ref.read(profileRepositoryProvider).respondToInvitation(notif.senderId!, notif.userId, 'aktif');
+                                                        if (context.mounted) {
+                                                          await ref.read(notificationNotifierProvider.notifier).updateNotificationStatus(notif.id, 'Undangan diterima!');
+                                                          if (context.mounted) {
+                                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Undangan diterima!')));
+                                                          }
+                                                        }
+                                                      } catch (e) {
+                                                        if (context.mounted) {
+                                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menerima undangan: $e')));
+                                                        }
+                                                      }
+                                                    } else {
+                                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal: ID pengirim tidak ditemukan.')));
+                                                    }
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: AppColors.successText,
+                                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                  ),
+                                                  child: const Text('Terima', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: OutlinedButton(
+                                                  onPressed: () async {
+                                                    if (notif.senderId != null) {
+                                                      try {
+                                                        await ref.read(profileRepositoryProvider).rejectInvitation(notif.senderId!, notif.userId);
+                                                        if (context.mounted) {
+                                                          await ref.read(notificationNotifierProvider.notifier).updateNotificationStatus(notif.id, 'Undangan ditolak.');
+                                                          if (context.mounted) {
+                                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Undangan ditolak.')));
+                                                          }
+                                                        }
+                                                      } catch (e) {
+                                                        if (context.mounted) {
+                                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menolak undangan: $e')));
+                                                        }
+                                                      }
+                                                    } else {
+                                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal: ID pengirim tidak ditemukan.')));
+                                                    }
+                                                  },
+                                                  style: OutlinedButton.styleFrom(
+                                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                                    side: const BorderSide(color: Colors.red),
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                  ),
+                                                  child: const Text('Tolak', style: TextStyle(color: Colors.red, fontSize: 12)),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
-          ),
-          body: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Kotak Masuk',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white : AppColors.textMain,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '12 Baru',
-                          style: TextStyle(
-                            color: isDark ? AppDarkColors.background : Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Tabs Section
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    children: [
-                      buildTab('Semua', true),
-                      buildTab('Belum Dibaca', false),
-                      buildTab('Mention', false),
-                      buildTab('Tenggat Waktu', false),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // HARI INI Divider
-                buildDateDivider('HARI INI'),
-                const SizedBox(height: 16),
-
-                // Today Notifications
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      buildNotificationCard(
-                        iconBgColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F4FF),
-                        iconAsset: 'image/ic_chat_blue.png',
-                        fallbackIcon: Icons.chat_bubble_outline,
-                        iconColor: AppColors.primary,
-                        title: 'Dea Marselia',
-                        subtitle: ' berkomentar pa',
-                        time: '10:24 AM',
-                        content: '"Saya telah memperbarui milestone untuk fase engineering. Beri tahu..."',
-                        isUnread: true,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const message_detail.MessageDetailScreen(
-                                senderName: 'Dea Marselia',
-                                title: 'Pembaruan Milestone',
-                                content: 'Saya telah memperbarui milestone untuk fase engineering. Beri tahu jika ada feedback tambahan.',
-                                time: '10:24 AM',
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      buildNotificationCard(
-                        iconBgColor: isDark ? const Color(0xFF064E3B) : const Color(0xFFE8F5E9),
-                        iconAsset: 'image/ic_clipboard_green.png',
-                        fallbackIcon: Icons.assignment_outlined,
-                        iconColor: isDark ? const Color(0xFF34D399) : AppColors.successText,
-                        title: 'Tugas Baru Diberikan',
-                        subtitle: '',
-                        time: '08:15 AM',
-                        content: 'Tinjau protokol keamanan untuk API V2',
-                        badgeText: 'Prioritas Tinggi',
-                        badgeColor: isDark ? const Color(0xFF115E59) : const Color(0xFFE0F2F1),
-                        badgeTextColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF009688),
-                        isUnread: true,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const message_detail.MessageDetailScreen(
-                                senderName: 'Sistem KYU',
-                                title: 'Tugas Baru Diberikan',
-                                content: 'Tinjau protokol keamanan untuk API V2 segera sebelum sprint berakhir.',
-                                time: '08:15 AM',
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      buildNotificationCard(
-                        iconBgColor: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFFEBEE),
-                        iconAsset: 'image/ic_alarm_red.png',
-                        fallbackIcon: Icons.notifications_none,
-                        iconColor: isDark ? const Color(0xFFFCA5A5) : AppColors.alertText,
-                        title: 'Pengingat Tenggat Waktu',
-                        subtitle: '',
-                        time: '07:00 AM',
-                        content: 'Proyek "Alpha Orion" Fase 1 jatuh tempo dalam 4 jam.',
-                        isUnread: false,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // KEMARIN Divider
-                buildDateDivider('KEMARIN'),
-                const SizedBox(height: 16),
-
-                // Yesterday Notifications
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      buildNotificationCard(
-                        iconBgColor: isDark ? const Color(0xFF334155) : const Color(0xFFF5F5F5),
-                        iconAsset: 'image/ic_document_grey.png',
-                        fallbackIcon: Icons.description_outlined,
-                        iconColor: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                        title: 'Dian Paramitha',
-                        subtitle: ' membagikan De',
-                        time: 'Kemarin',
-                        content: 'Dibagikan di #Project-Kyu',
-                        isUnread: false,
-                      ),
-                      const SizedBox(height: 12),
-                      buildNotificationCard(
-                        iconBgColor: isDark ? const Color(0xFF334155) : const Color(0xFFF5F5F5),
-                        iconAsset: 'image/ic_chat_grey.png',
-                        fallbackIcon: Icons.chat_bubble_outline,
-                        iconColor: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                        title: 'Sukma Ananda',
-                        subtitle: ' me-mention A',
-                        time: 'Kemarin',
-                        content: '"@User coba cek komponen baru ini"',
-                        isUnread: false,
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 40),
-                
-                // Bottom Empty State
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: isDark ? AppDarkColors.surface : const Color(0xFFEEEEEE),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Image.asset(
-                            'image/ic_history.png',
-                            width: 24,
-                            color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.history, 
-                              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, 
-                              size: 28
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Anda sudah membaca semuanya!',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Tidak ada notifikasi lama untuk ditampilkan.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
           ),
         );
       },
