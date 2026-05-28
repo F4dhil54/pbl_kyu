@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/theme/colors.dart';
-import '../../../../core/theme/theme_mode.dart';
 import '../../../../core/network/supabase_provider.dart';
 import 'package:pbl_kyu/features/auth/providers/auth_provider.dart';
 import 'package:pbl_kyu/features/project/presentation/providers/project_provider.dart';

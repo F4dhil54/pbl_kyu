@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "94965002918",
+    "project_id": "kyu-3c0ab",
+    "storage_bucket": "kyu-3c0ab.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:94965002918:android:5d5736ae2432a8622d3a67",
+        "android_client_info": {
+          "package_name": "com.example.pbl_kyu"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZzo3rci0wDgYiHlOsngcNZczKDt1r9pk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

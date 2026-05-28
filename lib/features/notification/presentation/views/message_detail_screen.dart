@@ -163,7 +163,7 @@ class _MessageDetailScreenState extends ConsumerState<MessageDetailScreen> {
                           if (displayEmail.isNotEmpty) ...[
                             const SizedBox(height: 2),
                             Text(
-                              isSentByMe ? 'terkirim ke ${displayEmail}' : 'ke saya',
+                              isSentByMe ? 'terkirim ke $displayEmail' : 'ke saya',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,

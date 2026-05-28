@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:pbl_kyu/core/network/supabase_provider.dart';
 import 'package:pbl_kyu/core/theme/theme_mode.dart';
 import 'package:pbl_kyu/features/project/presentation/providers/project_provider.dart';
@@ -189,6 +190,20 @@ class AuthController {
 
   // Fungsi Keluar Sistem
   Future<void> signOut() async {
+    // Ambil token FCM lalu hapus dari database untuk mencegah pengiriman notifikasi setelah logout
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user != null) {
+        final token = await FirebaseMessaging.instance.getToken();
+        if (token != null) {
+          await _supabase.from('user_tokens').delete().eq('fcm_token', token);
+          debugPrint("=== DEBUG: Token FCM berhasil dihapus dari database ===");
+        }
+      }
+    } catch (e) {
+      debugPrint("=== ERROR: Gagal menghapus token FCM saat logout -> $e ===");
+    }
+
     await _supabase.auth.signOut();
     
     // Tunda reset tema agar tidak berkedip (flash) ke mode terang saat animasi perpindahan halaman berlangsung
