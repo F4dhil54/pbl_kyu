@@ -78,7 +78,9 @@ class ProfileRepository {
     }
 
     // Resolve public URL — harus berupa string HTTP/HTTPS bersih
-    final publicUrl = _supabaseClient.storage.from(bucketName).getPublicUrl(canonicalFileName);
+    // Tambahkan timestamp untuk mencegah masalah cache agresif dari CDN Supabase
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final publicUrl = '${_supabaseClient.storage.from(bucketName).getPublicUrl(canonicalFileName)}?t=$timestamp';
     debugPrint('=== INFO: Avatar public URL: $publicUrl ===');
 
     // Commit ke public.profiles.avatar_url (Pure String Rule: hanya HTTP/HTTPS)
@@ -133,6 +135,9 @@ class ProfileRepository {
     
     final attributes = UserAttributes(data: data);
     final response = await _supabaseClient.auth.updateUser(attributes);
+    
+    // Force refresh session to ensure supabase.auth.currentUser is globally updated
+    await _supabaseClient.auth.refreshSession();
     
     // Also update public.profiles table so other users see the new name!
     final userId = _supabaseClient.auth.currentUser?.id;

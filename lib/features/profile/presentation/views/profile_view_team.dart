@@ -191,7 +191,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
       .subscribe();
   }
 
-  void _loadUserProfile() {
+  Future<void> _loadUserProfile() async {
     final supabase = ref.read(supabaseClientProvider);
     final user = supabase.auth.currentUser;
     if (user != null) {
@@ -205,6 +205,28 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                      user.userMetadata?['picture'] ?? 
                      user.userMetadata?['avatar'];
       });
+
+      try {
+        final profileData = await supabase
+            .from('profiles')
+            .select('nama, avatar_url')
+            .eq('id', user.id)
+            .maybeSingle();
+            
+        if (profileData != null && mounted) {
+           setState(() {
+             if (profileData['nama'] != null && profileData['nama'].toString().isNotEmpty) {
+               _nameController.text = profileData['nama'];
+             }
+             if (profileData['avatar_url'] != null && profileData['avatar_url'].toString().isNotEmpty) {
+               _avatarUrl = profileData['avatar_url'];
+             }
+           });
+        }
+      } catch (e) {
+        debugPrint("Failed to fetch profile from DB: $e");
+      }
+
       _loadFocusStats();
     }
   }
