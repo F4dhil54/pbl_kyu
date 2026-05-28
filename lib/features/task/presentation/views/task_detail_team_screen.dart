@@ -713,7 +713,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
       children: [
         // Title card
         Text(
-          _activeTask.judulTugas,
+          _activeTask.taskNumber != null ? '#${_activeTask.taskNumber} ${_activeTask.judulTugas}' : _activeTask.judulTugas,
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -838,6 +838,8 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
             ),
           ),
         ],
+
+        _buildGithubCommitsSection(isDark),
 
         // Riwayat Progress Tim
         Row(
@@ -1120,7 +1122,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
           children: [
             Expanded(
               child: Text(
-                _activeTask.judulTugas,
+                _activeTask.taskNumber != null ? '#${_activeTask.taskNumber} ${_activeTask.judulTugas}' : _activeTask.judulTugas,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -1294,6 +1296,8 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
             ),
           ),
         ],
+
+        _buildGithubCommitsSection(isDark),
 
         // Initial attachments
         _buildSectionLabel('Lampiran Tugas Awal', isDark),
@@ -1624,6 +1628,151 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildGithubCommitsSection(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionLabel('Riwayat Commit GitHub', isDark),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: ref.read(taskRepositoryProvider).getTaskCommits(_activeTask.id),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            if (snapshot.hasError) {
+              return Text(
+                'Gagal memuat commit: ${snapshot.error}',
+                style: const TextStyle(color: Colors.red, fontSize: 13),
+              );
+            }
+            final commits = snapshot.data;
+            if (commits == null || commits.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(
+                  'Belum ada commit GitHub yang terhubung dengan tugas ini.',
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black87,
+                    fontSize: 13,
+                  ),
+                ),
+              );
+            }
+
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: commits.length,
+              separatorBuilder: (context, index) => Divider(
+                height: 24,
+                color: isDark ? AppDarkColors.border : AppColors.border,
+                thickness: 0.5,
+              ),
+              itemBuilder: (context, index) {
+                final commit = commits[index];
+                final profile = commit['profiles'] as Map<String, dynamic>? ?? {};
+                final name = profile['nama'] ?? 'Anggota';
+                final email = profile['email'] ?? '';
+                final avatarUrl = profile['avatar_url'] as String?;
+                
+                final sha = commit['commit_sha'] as String;
+                final shortSha = sha.length > 7 ? sha.substring(0, 7) : sha;
+                final message = commit['message'] as String? ?? '';
+                
+                final dateVal = DateTime.tryParse(commit['created_at'] as String? ?? '')?.toLocal();
+                final dateStr = dateVal != null ? DateFormat('dd MMMM yyyy, HH:mm').format(dateVal) : '-';
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                          ? NetworkImage(avatarUrl)
+                          : null,
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      child: avatarUrl == null || avatarUrl.isEmpty
+                          ? Text(
+                              name[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppDarkColors.surface : Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  shortSha,
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white70 : Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (email.isNotEmpty)
+                            Text(
+                              email,
+                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                            ),
+                          const SizedBox(height: 4),
+                          Text(
+                            message,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            dateStr,
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }

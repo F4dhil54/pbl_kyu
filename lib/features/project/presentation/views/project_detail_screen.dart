@@ -24,6 +24,7 @@ class ProjectDetailScreen extends ConsumerStatefulWidget {
 class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   int _activeTabIndex = 0; // 0: Tugas, 1: Orang
   String _selectedEisenhowerFilter = 'Semua'; // Semua, Do, Schedule, Delegate, Done
+  bool _isSyncing = false;
 
 
 
@@ -717,41 +718,66 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!isManager) ...[
-          // Git sync and suggestion instructions for members
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                activeFilter == 'Draft Tugas Saya' ? 'Draft Tugas Saya' : 'Tugas Aktif Proyek',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                ),
+        // Git sync and suggestion instructions for everyone
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              isManager 
+                  ? (activeFilter == 'Tugas Aktif' ? 'Tugas Aktif Proyek' : activeFilter)
+                  : (activeFilter == 'Draft Tugas Saya' ? 'Draft Tugas Saya' : 'Tugas Aktif Proyek'),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppDarkColors.textMain : AppColors.textMain,
               ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Sinkronisasi commit GitHub berhasil diselaraskan!'),
-                      backgroundColor: AppColors.successText,
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.sync, size: 16, color: Colors.white),
-                label: const Text('Sync GitHub', style: TextStyle(color: Colors.white, fontSize: 12)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF24292F),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  minimumSize: Size.zero,
-                  elevation: 0,
-                ),
+            ),
+            ElevatedButton.icon(
+              onPressed: _isSyncing ? null : () async {
+                setState(() => _isSyncing = true);
+                try {
+                  await ref.read(projectRepositoryProvider).jalankanSyncGithub(project.id);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Sinkronisasi commit GitHub berhasil diselaraskan!'),
+                        backgroundColor: AppColors.successText,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Gagal sinkronisasi GitHub: ${e.toString().replaceAll('Exception: ', '')}'),
+                        backgroundColor: AppColors.alertText,
+                      ),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() => _isSyncing = false);
+                  }
+                }
+              },
+              icon: _isSyncing 
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync, size: 16, color: Colors.white),
+              label: const Text('Sync GitHub', style: TextStyle(color: Colors.white, fontSize: 12)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF24292F),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: Size.zero,
+                elevation: 0,
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-        ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
 
         // Eisenhower visual categories tabs with Funnel Filter
         Row(

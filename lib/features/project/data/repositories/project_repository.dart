@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/project_model.dart';
 
@@ -150,13 +152,38 @@ class ProjectRepository {
     }
   }
 
+  Future<String?> _getGithubToken(String userId) async {
+    try {
+      final res = await _supabaseClient
+          .from('profiles')
+          .select('github_token')
+          .eq('id', userId)
+          .maybeSingle();
+      return res?['github_token'] as String?;
+    } catch (e) {
+      debugPrint("Error fetching github token: $e");
+      return null;
+    }
+  }
+
   /// Create a new project
   Future<ProjectModel> createProject(ProjectModel project) async {
     try {
       final user = _supabaseClient.auth.currentUser;
+      final creatorId = user?.id ?? 'local-manager';
+
+      String? parsedRepoUrl;
+      String? githubToken;
+      if (project.githubRepo.isNotEmpty) {
+        parsedRepoUrl = parseGithubUrl(project.githubRepo);
+        githubToken = await _getGithubToken(creatorId);
+      }
+
       final projectWithCreator = project.copyWith(
-        creatorId: user?.id ?? 'local-manager',
+        creatorId: creatorId,
         statusAktif: true,
+        githubRepoUrl: parsedRepoUrl,
+        managerGithubToken: githubToken,
       );
       debugPrint("=== INFO: [Supabase] Creating project: ${projectWithCreator.name} ===");
       final response = await _supabaseClient
@@ -188,10 +215,25 @@ class ProjectRepository {
       return project;
     }
     try {
+      final user = _supabaseClient.auth.currentUser;
+      final creatorId = user?.id ?? project.creatorId;
+
+      String? parsedRepoUrl;
+      String? githubToken;
+      if (project.githubRepo.isNotEmpty) {
+        parsedRepoUrl = parseGithubUrl(project.githubRepo);
+        githubToken = await _getGithubToken(creatorId);
+      }
+
+      final updatedProject = project.copyWith(
+        githubRepoUrl: parsedRepoUrl,
+        managerGithubToken: githubToken,
+      );
+
       debugPrint("=== INFO: [Supabase] Updating project: ${project.id} ===");
       final response = await _supabaseClient
           .from('projects')
-          .update(project.toJson())
+          .update(updatedProject.toJson())
           .eq('id', project.id)
           .select()
           .single();
@@ -246,6 +288,162 @@ class ProjectRepository {
     } catch (e) {
       debugPrint("=== WARNING: Supabase delete failed, deleting locally. Error: $e ===");
       _localProjects.removeWhere((p) => p.id == id);
+    }
+  }
+
+  static String parseGithubUrl(String url) {
+    var sanitized = url.trim();
+    sanitized = sanitized.replaceAll(RegExp(r'^(https?:\/\/)?(www\.)?github\.com\/'), '');
+    sanitized = sanitized.replaceAll(RegExp(r'^git@github\.com:'), '');
+    sanitized = sanitized.replaceAll(RegExp(r'\.git$'), '');
+    if (sanitized.endsWith('/')) {
+      sanitized = sanitized.substring(0, sanitized.length - 1);
+    }
+    return sanitized;
+  }
+
+  Future<String?> _getTaskIdByNumber(String projectId, int taskNumber) async {
+    try {
+      final res = await _supabaseClient
+          .from('tasks')
+          .select('id')
+          .eq('project_id', projectId)
+          .eq('task_number', taskNumber)
+          .maybeSingle();
+      return res?['id'] as String?;
+    } catch (e) {
+      debugPrint("Error fetching task ID by number: $e");
+      return null;
+    }
+  }
+
+  Future<void> jalankanSyncGithub(String projectId) async {
+    if (projectId.startsWith('local-')) {
+      debugPrint("=== INFO: Local project sync is skipped ===");
+      return;
+    }
+
+    // 1. Fetch project repository details
+    final projectRes = await _supabaseClient
+        .from('projects')
+        .select('github_repo_url, manager_github_token, pembuat_id')
+        .eq('id', projectId)
+        .single();
+
+    final repoUrl = projectRes['github_repo_url'] as String?;
+    var token = projectRes['manager_github_token'] as String?;
+    final creatorId = projectRes['pembuat_id'] as String;
+
+    if (token == null || token.isEmpty) {
+      token = await _getGithubToken(creatorId);
+    }
+
+    if (repoUrl == null || repoUrl.isEmpty) {
+      throw Exception("Tautan repositori GitHub proyek belum diatur.");
+    }
+    if (token == null || token.isEmpty) {
+      throw Exception("Token GitHub manajer tidak ditemukan. Silakan hubungkan akun GitHub terlebih dahulu.");
+    }
+
+    // 2. Fetch all members with their github usernames
+    final membersRes = await _supabaseClient
+        .from('project_members')
+        .select('user_id, profiles:profiles!project_members_user_id_fkey(id, github_username)')
+        .eq('project_id', projectId);
+
+    final Map<String, String> usernameToUserId = {};
+
+    for (var m in membersRes as List<dynamic>) {
+      final profile = m['profiles'] as Map<String, dynamic>?;
+      if (profile != null) {
+        final uid = profile['id'] as String?;
+        final ghUser = profile['github_username'] as String?;
+        if (uid != null && ghUser != null && ghUser.isNotEmpty) {
+          usernameToUserId[ghUser.toLowerCase()] = uid;
+        }
+      }
+    }
+
+    // Include the manager/creator
+    final creatorProfile = await _supabaseClient
+        .from('profiles')
+        .select('id, github_username')
+        .eq('id', creatorId)
+        .maybeSingle();
+
+    if (creatorProfile != null) {
+      final uid = creatorProfile['id'] as String?;
+      final ghUser = creatorProfile['github_username'] as String?;
+      if (uid != null && ghUser != null && ghUser.isNotEmpty) {
+        usernameToUserId[ghUser.toLowerCase()] = uid;
+      }
+    }
+
+    // 3. Make HTTP request to GitHub API to pull the 100 latest commits
+    final url = Uri.parse('https://api.github.com/repos/$repoUrl/commits?per_page=100');
+    final response = await http.get(
+      url,
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': 'Bearer $token',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception("Gagal mengambil data commit dari GitHub: ${response.reasonPhrase} (${response.body})");
+    }
+
+    final List<dynamic> commitsJson = jsonDecode(response.body);
+
+    // 4. Parse and Upsert each commit
+    final List<Map<String, dynamic>> commitsToUpsert = [];
+    final regex = RegExp(r'#(\d+)');
+
+    for (var commitData in commitsJson) {
+      final sha = commitData['sha'] as String;
+      final commitInfo = commitData['commit'] as Map<String, dynamic>;
+      final message = commitInfo['message'] as String;
+      final authorInfo = commitInfo['author'] as Map<String, dynamic>?;
+      final dateStr = authorInfo?['date'] as String?;
+
+      String? userId;
+      final authorLogin = commitData['author']?['login'] as String?;
+      if (authorLogin != null) {
+        userId = usernameToUserId[authorLogin.toLowerCase()];
+      }
+      userId ??= creatorId;
+
+      // Extract task ID from commit message
+      final match = regex.firstMatch(message);
+      String? taskId;
+      if (match != null) {
+        final taskNumberStr = match.group(1);
+        if (taskNumberStr != null) {
+          final taskNumber = int.tryParse(taskNumberStr);
+          if (taskNumber != null) {
+            taskId = await _getTaskIdByNumber(projectId, taskNumber);
+          }
+        }
+      }
+
+      commitsToUpsert.add({
+        'project_id': projectId,
+        'user_id': userId,
+        'commit_sha': sha,
+        'message': message,
+        'task_id': taskId,
+        'created_at': dateStr ?? DateTime.now().toIso8601String(),
+      });
+    }
+
+    if (commitsToUpsert.isNotEmpty) {
+      await _supabaseClient
+          .from('github_commits')
+          .upsert(
+            commitsToUpsert,
+            onConflict: 'project_id, commit_sha',
+          );
     }
   }
 }

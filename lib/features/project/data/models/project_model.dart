@@ -13,6 +13,8 @@ class ProjectModel {
   final bool statusAktif;
   final DateTime? createdAt;
   final bool isReadOnly;
+  final String? githubRepoUrl;
+  final String? managerGithubToken;
 
   ProjectModel({
     required this.id,
@@ -27,6 +29,8 @@ class ProjectModel {
     required this.statusAktif,
     this.createdAt,
     this.isReadOnly = false,
+    this.githubRepoUrl,
+    this.managerGithubToken,
   });
 
   factory ProjectModel.fromJson(Map<String, dynamic> json) {
@@ -80,6 +84,8 @@ class ProjectModel {
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
           : null,
+      githubRepoUrl: json['github_repo_url'] as String?,
+      managerGithubToken: json['manager_github_token'] as String?,
     );
   }
 
@@ -132,6 +138,8 @@ class ProjectModel {
           ? creatorId
           : null,
       'status_aktif': statusAktif,
+      'github_repo_url': githubRepoUrl,
+      'manager_github_token': managerGithubToken,
     };
   }
 
@@ -150,6 +158,8 @@ class ProjectModel {
           ? creatorId
           : null,
       'status_aktif': statusAktif,
+      'github_repo_url': githubRepoUrl,
+      'manager_github_token': managerGithubToken,
     };
   }
 
@@ -166,6 +176,8 @@ class ProjectModel {
     bool? statusAktif,
     DateTime? createdAt,
     bool? isReadOnly,
+    String? githubRepoUrl,
+    String? managerGithubToken,
   }) {
     return ProjectModel(
       id: id ?? this.id,
@@ -180,6 +192,8 @@ class ProjectModel {
       statusAktif: statusAktif ?? this.statusAktif,
       createdAt: createdAt ?? this.createdAt,
       isReadOnly: isReadOnly ?? this.isReadOnly,
+      githubRepoUrl: githubRepoUrl ?? this.githubRepoUrl,
+      managerGithubToken: managerGithubToken ?? this.managerGithubToken,
     );
   }
 }

@@ -161,7 +161,6 @@ class TaskRepository {
         
         final deadlineDate = DateTime.tryParse(deadlineRaw);
         if (deadlineDate != null && deadlineDate.isAfter(now) && deadlineDate.isBefore(tomorrow)) {
-          final taskId = json['id'] as String;
           final judulTugas = json['judul_tugas'] as String;
           final projectId = json['project_id'] as String;
 
@@ -815,6 +814,23 @@ class TaskRepository {
       case 'xlsx': return 'application/vnd.ms-excel';
       case 'txt': return 'text/plain';
       default: return 'application/octet-stream';
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getTaskCommits(String taskId) async {
+    if (taskId.startsWith('local-')) {
+      return [];
+    }
+    try {
+      final response = await _supabaseClient
+          .from('github_commits')
+          .select('id, commit_sha, message, created_at, profiles:user_id(id, nama, email, avatar_url)')
+          .eq('task_id', taskId)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response as List<dynamic>);
+    } catch (e) {
+      debugPrint("Error fetching task commits: $e");
+      return [];
     }
   }
 }

@@ -167,7 +167,7 @@ class TeamTaskListScreen extends ConsumerWidget {
                           badgeText: badgeText,
                           badgeColor: badgeColor,
                           badgeTextColor: badgeTextColor,
-                          title: task.judulTugas,
+                          title: task.taskNumber != null ? '#${task.taskNumber} ${task.judulTugas}' : task.judulTugas,
                           description: task.deskripsiTugas.isNotEmpty ? task.deskripsiTugas : 'Tidak ada deskripsi',
                           dateIcon: isCompleted ? Icons.check_circle_outline : Icons.calendar_today_outlined,
                           dateText: dateText,
