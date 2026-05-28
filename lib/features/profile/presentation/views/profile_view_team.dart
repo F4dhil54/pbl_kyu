@@ -11,6 +11,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:pbl_kyu/core/theme/colors.dart';
 import 'package:pbl_kyu/core/theme/theme_mode.dart';
 import 'package:pbl_kyu/features/auth/presentation/views/onboarding_screen.dart';
+import 'package:pbl_kyu/features/auth/providers/auth_provider.dart';
 import 'notification_preference_item.dart';
 import 'package:pbl_kyu/core/services/github_status.dart';
 import 'package:pbl_kyu/core/network/supabase_provider.dart';
@@ -826,12 +827,16 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                   width: double.infinity,
                   height: 48,
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-                        (route) => false,
-                      );
+                    onPressed: () async {
+                      final authController = ref.read(authControllerProvider);
+                      await authController.signOut();
+                      if (context.mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+                          (route) => false,
+                        );
+                      }
                     },
                     icon: const Icon(Icons.logout, color: AppColors.alertText, size: 20),
                     label: const Text(

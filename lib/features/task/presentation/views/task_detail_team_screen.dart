@@ -768,23 +768,46 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
           error: (err, stack) => Text('Error: $err'),
           data: (membersList) {
             final assignedMembers = membersList.where((m) => _activeTask.assignees.contains(m['user_id'])).toList();
-            if (assignedMembers.isEmpty) {
-              return Text('Tidak ada anggota ditugaskan.', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13));
-            }
-            return Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: assignedMembers.map((m) {
-                return Chip(
-                  avatar: CircleAvatar(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                    child: Text(m['nama'][0].toUpperCase(), style: const TextStyle(color: AppColors.primary, fontSize: 10)),
-                  ),
-                  label: Text(m['nama']),
-                  backgroundColor: isDark ? AppDarkColors.surface : Colors.grey[200],
-                  labelStyle: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 12),
+            
+            return ref.watch(projectTeamsProvider(_activeTask.projectId)).when(
+              loading: () => const CircularProgressIndicator(),
+              error: (err, stack) => Text('Error: $err'),
+              data: (teamsList) {
+                final assignedTeams = teamsList.where((t) => _activeTask.projectTeamId == t['id']).toList();
+                
+                if (assignedMembers.isEmpty && assignedTeams.isEmpty) {
+                  return Text('Tidak ada anggota ditugaskan.', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13));
+                }
+                
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ...assignedTeams.map((t) {
+                      return Chip(
+                        avatar: CircleAvatar(
+                          backgroundColor: Colors.amber.withValues(alpha: 0.2),
+                          child: const Icon(Icons.group, color: Colors.amber, size: 14),
+                        ),
+                        label: Text(t['nama_tim'] ?? 'Tim'),
+                        backgroundColor: isDark ? AppDarkColors.surface : Colors.grey[200],
+                        labelStyle: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 12),
+                      );
+                    }),
+                    ...assignedMembers.map((m) {
+                      return Chip(
+                        avatar: CircleAvatar(
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                          child: Text(m['nama'][0].toUpperCase(), style: const TextStyle(color: AppColors.primary, fontSize: 10)),
+                        ),
+                        label: Text(m['nama']),
+                        backgroundColor: isDark ? AppDarkColors.surface : Colors.grey[200],
+                        labelStyle: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 12),
+                      );
+                    }),
+                  ],
                 );
-              }).toList(),
+              },
             );
           },
         ),

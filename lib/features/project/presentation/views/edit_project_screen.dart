@@ -21,7 +21,7 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
   late final TextEditingController _descController;
   late final TextEditingController _githubController;
 
-  final List<String> _availableLabels = ['Research', 'Backend', 'Design System', 'Frontend', 'DevOps', 'Urgent'];
+  final List<String> _availableLabels = ['Backend', 'Design System', 'Frontend', 'DevOps'];
   late final List<String> _selectedLabels;
 
   late String _selectedCategory;

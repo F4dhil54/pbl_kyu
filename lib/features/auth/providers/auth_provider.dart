@@ -190,7 +190,11 @@ class AuthController {
   // Fungsi Keluar Sistem
   Future<void> signOut() async {
     await _supabase.auth.signOut();
-    ThemeControl.resetTheme();
+    
+    // Tunda reset tema agar tidak berkedip (flash) ke mode terang saat animasi perpindahan halaman berlangsung
+    Future.delayed(const Duration(milliseconds: 400), () {
+      ThemeControl.resetTheme();
+    });
 
     // Flush/invalidate all active workspace providers to prevent cross-account cache leakage
     _ref.invalidate(projectListProvider);

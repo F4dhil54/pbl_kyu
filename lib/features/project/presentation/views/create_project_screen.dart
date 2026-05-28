@@ -19,8 +19,8 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _githubController = TextEditingController();
 
-  final List<String> _availableLabels = ['Urgent', 'Backend', 'Design System', 'Frontend', 'DevOps'];
-  final List<String> _selectedLabels = ['Urgent'];
+  final List<String> _availableLabels = ['Backend', 'Design System', 'Frontend', 'DevOps'];
+  final List<String> _selectedLabels = ['Backend'];
 
   String _selectedCategory = 'Teknologi';
   final List<String> _categories = ['Teknologi', 'Pemasaran', 'Operasional', 'Keuangan', 'Kreatif/Media', 'Lainnya'];
@@ -628,8 +628,6 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
 
   Color _getLabelColor(String label) {
     switch (label) {
-      case 'Urgent':
-        return AppColors.primary;
       case 'Backend':
         return const Color(0xFF2E7D32);
       case 'Design System':

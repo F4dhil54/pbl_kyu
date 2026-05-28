@@ -994,7 +994,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               itemBuilder: (context, index) {
                 final task = filteredList[index];
                 final members = ref.watch(projectMembersProvider(project.id)).value;
-                return _buildTaskCardWidget(context, task, isDark, isManager, project, members);
+                final teams = ref.watch(projectTeamsProvider(project.id)).value;
+                return _buildTaskCardWidget(context, task, isDark, isManager, project, members, teams);
               },
             );
           },
@@ -1083,7 +1084,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     );
   }
 
-  Widget _buildTaskCardWidget(BuildContext context, TaskModel task, bool isDark, bool isManager, ProjectModel project, List<Map<String, dynamic>>? members) {
+  Widget _buildTaskCardWidget(BuildContext context, TaskModel task, bool isDark, bool isManager, ProjectModel project, List<Map<String, dynamic>>? members, List<Map<String, dynamic>>? teams) {
     final bool isDone = task.statusTugas == 'Selesai';
     final Color categoryColor = isDone
         ? const Color(0xFF10B981)
@@ -1097,13 +1098,24 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     final bool isReadOnlyMode = !isManager && !isAssignedToMe;
 
     String assigneesText = 'Belum Ditugaskan';
-    if (task.assignees.isNotEmpty && members != null) {
-      final memberNames = members.where((m) => task.assignees.contains(m['user_id'])).map((m) => m['nama']).toList();
-      if (memberNames.isNotEmpty) {
-        assigneesText = memberNames.join(', ');
-      } else {
-        assigneesText = '${task.assignees.length} Anggota';
+    List<String> assignedNames = [];
+    
+    if (task.projectTeamId != null && teams != null) {
+      final teamIter = teams.where((t) => t['id'] == task.projectTeamId);
+      if (teamIter.isNotEmpty) {
+        assignedNames.add(teamIter.first['nama_tim'] as String);
       }
+    }
+    
+    if (task.assignees.isNotEmpty && members != null) {
+      final memberNames = members.where((m) => task.assignees.contains(m['user_id'])).map((m) => m['nama'] as String).toList();
+      assignedNames.addAll(memberNames);
+    }
+    
+    if (assignedNames.isNotEmpty) {
+      assigneesText = assignedNames.join(', ');
+    } else if (task.assignees.isNotEmpty) {
+      assigneesText = '${task.assignees.length} Anggota';
     }
 
     return GestureDetector(
@@ -1305,6 +1317,21 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
 
   Widget _buildOrangTab(bool isDark, bool isManager, ProjectModel project) {
     final membersAsync = ref.watch(projectMembersProvider(project.id));
+    final memberTeamsAsync = ref.watch(projectMembersTeamsProvider(project.id));
+    final profiles = ref.watch(allProfilesProvider).value;
+    
+    String managerName = 'Manager Workspace';
+    String managerEmail = 'Owner/Creator';
+    String managerAvatarUrl = '';
+    
+    if (profiles != null) {
+      final managerProfile = profiles.firstWhere((p) => p['id'] == project.creatorId, orElse: () => {});
+      if (managerProfile.isNotEmpty) {
+        managerName = managerProfile['nama'] ?? managerName;
+        managerEmail = managerProfile['email'] ?? managerEmail;
+        managerAvatarUrl = managerProfile['avatar_url'] ?? '';
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1332,17 +1359,41 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           ),
           child: Row(
             children: [
-              const ProfileAvatar(radius: 18),
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                child: managerAvatarUrl.isNotEmpty && managerAvatarUrl.trim().startsWith('http')
+                    ? ClipOval(
+                        child: Image.network(
+                          managerAvatarUrl.trim(),
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Text(
+                            managerName.isNotEmpty ? managerName[0].toUpperCase() : 'M',
+                            style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      )
+                    : Text(
+                        managerName.isNotEmpty ? managerName[0].toUpperCase() : 'M',
+                        style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                      ),
+              ),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Manager Workspace',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
-                  ),
-                  const Text('Owner/Creator', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      managerName,
+                      style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text('$managerEmail • Manajer/Owner', style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1385,6 +1436,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 final nama = member['nama'] ?? 'Anggota';
                 final email = member['email'] ?? '';
                 final role = member['role'] ?? 'Tim';
+                final userId = member['user_id'] as String;
+                final teamNames = memberTeamsAsync.value?[userId] ?? <String>[];
 
                 return Container(
                   padding: const EdgeInsets.all(12),
@@ -1406,6 +1459,22 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                           children: [
                             Text(nama, style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black)),
                             Text('$email • $role', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                            if (teamNames.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: teamNames.map((tName) => Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Text(tName, style: const TextStyle(fontSize: 9, color: Colors.amber, fontWeight: FontWeight.bold)),
+                                )).toList(),
+                              ),
+                            ],
                           ],
                         ),
                       ),
