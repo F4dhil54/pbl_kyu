@@ -524,22 +524,41 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Pengaturan Manajer',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Kelola profil, anggota tim, dan grup proyek Anda dari\ndasbor terpusat.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                    height: 1.5,
-                  ),
+                Row(
+                  children: [
+                    Image.asset(
+                      'image/logoSemua.png',
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Icon(Icons.groups, size: 72, color: isDark ? AppDarkColors.textSecondary : AppColors.primary),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Pengaturan Manajer',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Kelola profil, anggota tim, dan grup proyek Anda dari\ndasbor terpusat.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
 
