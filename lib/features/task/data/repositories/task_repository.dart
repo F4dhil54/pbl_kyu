@@ -67,34 +67,10 @@ class TaskRepository {
         taskAttachmentsMap.putIfAbsent(attachment.taskId, () => []).add(attachment);
       }
 
-      // ── AUTO-AKTIVASI TUGAS TERJADWAL ─────────────────────────────────
-      // Cari tugas berstatus 'scheduled' yang scheduled_for-nya sudah lewat.
-      // Jika ada, langsung update ke 'accept' di Supabase agar tim bisa melihat.
+      // ── AUTO-AKTIVASI TUGAS TERJADWAL & PENGINGAT TENGGAT WAKTU ───────
       final now = DateTime.now().toUtc();
-      final scheduledExpiredIds = <String>{};
-
-      for (final json in tasksData) {
-        if ((json['status_tugas'] as String?) != 'scheduled') continue;
-        final sfRaw = json['scheduled_for'] as String?;
-        if (sfRaw == null) continue;
-        final sf = DateTime.tryParse(sfRaw);
-        // Bandingkan UTC dengan UTC — scheduled_for dari Supabase sudah UTC
-        if (sf != null && sf.isBefore(now)) {
-          scheduledExpiredIds.add(json['id'] as String);
-        }
-      }
-
-      if (scheduledExpiredIds.isNotEmpty) {
-        try {
-          await _supabaseClient
-              .from('tasks')
-              .update({'status_tugas': 'accept', 'keputusan_manajer': 'Setujui'})
-              .inFilter('id', scheduledExpiredIds.toList());
-          debugPrint('=== INFO: Auto-activated ${scheduledExpiredIds.length} scheduled task(s): $scheduledExpiredIds ===');
-        } catch (activateErr) {
-          debugPrint('=== WARNING: Auto-activate scheduled tasks failed: $activateErr ===');
-        }
-      }
+      final scheduledExpiredIds = await _autoActivateScheduledTasks(tasksData, now, taskAssigneesMap);
+      await _autoCheckDeadlines(tasksData, now, taskAssigneesMap);
       // ─────────────────────────────────────────────────────────────────────
 
       // Bangun TaskModel. Untuk tugas yang di-auto-aktifkan, buat Map baru
@@ -123,6 +99,149 @@ class TaskRepository {
     }
   }
 
+  Future<Set<String>> _autoActivateScheduledTasks(List<dynamic> tasksData, DateTime now, Map<String, List<String>> taskAssigneesMap) async {
+    final scheduledExpiredIds = <String>{};
+
+    for (final json in tasksData) {
+      final st = (json['status_tugas'] as String?)?.toLowerCase().trim();
+      if (st != 'scheduled' && st != 'dijadwalkan') continue;
+      
+      final sfRaw = json['scheduled_for'] as String?;
+      if (sfRaw == null) continue;
+      final sf = DateTime.tryParse(sfRaw);
+      if (sf != null && sf.isBefore(now)) {
+        scheduledExpiredIds.add(json['id'] as String);
+      }
+    }
+
+    if (scheduledExpiredIds.isEmpty) return scheduledExpiredIds;
+
+    try {
+      await _supabaseClient
+          .from('tasks')
+          .update({'status_tugas': 'accept', 'keputusan_manajer': 'Setujui'})
+          .inFilter('id', scheduledExpiredIds.toList());
+      debugPrint('=== INFO: Auto-activated ${scheduledExpiredIds.length} scheduled task(s): $scheduledExpiredIds ===');
+      
+      final currentUser = _supabaseClient.auth.currentUser;
+      final List<Map<String, dynamic>> notifications = [];
+      
+      for (final taskId in scheduledExpiredIds) {
+        final taskJson = tasksData.firstWhere((t) => t['id'] == taskId);
+        final taskProjectId = taskJson['project_id'] as String;
+        final judulTugas = taskJson['judul_tugas'] as String;
+        
+        final membersRes = await _supabaseClient.from('project_members')
+            .select('user_id')
+            .eq('project_id', taskProjectId)
+            .eq('status_akses', 'aktif');
+        final members = membersRes as List<dynamic>;
+        final memberIds = members.map((m) => m['user_id'] as String).toList();
+        
+        String assignedStr = 'Semua Anggota';
+        final assigneeIds = taskAssigneesMap[taskId] ?? [];
+        if (assigneeIds.isNotEmpty) {
+          try {
+            final profilesRes = await _supabaseClient.from('profiles').select('nama').inFilter('id', assigneeIds);
+            final profiles = profilesRes as List<dynamic>;
+            final List<String> names = profiles.map((p) => (p['nama'] ?? 'Anggota') as String).toList();
+            final uniqueNames = names.toSet().toList();
+            if (uniqueNames.length > 2) {
+              assignedStr = '${uniqueNames[0]}, ${uniqueNames[1]}, dan ${uniqueNames.length - 2} lainnya';
+            } else if (uniqueNames.isNotEmpty) {
+              assignedStr = uniqueNames.join(' & ');
+            }
+          } catch (_) {}
+        }
+        
+        for (final uid in memberIds) {
+           notifications.add({
+              'user_id': uid,
+              'sender_id': currentUser?.id,
+              'project_id': taskProjectId,
+              'tipe_notifikasi': 'tugas',
+              'judul': 'Tugas Baru Dibuat',
+              'pesan': 'Manajer telah membuat tugas baru $judulTugas. Ditugaskan untuk: $assignedStr.',
+              'is_read': false,
+           });
+        }
+      }
+      
+      if (notifications.isNotEmpty) {
+         await _supabaseClient.from('notifications').insert(notifications);
+      }
+    } catch (activateErr) {
+      debugPrint('=== WARNING: Auto-activate scheduled tasks failed: $activateErr ===');
+    }
+    
+    return scheduledExpiredIds;
+  }
+
+  Future<void> _autoCheckDeadlines(List<dynamic> tasksData, DateTime now, Map<String, List<String>> taskAssigneesMap) async {
+    final tomorrow = now.add(const Duration(hours: 24));
+    final currentUser = _supabaseClient.auth.currentUser;
+    if (currentUser == null) return;
+    
+    final tasksWithApproachingDeadline = <Map<String, dynamic>>[];
+    for (final json in tasksData) {
+      final statusTugas = (json['status_tugas'] as String?)?.toLowerCase().trim();
+      if (statusTugas == 'done' || statusTugas == 'selesai' || statusTugas == 'draft' || statusTugas == 'draf') continue;
+      
+      final deadlineRaw = json['deadline'] as String?;
+      if (deadlineRaw == null) continue;
+      
+      final deadlineDate = DateTime.tryParse(deadlineRaw);
+      if (deadlineDate != null && deadlineDate.isAfter(now) && deadlineDate.isBefore(tomorrow)) {
+        tasksWithApproachingDeadline.add(json as Map<String, dynamic>);
+      }
+    }
+
+    if (tasksWithApproachingDeadline.isEmpty) return;
+
+    try {
+      final List<Map<String, dynamic>> notificationsToInsert = [];
+      
+      for (final json in tasksWithApproachingDeadline) {
+        final taskId = json['id'] as String;
+        final judulTugas = json['judul_tugas'] as String;
+        final projectId = json['project_id'] as String;
+        
+        final assigneeIds = taskAssigneesMap[taskId] ?? [];
+        if (assigneeIds.isEmpty) continue;
+
+        final existingNotifsRes = await _supabaseClient
+            .from('notifications')
+            .select('user_id')
+            .eq('tipe_notifikasi', 'tugas')
+            .eq('judul', 'Pengingat Tenggat Waktu')
+            .ilike('pesan', '%$judulTugas%');
+            
+        final existingNotifs = existingNotifsRes as List<dynamic>;
+        final notifiedUserIds = existingNotifs.map((n) => n['user_id'] as String).toSet();
+
+        for (final assigneeId in assigneeIds) {
+          if (!notifiedUserIds.contains(assigneeId)) {
+            notificationsToInsert.add({
+              'user_id': assigneeId,
+              'sender_id': currentUser.id,
+              'project_id': projectId,
+              'tipe_notifikasi': 'tugas',
+              'judul': 'Pengingat Tenggat Waktu',
+              'pesan': 'Tenggat waktu untuk tugas $judulTugas kurang dari 24 jam.',
+              'is_read': false,
+            });
+          }
+        }
+      }
+      
+      if (notificationsToInsert.isNotEmpty) {
+        await _supabaseClient.from('notifications').insert(notificationsToInsert);
+      }
+    } catch (e) {
+      debugPrint("=== WARNING: Deadline notification failed: $e ===");
+    }
+  }
+
   Future<List<TaskModel>> getMyTasks() async {
     try {
       final user = _supabaseClient.auth.currentUser;
@@ -148,48 +267,7 @@ class TaskRepository {
       final tasksData = tasksResponse as List<dynamic>;
       if (tasksData.isEmpty) return [];
 
-      // Deadline Notifications Check (< 24 jam)
-      final now = DateTime.now().toUtc();
-      final tomorrow = now.add(const Duration(hours: 24));
-      
-      for (final json in tasksData) {
-        final statusTugas = json['status_tugas'] as String?;
-        if (statusTugas == 'done' || statusTugas == 'selesai') continue;
-        
-        final deadlineRaw = json['deadline'] as String?;
-        if (deadlineRaw == null) continue;
-        
-        final deadlineDate = DateTime.tryParse(deadlineRaw);
-        if (deadlineDate != null && deadlineDate.isAfter(now) && deadlineDate.isBefore(tomorrow)) {
-          final judulTugas = json['judul_tugas'] as String;
-          final projectId = json['project_id'] as String;
 
-          try {
-            // Cek apakah notifikasi untuk tugas ini sudah pernah dikirim
-            final existingNotif = await _supabaseClient
-                .from('notifications')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('tipe_notifikasi', 'tugas')
-                .eq('judul', 'Pengingat Tenggat Waktu')
-                .ilike('pesan', '%$judulTugas%')
-                .maybeSingle();
-
-            if (existingNotif == null) {
-              await _supabaseClient.from('notifications').insert({
-                'user_id': user.id,
-                'project_id': projectId,
-                'tipe_notifikasi': 'tugas',
-                'judul': 'Pengingat Tenggat Waktu',
-                'pesan': 'Tenggat waktu untuk tugas "$judulTugas" tinggal kurang dari 24 jam.',
-                'is_read': false,
-              });
-            }
-          } catch (e) {
-            debugPrint("=== WARNING: Deadline notification failed: $e ===");
-          }
-        }
-      }
 
       // We should also fetch project names to display on the dashboard if needed, 
       // but ProjectListProvider can handle project info mapping.
@@ -232,10 +310,23 @@ class TaskRepository {
         taskAttachmentsMap.putIfAbsent(attachment.taskId, () => []).add(attachment);
       }
 
+      // ── AUTO-AKTIVASI TUGAS TERJADWAL & PENGINGAT TENGGAT WAKTU ───────
+      final now = DateTime.now().toUtc();
+      final scheduledExpiredIds = await _autoActivateScheduledTasks(tasksData, now, taskAssigneesMap);
+      await _autoCheckDeadlines(tasksData, now, taskAssigneesMap);
+      // ─────────────────────────────────────────────────────────────────────
+
       return tasksData.map((json) {
         final taskId = json['id'] as String;
+        final effectiveJson = scheduledExpiredIds.contains(taskId)
+            ? <String, dynamic>{
+                ...json as Map<String, dynamic>,
+                'status_tugas': 'accept',
+                'keputusan_manajer': 'Setujui',
+              }
+            : json;
         return TaskModel.fromJson(
-          json,
+          effectiveJson,
           assignees: taskAssigneesMap[taskId],
           attachments: taskAttachmentsMap[taskId],
           projectTeamId: taskProjectTeamIdMap[taskId],
@@ -339,10 +430,14 @@ class TaskRepository {
           'project_id': task.projectId,
           'tipe_notifikasi': 'tugas',
           'judul': 'Usulan Tugas Baru',
-          'pesan': 'Anggota tim mengusulkan tugas baru "${task.judulTugas}" untuk ditinjau.',
+          'pesan': 'Anggota tim mengusulkan tugas baru ${task.judulTugas} untuk ditinjau.',
           'is_read': false,
         });
-      } else if (task.dibuatOlehRole == 'Manajer') {
+      } else if (task.dibuatOlehRole == 'Manajer' && 
+                 task.statusTugas.toLowerCase().trim() != 'draft' && 
+                 task.statusTugas.toLowerCase().trim() != 'draf' && 
+                 task.statusTugas.toLowerCase().trim() != 'scheduled' &&
+                 task.statusTugas.toLowerCase().trim() != 'dijadwalkan') {
         // Construct assigned names string
         String assignedStr = '';
         if (assignees.isNotEmpty) {
@@ -374,7 +469,7 @@ class TaskRepository {
                   'project_id': task.projectId,
                   'tipe_notifikasi': 'tugas',
                   'judul': 'Tugas Baru Dibuat',
-                  'pesan': 'Manajer telah membuat tugas baru "${task.judulTugas}". Ditugaskan untuk: $assignedStr.',
+                  'pesan': 'Manajer telah membuat tugas baru ${task.judulTugas}. Ditugaskan untuk: $assignedStr.',
                   'is_read': false,
                 })
             .toList();
@@ -407,6 +502,14 @@ class TaskRepository {
     }
 
     final user = _supabaseClient.auth.currentUser;
+
+    final existingTaskRes = await _supabaseClient
+        .from('tasks')
+        .select('status_tugas')
+        .eq('id', task.id)
+        .maybeSingle();
+    final previousStatus = existingTaskRes != null ? existingTaskRes['status_tugas'] as String? : null;
+
     final response = await _supabaseClient
         .from('tasks')
         .update(task.toJson())
@@ -435,6 +538,56 @@ class TaskRepository {
       }).toList();
       await _supabaseClient.from('task_assignees').insert(assignments)
           .timeout(const Duration(seconds: 10));
+    }
+
+    // 6. Notifications on Update Task (Draft/Scheduled -> Active)
+    try {
+      final oldStatus = previousStatus?.toLowerCase().trim() ?? '';
+      final newStatus = task.statusTugas.toLowerCase().trim();
+      
+      if (task.dibuatOlehRole == 'Manajer' && 
+         (oldStatus == 'draft' || oldStatus == 'draf' || oldStatus == 'scheduled' || oldStatus == 'dijadwalkan') && 
+         newStatus != 'draft' && newStatus != 'draf' && newStatus != 'scheduled' && newStatus != 'dijadwalkan') {
+         
+        String assignedStr = '';
+        if (assignees.isNotEmpty) {
+          final List<String> names = assignees.map((a) => (a['name'] ?? 'Anggota') as String).toList();
+          final uniqueNames = names.toSet().toList();
+          if (uniqueNames.length > 2) {
+            assignedStr = '${uniqueNames[0]}, ${uniqueNames[1]}, dan ${uniqueNames.length - 2} lainnya';
+          } else {
+            assignedStr = uniqueNames.join(' & ');
+          }
+        } else {
+          assignedStr = 'Semua Anggota';
+        }
+
+        final membersRes = await _supabaseClient.from('project_members')
+            .select('user_id')
+            .eq('project_id', task.projectId)
+            .eq('status_akses', 'aktif');
+        final members = membersRes as List<dynamic>;
+        
+        final notifications = members
+            .map((m) => m['user_id'] as String)
+            .where((uid) => uid != user?.id)
+            .map((uid) => {
+                  'user_id': uid,
+                  'sender_id': user?.id,
+                  'project_id': task.projectId,
+                  'tipe_notifikasi': 'tugas',
+                  'judul': 'Tugas Baru Dibuat',
+                  'pesan': 'Manajer telah membuat tugas baru ${task.judulTugas}. Ditugaskan untuk: $assignedStr.',
+                  'is_read': false,
+                })
+            .toList();
+            
+        if (notifications.isNotEmpty) {
+          await _supabaseClient.from('notifications').insert(notifications);
+        }
+      }
+    } catch (e) {
+      debugPrint("=== WARNING: Failed to send updateTask notifications: $e ===");
     }
 
     String? resolvedTeamId;
@@ -549,7 +702,7 @@ class TaskRepository {
             'project_id': taskRes['project_id'],
             'tipe_notifikasi': 'tugas',
             'judul': 'Keputusan Draft Tugas',
-            'pesan': 'Usulan tugas "${taskRes['judul_tugas']}" telah ${keputusan == 'Setujui' ? 'disetujui' : 'ditolak'} oleh Manajer.',
+            'pesan': 'Usulan tugas ${taskRes['judul_tugas']} telah ${keputusan == 'Setujui' ? 'disetujui' : 'ditolak'} oleh Manajer.',
             'is_read': false,
           });
         }
@@ -747,6 +900,14 @@ class TaskRepository {
       try {
         final projectRes = await _supabaseClient.from('projects').select('pembuat_id').eq('id', projectId).single();
         final managerId = projectRes['pembuat_id'] as String;
+
+        String namaPengirim = 'anggota tim';
+        try {
+          final profileRes = await _supabaseClient.from('profiles').select('nama').eq('id', user.id).maybeSingle();
+          if (profileRes != null && profileRes['nama'] != null) {
+            namaPengirim = profileRes['nama'] as String;
+          }
+        } catch (_) {}
         
         if (dbStatus == 'done') {
           await _supabaseClient.from('notifications').insert({
@@ -755,7 +916,7 @@ class TaskRepository {
             'project_id': projectId,
             'tipe_notifikasi': 'tugas',
             'judul': 'Tugas Selesai',
-            'pesan': 'Tugas "$judulTugas" telah diselesaikan oleh anggota tim.',
+            'pesan': 'Tugas $judulTugas telah diselesaikan oleh $namaPengirim.',
             'is_read': false,
           });
         } else if (hambatan != null && hambatan.trim().isNotEmpty) {
@@ -765,7 +926,7 @@ class TaskRepository {
             'project_id': projectId,
             'tipe_notifikasi': 'tugas',
             'judul': 'Hambatan Tugas',
-            'pesan': 'Ada hambatan pada tugas "$judulTugas": $hambatan',
+            'pesan': 'Ada hambatan pada tugas $judulTugas oleh $namaPengirim : $hambatan',
             'is_read': false,
           });
         }

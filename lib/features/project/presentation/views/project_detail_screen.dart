@@ -179,7 +179,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                         'project_id': project.id,
                                                         'tipe_notifikasi': 'proyek',
                                                         'judul': 'Ditambahkan ke Proyek',
-                                                        'pesan': 'Anda telah ditambahkan ke dalam proyek "${project.name}".',
+                                                        'pesan': 'Anda telah ditambahkan ke dalam proyek.',
                                                         'is_read': false,
                                                       });
                                                       
@@ -199,7 +199,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                                 'project_id': project.id,
                                                                 'tipe_notifikasi': 'proyek',
                                                                 'judul': 'Anggota Baru',
-                                                                'pesan': 'Manajer telah menambahkan anggota baru ke dalam proyek.',
+                                                                'pesan': 'Manajer telah menambahkan $nama sebagai anggota baru dalam proyek.',
                                                                 'is_read': false,
                                                               })
                                                           .toList();
@@ -331,7 +331,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                             'project_id': project.id,
                                                             'tipe_notifikasi': 'proyek',
                                                             'judul': 'Tim Ditambahkan ke Proyek',
-                                                            'pesan': 'Tim Anda "$namaTim" telah ditambahkan ke dalam proyek "${project.name}".',
+                                                            'pesan': 'Tim Anda *$namaTim*, telah ditambahkan ke dalam proyek.',
                                                             'is_read': false,
                                                           });
                                                         } else {
@@ -342,7 +342,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                             'project_id': project.id,
                                                             'tipe_notifikasi': 'proyek',
                                                             'judul': 'Tim Baru Ditambahkan',
-                                                            'pesan': 'Manajer telah menambahkan tim "$namaTim" ke dalam proyek.',
+                                                            'pesan': 'Manajer telah menambahkan tim *$namaTim* ke dalam proyek.',
                                                             'is_read': false,
                                                           });
                                                         }

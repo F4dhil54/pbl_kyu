@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -14,9 +15,46 @@ final taskRepositoryProvider = Provider<TaskRepository>((ref) {
 class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
   final TaskRepository _repository;
   final String _projectId;
+  Timer? _autoActivateTimer;
+  final Set<String> _deadlineNotifiedTaskIds = {};
 
   TaskListNotifier(this._repository, this._projectId) : super(const AsyncValue.loading()) {
     fetchTasks();
+    _autoActivateTimer = Timer.periodic(const Duration(seconds: 15), (_) => _checkScheduledTasks());
+  }
+
+  @override
+  void dispose() {
+    _autoActivateTimer?.cancel();
+    super.dispose();
+  }
+
+  void _checkScheduledTasks() {
+    if (!state.hasValue || state.value == null) return;
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(hours: 24));
+    
+    bool needsRefresh = false;
+    for (final t in state.value!) {
+      if (t.statusTugas == 'Dijadwalkan' && t.scheduledFor != null && t.scheduledFor!.isBefore(now)) {
+        needsRefresh = true;
+        break;
+      }
+      
+      if (t.statusTugas != 'Selesai' && t.statusTugas != 'Draft' && t.statusTugas != 'Ditinjau') {
+        if (t.deadlineDate != null && t.deadlineDate!.isAfter(now) && t.deadlineDate!.isBefore(tomorrow)) {
+          if (!_deadlineNotifiedTaskIds.contains(t.id)) {
+            _deadlineNotifiedTaskIds.add(t.id);
+            needsRefresh = true;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (needsRefresh) {
+      fetchTasks();
+    }
   }
 
   Future<void> fetchTasks() async {
@@ -184,7 +222,39 @@ final projectTaskListProvider = StateNotifierProvider.family<TaskListNotifier, A
 // A provider for task tab filters
 final taskFilterProvider = StateProvider<String>((ref) => 'Tugas Aktif');
 
+final _myTasksDeadlineNotified = <String>{};
+
 final myTasksProvider = FutureProvider<List<TaskModel>>((ref) async {
   final repo = ref.watch(taskRepositoryProvider);
-  return repo.getMyTasks();
+  final tasks = await repo.getMyTasks();
+  
+  final timer = Timer.periodic(const Duration(seconds: 15), (_) {
+     final now = DateTime.now();
+     final tomorrow = now.add(const Duration(hours: 24));
+     bool needsRefresh = false;
+     
+     for (var t in tasks) {
+        if (t.statusTugas == 'Dijadwalkan' && t.scheduledFor != null && t.scheduledFor!.isBefore(now)) {
+           needsRefresh = true;
+           break;
+        }
+        
+        if (t.statusTugas != 'Selesai' && t.statusTugas != 'Draft' && t.statusTugas != 'Ditinjau') {
+          if (t.deadlineDate != null && t.deadlineDate!.isAfter(now) && t.deadlineDate!.isBefore(tomorrow)) {
+            if (!_myTasksDeadlineNotified.contains(t.id)) {
+               _myTasksDeadlineNotified.add(t.id);
+               needsRefresh = true;
+               break;
+            }
+          }
+        }
+     }
+     
+     if (needsRefresh) {
+         ref.invalidateSelf();
+     }
+  });
+  
+  ref.onDispose(() => timer.cancel());
+  return tasks;
 });
