@@ -271,7 +271,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       const SizedBox(height: 32),
 
                       // Nama Field
-                      _buildFieldLabel('NAMA LENGKAP', isDark),
+                      _buildFieldLabel('NAMA LENGKAP *', isDark),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _nameController,
@@ -299,7 +299,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       const SizedBox(height: 16),
 
                       // Email Field
-                      _buildFieldLabel('ALAMAT EMAIL', isDark),
+                      _buildFieldLabel('ALAMAT EMAIL *', isDark),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _emailController,
@@ -336,7 +336,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       const SizedBox(height: 16),
 
                       // Password Field
-                      _buildFieldLabel('KATA SANDI', isDark),
+                      _buildFieldLabel('KATA SANDI *', isDark),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _passwordController,
@@ -372,7 +372,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       const SizedBox(height: 16),
 
                       // Password Confirm Field
-                      _buildFieldLabel('KONFIRMASI KATA SANDI', isDark),
+                      _buildFieldLabel('KONFIRMASI KATA SANDI *', isDark),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _confirmPasswordController,
@@ -409,7 +409,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       const SizedBox(height: 24),
 
                       // Peran Selektor
-                      _buildFieldLabel('PILIH PERAN', isDark),
+                      _buildFieldLabel('PILIH PERAN *', isDark),
                       const SizedBox(height: 12),
                       FormField<String>(
                         key: _roleFieldKey, // Tambahkan Key untuk validasi mandiri

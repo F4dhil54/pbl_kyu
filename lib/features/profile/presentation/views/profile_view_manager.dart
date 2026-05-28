@@ -35,11 +35,13 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
   Uint8List? _selectedImageBytes;
   User? _currentUser;
   final _emailController = TextEditingController();
+  final _inviteFormKey = GlobalKey<FormState>();
   bool _isLoadingInvitation = false;
 
   List<Map<String, dynamic>> _teams = [];
   bool _isLoadingTeams = false;
   final _teamNameController = TextEditingController();
+  final _teamFormKey = GlobalKey<FormState>();
   String? _selectedMemberId;
   bool _isCreatingTeam = false;
   List<Map<String, dynamic>> _members = [];
@@ -118,7 +120,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menghubungkan GitHub: $e'), backgroundColor: AppColors.alertText),
+          const SnackBar(content: Text('Gagal menghubungkan GitHub. Silakan coba lagi.'), backgroundColor: AppColors.alertText),
         );
       }
     } finally {
@@ -271,26 +273,11 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
   }
 
   Future<void> _createTeam() async {
-    final teamName = _teamNameController.text.trim();
-    if (teamName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nama tim tidak boleh kosong'),
-          backgroundColor: AppColors.alertText,
-        ),
-      );
+    if (!_teamFormKey.currentState!.validate()) {
       return;
     }
 
-    if (_selectedMemberId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pilih anggota terlebih dahulu'),
-          backgroundColor: AppColors.alertText,
-        ),
-      );
-      return;
-    }
+    final teamName = _teamNameController.text.trim();
 
     setState(() => _isCreatingTeam = true);
 
@@ -386,6 +373,17 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
 
         if (croppedFile != null) {
           final bytes = await croppedFile.readAsBytes();
+          if (bytes.length > 2 * 1024 * 1024) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Ukuran foto profil tidak boleh lebih dari 2 MB'),
+                  backgroundColor: AppColors.alertText,
+                ),
+              );
+            }
+            return;
+          }
           setState(() {
             _selectedImageBytes = bytes;
           });
@@ -395,7 +393,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal memilih gambar: $e'),
+            content: Text('Gagal memilih gambar. Silakan coba lagi.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -456,8 +454,8 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memperbarui profil: $e'),
+          const SnackBar(
+            content: Text('Gagal memperbarui profil. Silakan coba lagi.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -712,7 +710,14 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildTextField('Email anggota baru...', isDark: isDark, controller: _emailController),
+                            Form(
+                              key: _inviteFormKey,
+                              child: _buildTextField('Email anggota baru *', isDark: isDark, controller: _emailController, validator: (value) {
+                                if (value == null || value.trim().isEmpty) return 'Email tidak boleh kosong';
+                                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value)) return 'Format email tidak valid';
+                                return null;
+                              }),
+                            ),
                             const SizedBox(height: 12),
                             _buildDropdown('Jabatan: Anggota', isDark: isDark, showArrow: false),
                             const SizedBox(height: 16),
@@ -811,30 +816,37 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Nama Tim', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
-                                const SizedBox(height: 8),
-                                _buildTextField('mis. Design Sprint', height: 40, isDark: isDark, controller: _teamNameController),
-                              ],
+                      Form(
+                        key: _teamFormKey,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Nama Tim *', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
+                                  const SizedBox(height: 8),
+                                  _buildTextField('mis. Design Sprint', height: 40, isDark: isDark, controller: _teamNameController, validator: (value) {
+                                    if (value == null || value.trim().isEmpty) return 'Nama tim tidak boleh kosong';
+                                    return null;
+                                  }),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Pilih Anggota', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
-                                const SizedBox(height: 8),
-                                _buildMemberDropdown(isDark: isDark),
-                              ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Pilih Anggota *', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? AppDarkColors.textMain : AppColors.textMain)),
+                                  const SizedBox(height: 8),
+                                  _buildMemberDropdown(isDark: isDark),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
@@ -1041,21 +1053,35 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
     );
   }
 
-  Widget _buildTextField(String hint, {double height = 48, required bool isDark, TextEditingController? controller}) {
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.background : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
-      ),
-      child: TextField(
+  Widget _buildTextField(String hint, {double height = 48, required bool isDark, TextEditingController? controller, String? Function(String?)? validator}) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: height),
+      child: TextFormField(
         controller: controller,
+        validator: validator,
         style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, fontSize: 14),
-          border: InputBorder.none,
+          filled: true,
+          fillColor: isDark ? AppDarkColors.background : Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Colors.red, width: 1.0),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Colors.red, width: 2.0),
+          ),
+          errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
           contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: (height - 20) / 2),
         ),
       ),
@@ -1089,41 +1115,58 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
       _selectedMemberId = null;
     }
 
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.background : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
+    return DropdownButtonFormField<String>(
+      value: _selectedMemberId,
+      hint: Text(
+        'Nama Anggota', 
+        style: TextStyle(
+          color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+          fontSize: 14
+        )
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedMemberId,
-          hint: Text(
-            'Nama Anggota', 
-            style: TextStyle(
-              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-              fontSize: 14
-            )
-          ),
-          dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
-          isExpanded: true,
-          style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontSize: 14),
-          icon: Icon(Icons.keyboard_arrow_down, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
-          onChanged: (String? newValue) {
-            setState(() {
-              _selectedMemberId = newValue;
-            });
-          },
-          items: activeMembers.map<DropdownMenuItem<String>>((Map<String, dynamic> member) {
-            return DropdownMenuItem<String>(
-              value: member['id'] as String,
-              child: Text(member['name'] as String),
-            );
-          }).toList(),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Pilih anggota terlebih dahulu';
+        }
+        return null;
+      },
+      dropdownColor: isDark ? AppDarkColors.surface : Colors.white,
+      isExpanded: true,
+      style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain, fontSize: 14),
+      icon: Icon(Icons.keyboard_arrow_down, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: isDark ? AppDarkColors.background : Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red, width: 1.0),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red, width: 2.0),
+        ),
+        errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       ),
+      onChanged: (String? newValue) {
+        setState(() {
+          _selectedMemberId = newValue;
+        });
+      },
+      items: activeMembers.map<DropdownMenuItem<String>>((Map<String, dynamic> member) {
+        return DropdownMenuItem<String>(
+          value: member['id'] as String,
+          child: Text(member['name'] as String),
+        );
+      }).toList(),
     );
   }
 
@@ -1226,8 +1269,8 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Gagal menghapus anggota: $e'),
+                        const SnackBar(
+                          content: Text('Gagal menghapus anggota. Silakan coba lagi.'),
                           backgroundColor: AppColors.alertText,
                         ),
                       );
@@ -1311,8 +1354,8 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Gagal menghapus tim: $e'),
+                        const SnackBar(
+                          content: Text('Gagal menghapus tim. Silakan coba lagi.'),
                           backgroundColor: AppColors.alertText,
                         ),
                       );
@@ -1404,6 +1447,10 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
   }
 
   Future<void> _inviteMember() async {
+    if (!_inviteFormKey.currentState!.validate()) {
+      return;
+    }
+
     if (_currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1415,26 +1462,6 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
     }
 
     final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Email tidak boleh kosong'),
-          backgroundColor: AppColors.alertText,
-        ),
-      );
-      return;
-    }
-
-    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    if (!emailRegex.hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Format email tidak valid'),
-          backgroundColor: AppColors.alertText,
-        ),
-      );
-      return;
-    }
 
     setState(() => _isLoadingInvitation = true);
 
@@ -1504,8 +1531,8 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengundang anggota: $e'),
+          const SnackBar(
+            content: Text('Gagal mengundang anggota. Silakan coba lagi.'),
             backgroundColor: AppColors.alertText,
           ),
         );

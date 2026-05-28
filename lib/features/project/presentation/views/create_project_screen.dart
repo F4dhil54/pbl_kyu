@@ -79,23 +79,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
   }
 
   Future<void> _submitProject() async {
-    if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nama proyek tidak boleh kosong!'),
-          backgroundColor: AppColors.alertText,
-        ),
-      );
-      return;
-    }
-
-    if (_selectedCategory == 'Lainnya' && _customCategoryController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kategori kustom tidak boleh kosong!'),
-          backgroundColor: AppColors.alertText,
-        ),
-      );
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 
@@ -266,8 +250,18 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildInputLabel('NAMA PROYEK', isDark: isDark),
-                        _buildTextField(_nameController, 'mis. Modernisasi Infrastruktur 2024', isDark: isDark),
+                        _buildInputLabel('NAMA PROYEK *', isDark: isDark),
+                        _buildTextField(
+                          _nameController,
+                          'mis. Modernisasi Infrastruktur 2024',
+                          isDark: isDark,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Nama proyek tidak boleh kosong';
+                            }
+                            return null;
+                          },
+                        ),
                         const SizedBox(height: 20),
 
                         _buildInputLabel('DESKRIPSI', isDark: isDark),
@@ -278,11 +272,21 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        _buildInputLabel('KATEGORI PROYEK', isDark: isDark),
+                        _buildInputLabel('KATEGORI PROYEK *', isDark: isDark),
                         _buildCategoryDropdown(isDark: isDark),
                         if (_selectedCategory == 'Lainnya') ...[
                           const SizedBox(height: 12),
-                          _buildTextField(_customCategoryController, 'Tulis kategori kustom Anda...', isDark: isDark),
+                          _buildTextField(
+                            _customCategoryController,
+                            'Tulis kategori kustom Anda...',
+                            isDark: isDark,
+                            validator: (value) {
+                              if (_selectedCategory == 'Lainnya' && (value == null || value.trim().isEmpty)) {
+                                return 'Kategori kustom tidak boleh kosong';
+                              }
+                              return null;
+                            },
+                          ),
                         ],
                         const SizedBox(height: 20),
 
@@ -445,69 +449,89 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint, {required bool isDark}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.background : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
-      ),
-      child: TextField(
-        controller: controller,
-        style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(
-            color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-            fontSize: 14,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
+  Widget _buildTextField(TextEditingController controller, String hint, {required bool isDark, String? Function(String?)? validator}) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(
+          color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+          fontSize: 14,
+        ),
+        filled: true,
+        fillColor: isDark ? AppDarkColors.background : Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red, width: 1.0),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red, width: 2.0),
+        ),
+        errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
         ),
       ),
     );
   }
 
-  Widget _buildTextFieldWithIcon(TextEditingController controller, String hint, IconData icon, {required bool isDark}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.background : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
-      ),
-      child: TextField(
-        controller: controller,
-        style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(
-            color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-            fontSize: 14,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-          prefixIcon: Icon(icon, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 20),
+  Widget _buildTextFieldWithIcon(TextEditingController controller, String hint, IconData icon, {required bool isDark, String? Function(String?)? validator}) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(
+          color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+          fontSize: 14,
         ),
+        filled: true,
+        fillColor: isDark ? AppDarkColors.background : Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red, width: 1.0),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red, width: 2.0),
+        ),
+        errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        prefixIcon: Icon(icon, color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary, size: 20),
       ),
     );
   }
 
-  Widget _buildTextArea(TextEditingController controller, String hint, {required bool isDark}) {
-    return Container(
+  Widget _buildTextArea(TextEditingController controller, String hint, {required bool isDark, String? Function(String?)? validator}) {
+    return SizedBox(
       height: 100,
-      decoration: BoxDecoration(
-        color: isDark ? AppDarkColors.background : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border),
-      ),
-      child: TextField(
+      child: TextFormField(
         controller: controller,
+        validator: validator,
         maxLines: null,
         expands: true,
         textAlignVertical: TextAlignVertical.top,
@@ -518,7 +542,25 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
             color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
             fontSize: 14,
           ),
-          border: InputBorder.none,
+          filled: true,
+          fillColor: isDark ? AppDarkColors.background : Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Colors.red, width: 1.0),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Colors.red, width: 2.0),
+          ),
+          errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
           contentPadding: const EdgeInsets.all(16),
         ),
       ),

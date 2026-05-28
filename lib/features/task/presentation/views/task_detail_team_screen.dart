@@ -533,15 +533,15 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                 onTap: () async {
                   Navigator.pop(context);
                   final picker = ImagePicker();
-                  final pickedFile = await picker.pickImage(source: ImageSource.camera);
+                  final pickedFile = await picker.pickImage(source: ImageSource.camera, imageQuality: 70, maxWidth: 1080);
                   if (pickedFile != null) {
                     final size = await pickedFile.length();
-                    // ✅ 15MB limit: 15 × 1024 × 1024 = 15,728,640 bytes
-                    if (size > 15728640) {
+                    // ✅ 5MB limit: 5 × 1024 × 1024 = 5242880 bytes
+                    if (size > 5242880) {
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
                           const SnackBar(
-                            content: Text('⚠️ Ukuran file terlalu besar! Maksimal lampiran adalah 15 MB.'),
+                            content: Text('⚠️ Ukuran file terlalu besar! Maksimal lampiran adalah 5 MB.'),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -564,15 +564,15 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                 onTap: () async {
                   Navigator.pop(context);
                   final picker = ImagePicker();
-                  final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                  final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 1080);
                   if (pickedFile != null) {
                     final size = await pickedFile.length();
-                    // ✅ 15MB limit: 15 × 1024 × 1024 = 15,728,640 bytes
-                    if (size > 15728640) {
+                    // ✅ 5MB limit: 5 × 1024 × 1024 = 5242880 bytes
+                    if (size > 5242880) {
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
                           const SnackBar(
-                            content: Text('⚠️ Ukuran file terlalu besar! Maksimal lampiran adalah 15 MB.'),
+                            content: Text('⚠️ Ukuran file terlalu besar! Maksimal lampiran adalah 5 MB.'),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -600,12 +600,12 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                   );
                   if (result != null) {
                     final size = result.files.single.size;
-                    // ✅ 15MB limit: 15 × 1024 × 1024 = 15,728,640 bytes
-                    if (size > 15728640) {
+                    // ✅ 5MB limit: 5 × 1024 × 1024 = 5242880 bytes
+                    if (size > 5242880) {
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
                           const SnackBar(
-                            content: Text('⚠️ Ukuran file terlalu besar! Maksimal lampiran adalah 15 MB.'),
+                            content: Text('⚠️ Ukuran file terlalu besar! Maksimal lampiran adalah 5 MB.'),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -1493,6 +1493,15 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '* Maksimal ukuran lampiran adalah 5 MB.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ] else ...[
                   Card(

@@ -357,7 +357,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'PILIH PERAN',
+                          'PILIH PERAN *',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -498,7 +498,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'ALAMAT EMAIL',
+                          'ALAMAT EMAIL *',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -557,7 +557,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'KATA SANDI',
+                            'KATA SANDI *',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,

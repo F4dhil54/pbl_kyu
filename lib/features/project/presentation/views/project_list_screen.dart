@@ -464,7 +464,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Proyek "${project.name}" dinonaktifkan'),
-                              backgroundColor: Colors.orange,
+                              backgroundColor: Colors.green,
                             ),
                           );
                         }
@@ -522,7 +522,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Proyek berhasil dihapus'),
-                                backgroundColor: Colors.red,
+                                backgroundColor: AppColors.success,
                               ),
                             );
                           }

@@ -116,15 +116,7 @@ class _MessageDetailScreenState extends ConsumerState<MessageDetailScreen> {
                 fontSize: 18,
               ),
             ),
-            actions: [
-              IconButton(
-                icon: Icon(
-                  Icons.more_vert, 
-                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary
-                ),
-                onPressed: () {},
-              ),
-            ],
+
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
