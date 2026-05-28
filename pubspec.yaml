@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_markdown: ^0.7.3
   http: ^1.2.0                   # Untuk melakukan request (GET/POST) ke API
   flutter_web_auth_2: ^5.0.2     # Untuk membuka halaman login GitHub & menangkap redirect
   flutter_secure_storage: ^9.0.0 # Untuk menyimpan GitHub Access Token dengan aman
@@ -21,13 +20,6 @@ dependencies:
   supabase_flutter: ^2.12.4
   flutter_riverpod: ^3.3.1
   flutter_dotenv: ^6.0.1
-  image_picker: ^1.1.2
-  file_picker: ^8.0.1
-  image_cropper: ^12.2.1
-  url_launcher: ^6.3.0
-  audioplayers: ^6.6.0
-  flutter_local_notifications: ^21.0.0
-  flutter_image_compress: ^2.4.0
 
 dev_dependencies:
   flutter_test:

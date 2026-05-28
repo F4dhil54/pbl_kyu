@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GitHubStatus {
@@ -18,7 +17,7 @@ class GitHubStatus {
     username = user;
     isSyncActive = sync;
 
-    debugPrint("DEBUG: Status disimpan! Connected: $connected, User: $user");
+    print("DEBUG: Status disimpan! Connected: $connected, User: $user");
   }
 
   // Fungsi untuk memanggil status dari HP
