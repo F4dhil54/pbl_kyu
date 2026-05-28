@@ -1041,35 +1041,36 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
           title: Text('Hapus Tugas', style: TextStyle(color: isDark ? Colors.white : Colors.black)),
           content: Text('Apakah Anda yakin ingin menghapus tugas "${task.judulTugas}"?', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Batal'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
                 try {
                   await ref.read(projectTaskListProvider(task.projectId).notifier).removeTask(task.id);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Tugas berhasil dihapus'),
-                        backgroundColor: AppColors.successText,
+                        backgroundColor: AppColors.success,
                       ),
                     );
                   }
                 } catch (e) {
+                  debugPrint("Error menghapus tugas: $e");
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Gagal menghapus tugas: $e'),
+                      const SnackBar(
+                        content: Text('Gagal menghapus tugas. Silakan coba lagi.'),
                         backgroundColor: AppColors.alertText,
                       ),
                     );

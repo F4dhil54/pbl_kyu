@@ -27,6 +27,7 @@ dependencies:
   url_launcher: ^6.3.0
   audioplayers: ^6.6.0
   flutter_local_notifications: ^21.0.0
+  flutter_image_compress: ^2.4.0
 
 dev_dependencies:
   flutter_test:

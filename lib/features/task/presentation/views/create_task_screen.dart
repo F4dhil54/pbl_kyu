@@ -45,6 +45,7 @@ class CreateTaskScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _judulController = TextEditingController();
   final _deskripsiController = TextEditingController();
 
@@ -314,7 +315,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                 onTap: () async {
                   Navigator.pop(context);
                   final picker = ImagePicker();
-                  final pickedFile = await picker.pickImage(source: ImageSource.camera);
+                  final pickedFile = await picker.pickImage(source: ImageSource.camera, imageQuality: 70, maxWidth: 1080);
                   if (pickedFile != null) {
                     final size = await pickedFile.length();
                     if (size > 5 * 1024 * 1024) {
@@ -348,7 +349,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                 onTap: () async {
                   Navigator.pop(context);
                   final picker = ImagePicker();
-                  final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                  final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 1080);
                   if (pickedFile != null) {
                     final size = await pickedFile.length();
                     if (size > 5 * 1024 * 1024) {
@@ -553,11 +554,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   // (seperti tombol "Tugaskan" di Google Classroom)
   // ============================================================
   Future<void> _tugaskanDraft() async {
-    final judul = _judulController.text.trim();
-    if (judul.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Judul tugas tidak boleh kosong!')),
-      );
+    if (!_formKey.currentState!.validate()) {
       return;
     }
     // Override _scheduledDate agar tidak masuk ke path 'scheduled'
@@ -569,10 +566,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     final judul = _judulController.text.trim();
     final deskripsi = _deskripsiController.text.trim();
 
-    if (judul.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Judul tugas tidak boleh kosong!')),
-      );
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 
@@ -959,12 +953,27 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInputLabel('JUDUL TUGAS', isDark),
-                      _buildTextField('Masukkan judul koordinasi...', isDark, _judulController),
-                      const SizedBox(height: 20),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInputLabel('JUDUL TUGAS *', isDark),
+                        _buildTextField(
+                          'Masukkan judul koordinasi...', 
+                          isDark, 
+                          _judulController,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Judul tugas tidak boleh kosong';
+                            }
+                            if (value.trim().length < 3) {
+                              return 'Judul tugas minimal 3 karakter';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
 
                       _buildInputLabel('DESKRIPSI TUGAS', isDark),
                       _buildTextArea('Jelaskan secara singkat tujuan, ruang lingkup, dan target hasil tugas...', isDark, _deskripsiController),
@@ -1266,6 +1275,15 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '* Maksimal ukuran lampiran adalah 5 MB.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
                       const SizedBox(height: 32),
 
                       // ── TOMBOL BAWAH: Context-aware ──────────────────────────
@@ -1366,6 +1384,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                     ],
                   ),
                 ),
+              ),
               ],
             ),
           ),
@@ -1389,9 +1408,10 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     );
   }
 
-  Widget _buildTextField(String hint, bool isDark, TextEditingController controller) {
-    return TextField(
+  Widget _buildTextField(String hint, bool isDark, TextEditingController controller, {String? Function(String?)? validator}) {
+    return TextFormField(
       controller: controller,
+      validator: validator,
       style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
@@ -1402,14 +1422,24 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
         ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red, width: 1.0),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red, width: 2.0),
+        ),
+        errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }
 
-  Widget _buildTextArea(String hint, bool isDark, TextEditingController controller) {
-    return TextField(
+  Widget _buildTextArea(String hint, bool isDark, TextEditingController controller, {String? Function(String?)? validator}) {
+    return TextFormField(
       controller: controller,
+      validator: validator,
       maxLines: 5,
       style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 14),
       decoration: InputDecoration(

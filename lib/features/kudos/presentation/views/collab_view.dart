@@ -816,6 +816,25 @@ class _CollabViewState extends ConsumerState<CollabView> {
             ),
             overflow: TextOverflow.ellipsis,
           ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.stars, 
+                color: isFirst ? Colors.yellow : Colors.orange, 
+                size: 14
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '$score pt',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isFirst ? Colors.white70 : (isDark ? AppDarkColors.textSecondary : AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
