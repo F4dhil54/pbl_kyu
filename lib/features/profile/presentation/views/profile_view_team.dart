@@ -442,43 +442,12 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                 // Profile Header
                 Row(
                   children: [
-                    Stack(
-                      children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            color: isDark ? AppDarkColors.surface : const Color(0xFFE5E7EB),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: isDark ? AppDarkColors.border : Colors.transparent),
-                          ),
-                          child: Center(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.asset(
-                                'image/logoSemua.png',
-                                width: 48,
-                                height: 48,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => Icon(Icons.groups, size: 40, color: isDark ? AppDarkColors.textSecondary : AppColors.primary),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: -4,
-                          right: -4,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: isDark ? AppColors.primary : AppColors.textMain,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: isDark ? AppDarkColors.background : AppColors.background, width: 2),
-                            ),
-                            child: const Icon(Icons.edit, size: 12, color: Colors.white),
-                          ),
-                        ),
-                      ],
+                    Image.asset(
+                      'image/logoSemua.png',
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Icon(Icons.groups, size: 72, color: isDark ? AppDarkColors.textSecondary : AppColors.primary),
                     ),
                     const SizedBox(width: 20),
                     Expanded(

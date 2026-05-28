@@ -239,35 +239,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       const SizedBox(height: 24),
 
                       // Logo Box Adaptif
-                      Container(
+                      Image.asset(
+                        'image/logoSemua.png',
                         width: 64,
                         height: 64,
-                        decoration: BoxDecoration(
-                          color: isDark ? AppDarkColors.surface : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark ? AppDarkColors.border : AppColors.border,
-                            width: 0.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Image.asset(
-                            'image/logoSemua.png',
-                            width: 44,
-                            height: 44,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.business_center,
-                              color: AppColors.primary,
-                              size: 40,
-                            ),
-                          ),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Icon(
+                          Icons.business_center,
+                          color: AppColors.primary,
+                          size: 64,
                         ),
                       ),
                       const SizedBox(height: 20),
