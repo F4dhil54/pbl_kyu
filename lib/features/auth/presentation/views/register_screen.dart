@@ -58,7 +58,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           try {
             final supabase = ref.read(supabaseClientProvider);
             
-            // Fix for "User Baru" bug: Sync name from Google metadata to profiles table
             final googleName = session.user.userMetadata?['name'] ?? session.user.userMetadata?['full_name'];
             if (googleName != null && googleName.toString().trim().isNotEmpty) {
               await supabase.from('profiles').update({'nama': googleName.toString().trim()}).eq('id', session.user.id);
@@ -97,7 +96,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   void dispose() {
-    _authStateSubscription?.cancel(); // Bersihkan listener
+    _authStateSubscription?.cancel();
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -113,7 +112,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _emailErrorText = null;
     });
 
-    // Validasi Form (Otomatis memvalidasi Nama, Email, Sandi, dan Peran)
+    // Validasi Form
     if (_formKey.currentState!.validate()) {
       final authController = ref.read(authControllerProvider);
       
@@ -152,7 +151,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     setState(() {
       _isGoogleLoading = true;
-      _isGoogleAuthFlowActive = true; // Tandai bahwa Google Auth sedang berjalan
+      _isGoogleAuthFlowActive = true;
     });
 
     try {
@@ -237,7 +236,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Logo Box Adaptif
+                      // Logo
                       Image.asset(
                         'image/logoSemua.png',
                         width: 64,
@@ -412,7 +411,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       _buildFieldLabel('PILIH PERAN *', isDark),
                       const SizedBox(height: 12),
                       FormField<String>(
-                        key: _roleFieldKey, // Tambahkan Key untuk validasi mandiri
+                        key: _roleFieldKey,
                         validator: (value) {
                           if (selectedRole == null) {
                             return 'Peran harus dipilih terlebih dahulu';

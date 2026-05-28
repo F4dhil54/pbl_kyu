@@ -12,7 +12,6 @@ class KudosRepository {
 
   /// Menghitung poin berdasarkan emoji reaksi
   int getEmojiPoints(String emoji) {
-    // Menghapus emoji modifier jika ada (seperti tone warna kulit) untuk kecocokan dasar
     final baseEmoji = emoji.runes.first;
     final thumbsUp = '👍'.runes.first;
     final fire = '🔥'.runes.first;
@@ -24,7 +23,7 @@ class KudosRepository {
     } else if (baseEmoji == hearts) {
       return 10;
     }
-    return 10; // Default
+    return 10;
   }
 
   /// Mengambil daftar aktivitas proyek (tugas progress & commit GitHub)
@@ -55,7 +54,7 @@ class KudosRepository {
         role = user.userMetadata?['role'] ?? 'Tim';
       }
 
-      // 1. Ambil proyek yang relevan berdasarkan peran (Manajer vs Tim)
+      // Ambil proyek yang relevan berdasarkan peran (Manajer vs Tim)
       List<String> projectIds = [];
       Map<String, String> projectNames = {};
 
@@ -97,7 +96,7 @@ class KudosRepository {
 
       if (projectIds.isEmpty) return _getLocalActivities();
 
-      // 2. Query timeline_aktivitas_terbaru view
+      // Query timeline_aktivitas_terbaru view
       final response = await _supabaseClient
           .from('timeline_aktivitas_terbaru')
           .select()
@@ -110,7 +109,7 @@ class KudosRepository {
         return [];
       }
 
-      // 3. Batch resolve task_ids and commit_shas
+      // Batch resolve task_ids and commit_shas
       final List<String> progressLogIds = [];
       final List<String> commitIds = [];
 
@@ -148,7 +147,7 @@ class KudosRepository {
         }
       }
 
-      // 4. Load all Kudos for grouping
+      // Load all Kudos for grouping
       final kudosRes = await _supabaseClient
           .from('kudos')
           .select('*, profiles:profiles!kudos_pengirim_id_fkey(id, nama, avatar_url)')
@@ -179,7 +178,7 @@ class KudosRepository {
       for (var k in _localKudos) {
         final r = KudosReaction(
           id: k['id'] ?? '',
-          pengirimId: k['pengirim_id'] ?? userId, // asumsi pengirim adalah user saat ini
+          pengirimId: k['pengirim_id'] ?? userId,
           pengirimNama: 'Anda (Offline)',
           reaksiEmoji: k['reaksi_emoji'] ?? '👏🏻',
         );
@@ -201,7 +200,7 @@ class KudosRepository {
         }
       }
 
-      // 5. Map to ActivityModel
+      // Map to ActivityModel
       final List<ActivityModel> activities = [];
       for (var row in rows) {
         final id = row['aktivitas_id'] as String;
@@ -223,7 +222,7 @@ class KudosRepository {
           final status = (row['status_detail'] as String? ?? 'Sedang Dikerjakan').trim();
           final cleanStatus = status.toLowerCase();
           if (cleanStatus != 'sedang dikerjakan' && cleanStatus != 'selesai' && cleanStatus != 'selesai dikerjakan') {
-            continue; // Skip logs that aren't 'Sedang Dikerjakan' or 'Selesai'
+            continue;
           }
           
           actionText = (status == 'Selesai' || status == 'Selesai Dikerjakan')
@@ -266,7 +265,7 @@ class KudosRepository {
     }
   }
 
-  /// Mengirim Kudos (Upsert)
+  /// Mengirim Kudos
   Future<void> giveKudos({
     required String projectId,
     String? taskId,
@@ -290,7 +289,7 @@ class KudosRepository {
       final poinKudos = getEmojiPoints(emoji);
 
       if (taskProgressLogId != null) {
-        // 1. Kudos Spesifik Log Progres Tugas
+        // Kudos Spesifik Log Progres Tugas
         final existing = await _supabaseClient
             .from('kudos')
             .select('id, reaksi_emoji')
@@ -328,7 +327,7 @@ class KudosRepository {
           'github_commit_id': null,
         });
       } else if (taskId != null) {
-        // 2. Kudos Spesifik Tugas (Fallback / jika tidak ada log progres)
+        // Kudos Spesifik Tugas (Fallback / jika tidak ada log progres)
         final existing = await _supabaseClient
             .from('kudos')
             .select('id, reaksi_emoji')
@@ -367,7 +366,7 @@ class KudosRepository {
           'github_commit_id': null,
         });
       } else {
-        // 3. Kudos Umum / Commit
+        // Kudos Umum / Commit
         String? githubCommitId;
         if (commitSha != null) {
           final res = await _supabaseClient
@@ -428,7 +427,7 @@ class KudosRepository {
         });
       }
 
-      // 4. Masukkan notifikasi opsional
+      // Masukkan notifikasi opsional
       try {
         await _supabaseClient.from('notifications').insert({
           'user_id': receiverId,
@@ -501,7 +500,7 @@ class KudosRepository {
         'nama': item['nama'] ?? 'User',
         'avatar_url': item['avatar_url'],
         'total_kudos': item['total_kudos'] ?? 0,
-        'score': item['total_kudos'] ?? 0, // di view total_kudos adalah poin totalnya
+        'score': item['total_kudos'] ?? 0, 
         'emojis': item['emojis'] ?? [],
       }).toList();
 
@@ -552,7 +551,7 @@ class KudosRepository {
     }
   }
 
-  // --- LOCAL FALLBACK LOGIC ---
+  // LOCAL FALLBACK LOGIC
 
   List<ActivityModel> _getLocalActivities() {
     final now = DateTime.now();
@@ -617,7 +616,6 @@ class KudosRepository {
     String emoji,
     String? commitSha,
   ) {
-    // Sesuai Opsi A, hapus removeWhere agar poin selalu terakumulasi (tidak ada yang ditimpa)
     
     _localKudos.add({
       'id': 'local-kudos-${DateTime.now().millisecondsSinceEpoch}',

@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalNotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -16,7 +17,6 @@ class LocalNotificationService {
     await _notificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle notification tap if needed
       },
     );
 
@@ -30,22 +30,26 @@ class LocalNotificationService {
     required String title,
     required String body,
   }) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'kyu_inbox_channel_v2',
+    final prefs = await SharedPreferences.getInstance();
+    final bool enableSound = prefs.getBool('enable_notifications') ?? true;
+
+    final String channelId = enableSound ? 'kyu_inbox_sound' : 'kyu_inbox_silent';
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      channelId,
       'Kotak Masuk KYU',
       channelDescription: 'Notifikasi untuk pesan dan pembaruan baru',
       importance: Importance.max,
       priority: Priority.high,
-      playSound: true,
+      playSound: enableSound,
     );
 
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+    final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
-      presentSound: true,
+      presentSound: enableSound,
     );
 
-    const NotificationDetails platformDetails = NotificationDetails(
+    final NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );

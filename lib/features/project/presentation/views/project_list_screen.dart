@@ -22,7 +22,7 @@ class ProjectListScreen extends ConsumerStatefulWidget {
 class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
-  bool _showActiveOnly = true; // For Manager filter tab
+  bool _showActiveOnly = true;
 
   String _formatIndonesianDate(DateTime? date) {
     if (date == null) return 'Diposting -';
@@ -140,7 +140,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                 ),
               ),
               data: (projects) {
-                // 1. Role and status filtering
+                // Role and status filtering
                 List<ProjectModel> filteredProjects = projects;
                 
                 if (isManager) {
@@ -151,7 +151,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                   filteredProjects = projects.where((p) => p.statusAktif).toList();
                 }
 
-                // 2. Search filtering
+                // Search filtering
                 if (searchQuery.isNotEmpty) {
                   final searchLower = searchQuery.toLowerCase();
                   filteredProjects = filteredProjects.where((project) {

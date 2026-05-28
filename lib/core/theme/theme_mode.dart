@@ -9,7 +9,7 @@ class ThemeControl {
   static Future<void> loadTheme(String userId) async {
     _currentUserId = userId;
     
-    // 1. Cek metadata user dari Supabase
+    // Cek metadata user dari Supabase
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null && user.userMetadata != null && user.userMetadata!['theme'] != null) {
       final isDark = user.userMetadata!['theme'] == 'dark';
@@ -21,7 +21,7 @@ class ThemeControl {
       return;
     }
 
-    // 2. Fallback ke lokal jika metadata belum ada
+    // Fallback ke lokal jika metadata belum ada
     final prefs = await SharedPreferences.getInstance();
     final isDark = prefs.getBool('theme_dark_$userId') ?? false;
     themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;

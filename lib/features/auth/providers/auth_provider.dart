@@ -128,7 +128,7 @@ class AuthController {
       if (response.user != null) {
         await ThemeControl.loadTheme(response.user!.id);
       }
-      return null; // Mengembalikan null jika sukses
+      return null;
     } on AuthException catch (e) {
       if (e.message == 'Invalid login credentials') {
         return 'Kata sandi salah. Silakan coba lagi.';
@@ -206,7 +206,7 @@ class AuthController {
 
     await _supabase.auth.signOut();
     
-    // Tunda reset tema agar tidak berkedip (flash) ke mode terang saat animasi perpindahan halaman berlangsung
+    // Tunda reset tema
     Future.delayed(const Duration(milliseconds: 400), () {
       ThemeControl.resetTheme();
     });

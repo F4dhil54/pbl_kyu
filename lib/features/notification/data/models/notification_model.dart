@@ -5,7 +5,7 @@ class NotificationModel {
   final String? senderId;
   final String? projectId;
   final String? projectName;
-  final String tipeNotifikasi; // 'pesan', 'tugas', 'mention', 'undangan', 'kudos', dll
+  final String tipeNotifikasi;
   final String judul;
   final String pesan;
   final bool isRead;

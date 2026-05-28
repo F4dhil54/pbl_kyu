@@ -36,8 +36,6 @@ class _NotificationPreferenceItemState extends State<NotificationPreferenceItem>
 
     if (mounted) {
       if (value) {
-        // Simulasi membunyikan notifikasi dengan package (misal audioplayers)
-        // Di sini kita cuma memberi tahu pengguna
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Notifikasi suara diaktifkan. Akan berbunyi sesuai bawaan HP.')),
         );

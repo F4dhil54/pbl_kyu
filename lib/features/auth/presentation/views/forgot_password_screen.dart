@@ -60,7 +60,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
               child: Form(
-                key: _formKey, // Form validasi global
+                key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -95,8 +95,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Logo Box Adaptif
-                    // Logo Box Adaptif
+                    // Logo
                     Image.asset(
                       'image/logoSemua.png',
                       width: 64,
@@ -130,7 +129,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // Label Alamat Email (Format Uppercase)
+                    // Alamat Email
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -144,7 +143,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 8),
                     
-                    // Input TextFormField Alamat Email dengan Validasi Mobile Baku
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,

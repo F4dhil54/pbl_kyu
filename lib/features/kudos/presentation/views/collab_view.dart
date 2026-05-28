@@ -703,7 +703,6 @@ class _CollabViewState extends ConsumerState<CollabView> {
               ),
             ),
           ),
-          // FAB removed
         );
       },
     );

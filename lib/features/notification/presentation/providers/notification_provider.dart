@@ -161,8 +161,6 @@ class NotificationNotifier extends StateNotifier<AsyncValue<List<NotificationMod
         pesan: pesan,
         senderId: _userId,
       );
-      
-      // Reload is not strictly needed for the sender's own inbox, but good for sync.
     } catch (e) {
       rethrow;
     }

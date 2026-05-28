@@ -8,11 +8,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/theme/colors.dart';
 import 'core/theme/theme_mode.dart';
 import 'core/services/notification_service.dart';
+import 'features/main_layout.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Fungsi ini otomatis berjalan saat notifikasi masuk dan aplikasi mati/di background.
-  // Android akan otomatis memunculkan pop-up jika data dari Firebase sudah lengkap.
   debugPrint("Menangani pesan latar belakang: ${message.messageId}");
 }
 
@@ -103,7 +102,9 @@ class MyApp extends StatelessWidget {
           
           themeMode: currentMode,
           
-          home: const OnboardingScreen(),
+          home: Supabase.instance.client.auth.currentSession != null 
+              ? MainLayout(role: Supabase.instance.client.auth.currentUser?.userMetadata?['role'] ?? 'Tim')
+              : const OnboardingScreen(),
         );
       },
     );

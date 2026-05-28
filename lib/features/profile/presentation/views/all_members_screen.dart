@@ -118,7 +118,6 @@ class AllMembersScreen extends ConsumerWidget {
                   return RefreshIndicator(
                     onRefresh: () async {
                       ref.invalidate(managerInvitationsProvider);
-                      // Tunggu sedikit agar UI tidak kedip terlalu cepat
                       await Future.delayed(const Duration(milliseconds: 500));
                     },
                     child: ListView.separated(

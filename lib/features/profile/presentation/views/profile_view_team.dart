@@ -333,7 +333,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
     try {
       final profileRepo = ref.read(profileRepositoryProvider);
       
-      // 1. Upload image if selected → stores to avatars bucket + updates profiles table
+      // Upload image if selected → stores to avatars bucket + updates profiles table
       if (_selectedImageBytes != null) {
         final userId = _currentUser?.id ?? 'user';
         _avatarUrl = await profileRepo.uploadAvatar(
@@ -342,7 +342,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
         );
       }
       
-      // 2. Update user metadata
+      // Update user metadata
       final response = await profileRepo.updateUserProfile(
         name: _nameController.text.trim(),
         avatarUrl: _avatarUrl,
@@ -352,7 +352,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
       if (mounted) {
         setState(() {
           _currentUser = response.user;
-          _selectedImageBytes = null; // Clear local preview since it's uploaded
+          _selectedImageBytes = null;
           if (response.user != null) {
             _avatarUrl = response.user!.userMetadata?['avatar_url'] ?? 
                          response.user!.userMetadata?['picture'] ?? 
@@ -703,10 +703,10 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                             for (final m in _weeklyFocusMinutes) {
                               if (m > maxMin) maxMin = m;
                             }
-                            if (maxMin < 25.0) maxMin = 25.0; // Avoid division by zero, min 25 mins scale
+                            if (maxMin < 25.0) maxMin = 25.0;
 
                             final labels = ['S', 'S', 'R', 'K', 'J', 'S', 'M'];
-                            final todayIndex = DateTime.now().weekday - 1; // 0 = Senin, 6 = Minggu
+                            final todayIndex = DateTime.now().weekday - 1;
 
                             return Row(
                               crossAxisAlignment: CrossAxisAlignment.end,

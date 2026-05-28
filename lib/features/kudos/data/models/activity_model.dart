@@ -26,14 +26,14 @@ class ActivityModel {
   final String id;
   final String userName;
   final String? userAvatar;
-  final String actionText; // "sedang mengerjakan" | "sudah menyelesaikan" | "melakukan commit"
-  final String linkText; // Judul tugas atau pesan commit
+  final String actionText;
+  final String linkText;
   final DateTime time;
-  final String type; // 'progress' | 'commit'
+  final String type;
   final String? taskId;
   final String projectId;
   final String projectName;
-  final String userId; // ID user pembuat aktivitas (penerima Kudos)
+  final String userId;
   final String? commitSha;
   final List<KudosReaction> reactions;
 

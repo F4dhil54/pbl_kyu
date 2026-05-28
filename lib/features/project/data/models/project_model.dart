@@ -1,4 +1,4 @@
-import 'package:intl/intl.dart'; // Pastikan sudah menambahkan package intl di pubspec.yaml
+import 'package:intl/intl.dart';
 
 class ProjectModel {
   final String id;
@@ -8,7 +8,7 @@ class ProjectModel {
   final String githubRepo;
   final double progress;
   final String category;
-  final String date; // Menyimpan string tanggal dari UI
+  final String date;
   final String creatorId;
   final bool statusAktif;
   final DateTime? createdAt;
@@ -57,7 +57,7 @@ class ProjectModel {
         DateTime parsed = DateTime.parse(rawDate).toLocal();
         rawDate = DateFormat(
           'yyyy-MM-dd',
-        ).format(parsed); // Diubah ke format string standar standar
+        ).format(parsed);
       } catch (_) {}
     }
 
@@ -94,12 +94,11 @@ class ProjectModel {
     if (dateStr.isEmpty) return null;
 
     try {
-      // 1. Jika formatnya sudah valid standar (YYYY-MM-DD), langsung parsing aman
+      // Jika formatnya sudah valid standar (YYYY-MM-DD), langsung parsing aman
       return DateTime.parse(dateStr).toIso8601String();
     } catch (_) {
       try {
-        // 2. Jika formatnya kustom seperti "23 Mei" atau "23 Mei 2026"
-        // Kita paksa parse menggunakan bantuan DateFormat locale Indonesia/English
+        // Jika formatnya kustom seperti "23 Mei" atau "23 Mei 2026"
         int currentYear = DateTime.now().year;
         DateTime parsed;
 

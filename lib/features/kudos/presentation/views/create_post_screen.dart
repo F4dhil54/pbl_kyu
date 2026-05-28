@@ -36,7 +36,6 @@ class CreatePostScreen extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () {
-                  // Post action
                   Navigator.pop(context);
                 },
                 child: Text(
