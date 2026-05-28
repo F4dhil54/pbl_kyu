@@ -37,16 +37,11 @@ class TaskViewMember extends StatelessWidget {
               const SizedBox(width: 8),
             ],
           ),
-          body: RefreshIndicator(
-            onRefresh: () async {
-              await Future.delayed(const Duration(milliseconds: 500));
-            },
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
                   'CURRENT FOCUS',
                   style: TextStyle(
@@ -506,7 +501,6 @@ class TaskViewMember extends StatelessWidget {
                 const SizedBox(height: 40),
               ],
             ),
-          ),
           ),
         );
       },

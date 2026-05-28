@@ -37,15 +37,10 @@ class TaskViewManager extends StatelessWidget {
               const SizedBox(width: 8),
             ],
           ),
-          body: RefreshIndicator(
-            onRefresh: () async {
-              await Future.delayed(const Duration(milliseconds: 500));
-            },
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'OPERATIONAL OVERVIEW',
@@ -204,9 +199,7 @@ class TaskViewManager extends StatelessWidget {
               ],
             ),
           ),
-          ),
           floatingActionButton: FloatingActionButton(
-            heroTag: 'task_view_manager_fab',
             onPressed: () {},
             backgroundColor: AppColors.primary,
             child: const Icon(Icons.add, color: Colors.white),

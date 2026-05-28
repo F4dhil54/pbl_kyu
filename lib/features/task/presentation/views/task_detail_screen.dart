@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
-import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
+import '../../../profile/presentation/views/profile_view_manager.dart';
 import 'create_task_screen.dart';
 
 class TaskDetailScreen extends StatelessWidget {
@@ -33,7 +33,27 @@ class TaskDetailScreen extends StatelessWidget {
               ),
             ),
             actions: [
-              const ProfileAvatarButton(),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfileViewManager()),
+                  );
+                },
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
+                  child: Image.asset(
+                    'image/ic_profile.png',
+                    width: 24,
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                      Icons.person,
+                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(width: 20),
             ],
           ),
@@ -108,8 +128,7 @@ class TaskDetailScreen extends StatelessWidget {
             ),
           ),
           floatingActionButton: FloatingActionButton(
-            heroTag: 'task_detail_fab',
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateTaskScreen(projectId: ""))),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateTaskScreen())),
             backgroundColor: isDark ? Colors.white : Colors.black,
             child: Icon(Icons.add, color: isDark ? Colors.black : Colors.white, size: 28),
           ),

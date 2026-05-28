@@ -1,35 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_mode.dart';
-import 'package:pbl_kyu/shared/widgets/profile_avatar.dart';
-import 'package:pbl_kyu/shared/widgets/app_sidebar.dart';
+import '../../../profile/presentation/views/profile_view_team.dart';
+import '../../../task/presentation/views/task_detail_team_screen.dart' as task_detail;
 import '../../../task/presentation/views/team_task_list_screen.dart' as team_task_list;
-import '../../../task/presentation/providers/task_provider.dart';
-import '../../presentation/providers/project_provider.dart';
-import '../../data/models/project_model.dart';
-import 'project_detail_screen.dart';
-import '../../../notification/presentation/providers/notification_provider.dart';
 
-class TeamDashboard extends ConsumerWidget {
+class TeamDashboard extends StatelessWidget {
   const TeamDashboard({super.key});
 
-  String _timeAgo(DateTime? date) {
-    if (date == null) return '';
-    final diff = DateTime.now().difference(date);
-    if (diff.inDays > 0) return '${diff.inDays} hari lalu';
-    if (diff.inHours > 0) return '${diff.inHours} jam lalu';
-    if (diff.inMinutes > 0) return '${diff.inMinutes} mnt lalu';
-    return 'baru saja';
-  }
-
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final myTasksAsync = ref.watch(myTasksProvider);
-    final projectsAsync = ref.watch(projectListProvider);
-
+  Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeControl.themeNotifier,
       builder: (context, currentMode, child) {
@@ -37,16 +17,9 @@ class TeamDashboard extends ConsumerWidget {
 
         return Scaffold(
           backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
-          drawer: const AppSidebar(),
           appBar: AppBar(
             backgroundColor: isDark ? AppDarkColors.background : AppColors.background,
             elevation: 0,
-            leading: Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
             title: Text(
               'KYU',
               style: TextStyle(
@@ -57,7 +30,27 @@ class TeamDashboard extends ConsumerWidget {
               ),
             ),
             actions: [
-              const ProfileAvatarButton(),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfileViewTeam()),
+                  );
+                },
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
+                  child: Image.asset(
+                    'image/ic_profile.png',
+                    width: 24,
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                      Icons.person,
+                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(width: 20),
             ],
           ),
@@ -66,23 +59,13 @@ class TeamDashboard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                StreamBuilder<AuthState>(
-                  stream: Supabase.instance.client.auth.onAuthStateChange,
-                  builder: (context, snapshot) {
-                    final user = Supabase.instance.client.auth.currentUser;
-                    final name = user?.userMetadata?['nama'] ??
-                                 user?.userMetadata?['name'] ??
-                                 user?.userMetadata?['full_name'] ??
-                                 'Tim';
-                    return Text(
-                      'Selamat Datang, $name.',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                      ),
-                    );
-                  },
+                Text(
+                  'Selamat Pagi, Tim.',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -90,155 +73,6 @@ class TeamDashboard extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 14,
                     color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Notifikasi Cepat Card
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppDarkColors.surface : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
-                    boxShadow: isDark ? null : [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.02),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Notifikasi Cepat',
-                        style: TextStyle(
-                          fontSize: 16, 
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Divider(height: 1, color: isDark ? AppDarkColors.border : AppColors.border),
-                      const SizedBox(height: 20),
-
-                      Consumer(
-                        builder: (context, ref, child) {
-                          final notifsAsync = ref.watch(notificationNotifierProvider);
-                          return notifsAsync.when(
-                            data: (notifs) {
-                              final unreadNotifs = notifs.where((n) => !n.isRead).toList();
-                              final latest = unreadNotifs.take(3).toList();
-                              if (latest.isEmpty) {
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 24),
-                                  child: Text('Belum ada notifikasi baru.', style: TextStyle(color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary)),
-                                );
-                              }
-                              return Column(
-                                children: latest.asMap().entries.map((entry) {
-                                  final idx = entry.key;
-                                  final n = entry.value;
-                                  
-                                  String iconPath = 'image/ic_chat_bubble.png';
-                                  IconData fallbackIcon = Icons.notifications;
-                                  Color iconColor = AppColors.primary;
-                                  
-                                  if (n.judul.toLowerCase().contains('commit') || n.pesan.toLowerCase().contains('commit')) {
-                                    iconPath = 'image/ic_commit.png';
-                                    fallbackIcon = Icons.commit;
-                                  } else if (n.judul.toLowerCase().contains('selesai') || n.pesan.toLowerCase().contains('selesai')) {
-                                    iconPath = 'image/ic_check_circle.png';
-                                    fallbackIcon = Icons.check_circle_outline;
-                                    iconColor = AppColors.successText;
-                                  } else if (n.judul.toLowerCase().contains('gagal') || n.judul.toLowerCase().contains('error') || n.pesan.toLowerCase().contains('gagal')) {
-                                    iconPath = 'image/ic_error.png';
-                                    fallbackIcon = Icons.error_outline;
-                                    iconColor = AppColors.alertText;
-                                  } else {
-                                    iconPath = 'image/ic_chat_bubble.png';
-                                    fallbackIcon = Icons.chat_bubble_outline;
-                                    iconColor = AppColors.warningText;
-                                  }
-
-                                  return Column(
-                                    children: [
-                                      _buildNotificationItem(
-                                        iconPath,
-                                        fallbackIcon,
-                                        iconColor,
-                                        RichText(
-                                          text: TextSpan(
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: isDark ? AppDarkColors.textMain : AppColors.textMain,
-                                              height: 1.4,
-                                            ),
-                                            children: [
-                                              TextSpan(
-                                                text: '${n.judul}\n',
-                                                style: const TextStyle(fontWeight: FontWeight.bold),
-                                              ),
-                                              TextSpan(
-                                                text: n.pesan,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        _timeAgo(n.createdAt),
-                                        isDark: isDark,
-                                      ),
-                                      if (idx < latest.length - 1)
-                                        const SizedBox(height: 24),
-                                    ],
-                                  );
-                                }).toList(),
-                              );
-                            },
-                            loading: () => const Center(child: CircularProgressIndicator()),
-                            error: (err, stack) => const SizedBox(),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 24),
-                      Consumer(
-                        builder: (context, ref, child) {
-                          return SizedBox(
-                            width: double.infinity,
-                            height: 40,
-                            child: OutlinedButton(
-                              onPressed: () {
-                                final notifsState = ref.read(notificationNotifierProvider);
-                                if (notifsState.hasValue) {
-                                  // Mark all unread notifications as read
-                                  final unreadNotifs = notifsState.value!.where((n) => !n.isRead).toList();
-                                  for (var n in unreadNotifs) {
-                                    ref.read(notificationNotifierProvider.notifier).markAsRead(n.id);
-                                  }
-                                }
-                              },
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: isDark ? AppDarkColors.border : const Color(0xFFE3E8FF)),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: Text(
-                                'Tandai semua telah dibaca',
-                                style: TextStyle(
-                                  color: isDark ? Colors.amberAccent : AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-                      ),
-                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -281,90 +115,40 @@ class TeamDashboard extends ConsumerWidget {
                 const SizedBox(height: 16),
 
                 // Task List
-                myTasksAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Text('Gagal memuat tugas: $err'),
-                  data: (tasks) {
-                    if (tasks.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: Center(
-                          child: Text(
-                            'Tidak ada tugas untuk diselesaikan.',
-                            style: TextStyle(
-                              color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: tasks.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final task = tasks[index];
-                        final isCompleted = task.statusTugas == 'Selesai';
-                        
-                        // Find the project associated with this task
-                        ProjectModel? matchedProject;
-                        projectsAsync.whenData((projectList) {
-                          try {
-                            matchedProject = projectList.firstWhere((p) => p.id == task.projectId);
-                          } catch (_) {
-                            // not found
-                          }
-                        });
-
-                        // Deadline/Time text formatting
-                        String timeText = 'Akan Dikerjakan';
-                        if (isCompleted) {
-                          timeText = 'Selesai';
-                        } else if (task.deadlineDate != null) {
-                          final deadline = task.deadlineDate!;
-                          timeText = '${deadline.day} ${[
-                            'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-                            'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'
-                          ][deadline.month - 1]} ${deadline.year}';
-                        }
-
-                        // Progress
-                        double progressVal = 0.0;
-                        if (isCompleted) {
-                          progressVal = 1.0;
-                        } else if (task.statusTugas == 'Sedang Dikerjakan') {
-                          progressVal = 0.5;
-                        } else if (task.statusTugas == 'Ditinjau') {
-                          progressVal = 0.8;
-                        } else if (task.statusTugas == 'Dijadwalkan') {
-                          progressVal = 0.1;
-                        }
-
-                        return _buildTaskCard(
-                          title: task.judulTugas,
-                          time: timeText,
-                          progress: progressVal,
-                          isCompleted: isCompleted,
-                          isDark: isDark,
-                          onTap: () {
-                            if (matchedProject != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ProjectDetailScreen(project: matchedProject!),
-                                ),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Proyek tidak ditemukan')),
-                              );
-                            }
-                          },
-                        );
-                      },
+                _buildTaskCard(
+                  title: 'Finalisasi Proposal Proyek',
+                  time: '09:00 - 11:00',
+                  progress: 0.6,
+                  isCompleted: false,
+                  isDark: isDark,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const task_detail.TaskDetailTeamScreen()),
                     );
                   },
+                ),
+                const SizedBox(height: 12),
+                _buildTaskCard(
+                  title: 'Review Desain Sprint UI',
+                  time: '13:30 - 15:00',
+                  progress: 0.2,
+                  isCompleted: false,
+                  isDark: isDark,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const task_detail.TaskDetailTeamScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildTaskCard(
+                  title: 'Daily Standup Meeting',
+                  time: 'Selesai',
+                  progress: 1.0,
+                  isCompleted: true,
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 40),
 
@@ -429,7 +213,7 @@ class TeamDashboard extends ConsumerWidget {
           border: Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
           boxShadow: isDark ? null : [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: Colors.black.withOpacity(0.02),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -504,46 +288,6 @@ class TeamDashboard extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildNotificationItem(
-    String assetPath,
-    IconData fallbackIcon,
-    Color iconColor,
-    Widget content,
-    String time,
-    {required bool isDark}
-  ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Image.asset(
-          assetPath,
-          width: 20,
-          height: 20,
-          color: iconColor,
-          errorBuilder: (context, error, stackTrace) =>
-              Icon(fallbackIcon, size: 20, color: iconColor),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              content,
-              const SizedBox(height: 4),
-              Text(
-                time,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
