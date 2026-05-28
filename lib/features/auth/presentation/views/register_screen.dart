@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/colors.dart';
-import '../../../../core/theme/theme_mode.dart';
 import 'login_screen.dart';
 import '../../../main_layout.dart'; // Tambahkan import MainLayout
 import '../../../../core/network/supabase_provider.dart'; 
