@@ -14,21 +14,25 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
     _emailController.dispose();
+    _newPasswordController.dispose();
     super.dispose();
   }
 
-  // Eksekusi pengiriman link pemulihan lewat provider
+  // Eksekusi reset kata sandi langsung lewat provider (RPC Supabase)
   Future<void> _handleSubmit() async {
     if (_formKey.currentState!.validate()) {
       final authController = ref.read(authControllerProvider);
       
-      final success = await authController.sendPasswordResetEmail(
+      final success = await authController.resetPasswordDirectly(
         context: context,
         email: _emailController.text.trim(),
+        newPassword: _newPasswordController.text,
       );
 
       // Jika berhasil, kembalikan user secara otomatis ke halaman Login
@@ -110,7 +114,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     const SizedBox(height: 24),
                     
                     Text(
-                      'Pemulihan Kata Sandi',
+                      'Reset Kata Sandi',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -119,7 +123,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Masukkan alamat email yang terdaftar. Kami akan mengirimkan tautan untuk mengatur ulang kata sandi Anda.',
+                      'Masukkan alamat email yang terdaftar beserta kata sandi baru Anda. Kata sandi lama akan langsung digantikan.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
@@ -174,9 +178,65 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         return null;
                       },
                     ),
+                    const SizedBox(height: 24),
+
+                    // Kata Sandi Baru
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'KATA SANDI BARU',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppDarkColors.textSecondary : AppColors.textMain,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _newPasswordController,
+                      obscureText: _obscurePassword,
+                      enabled: !isAuthLoading,
+                      style: TextStyle(color: isDark ? AppDarkColors.textMain : AppColors.textMain),
+                      decoration: InputDecoration(
+                        hintText: '••••••••',
+                        hintStyle: TextStyle(
+                          color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                        filled: true,
+                        fillColor: isDark ? AppDarkColors.surface : Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        enabledBorder: buildBorder(isDark ? AppDarkColors.border : AppColors.border),
+                        focusedBorder: buildBorder(AppColors.primary),
+                        errorBorder: buildBorder(Colors.redAccent),
+                        focusedErrorBorder: buildBorder(Colors.red, width: 1.5),
+                        errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            color: isDark ? AppDarkColors.textSecondary : AppColors.textSecondary,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Kata sandi tidak boleh kosong';
+                        }
+                        if (value.length < 6) {
+                          return 'Kata sandi minimal berisi 6 karakter';
+                        }
+                        return null;
+                      },
+                    ),
                     const SizedBox(height: 32),
 
-                    // Tombol Kirim Tautan Pemulihan
+                    // Tombol Reset Kata Sandi
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -202,7 +262,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                                 ),
                               )
                             : const Text(
-                                'Kirim Tautan',
+                                'Reset Kata Sandi',
                                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                       ),

@@ -141,7 +141,7 @@ class AuthController {
     }
   }
 
-  // Fungsi Mengirimkan Tautan Pemulihan Kata Sandi ke Email User
+  // Fungsi Mengirimkan Tautan Pemulihan Kata Sandi ke Email User (Lama)
   Future<bool> sendPasswordResetEmail({
     required BuildContext context,
     required String email,
@@ -178,6 +178,45 @@ class AuthController {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Terjadi masalah koneksi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    } finally {
+      _ref.read(authLoadingProvider.notifier).setWith(false);
+    }
+  }
+
+  // Fungsi Reset Kata Sandi Langsung (Bypass Link Email)
+  Future<bool> resetPasswordDirectly({
+    required BuildContext context,
+    required String email,
+    required String newPassword,
+  }) async {
+    _ref.read(authLoadingProvider.notifier).setWith(true);
+    try {
+      // Memanggil RPC function di Supabase untuk update password langsung
+      await _supabase.rpc('reset_password_direct', params: {
+        'user_email': email,
+        'new_password': newPassword,
+      });
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Kata sandi berhasil direset! Silakan login dengan kata sandi baru.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+      return true;
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mereset kata sandi. Pastikan Anda telah menjalankan SQL RPC di Supabase.'),
             backgroundColor: Colors.red,
           ),
         );
