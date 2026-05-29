@@ -30,7 +30,7 @@ class KudosRepository {
   Future<List<ActivityModel>> getActivities({int limit = 10, int offset = 0}) async {
     final user = _supabaseClient.auth.currentUser;
     if (user == null) {
-      return _getLocalActivities();
+      return [];
     }
 
     try {
@@ -94,7 +94,7 @@ class KudosRepository {
         }
       }
 
-      if (projectIds.isEmpty) return _getLocalActivities();
+      if (projectIds.isEmpty) return [];
 
       // Query timeline_aktivitas_terbaru view
       final response = await _supabaseClient
@@ -261,7 +261,7 @@ class KudosRepository {
 
     } catch (e) {
       debugPrint("Error fetching activities from Supabase: $e");
-      return _getLocalActivities();
+      return [];
     }
   }
 
@@ -451,7 +451,7 @@ class KudosRepository {
   Future<List<Map<String, dynamic>>> getLeaderboard(String projectId) async {
     final user = _supabaseClient.auth.currentUser;
     if (user == null) {
-      return _getLocalLeaderboard(projectId);
+      return [];
     }
 
     try {
@@ -487,10 +487,10 @@ class KudosRepository {
               });
             }
           }
-          if (emptyLeaderboard.isEmpty) return _getLocalLeaderboard(projectId);
+          if (emptyLeaderboard.isEmpty) return [];
           return emptyLeaderboard;
         } catch (_) {
-          return _getLocalLeaderboard(projectId);
+          return [];
         }
       }
 
@@ -547,7 +547,7 @@ class KudosRepository {
 
     } catch (e) {
       debugPrint("Error fetching leaderboard: $e");
-      return _getLocalLeaderboard(projectId);
+      return [];
     }
   }
 
