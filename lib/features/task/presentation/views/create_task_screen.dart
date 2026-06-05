@@ -86,15 +86,9 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
           'name': 'Loading Team...',
         });
         _assignToAll = false;
-      } else if (widget.taskToEdit!.projectMemberId != null) {
-        _selectedAssignees.add({
-          'type': 'member',
-          'id': widget.taskToEdit!.projectMemberId,
-          'user_id': widget.taskToEdit!.assignees.isNotEmpty ? widget.taskToEdit!.assignees.first : null,
-          'name': 'Loading Member...',
-        });
-        _assignToAll = false;
-      } else if (widget.taskToEdit!.assignees.isNotEmpty) {
+      }
+      
+      if (widget.taskToEdit!.assignees.isNotEmpty) {
         for (final uid in widget.taskToEdit!.assignees) {
           _selectedAssignees.add({
             'type': 'member',
@@ -104,7 +98,9 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
           });
         }
         _assignToAll = false;
-      } else {
+      }
+      
+      if (_selectedAssignees.isEmpty) {
         _assignToAll = true;
       }
       

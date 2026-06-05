@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../../../../core/network/supabase_provider.dart';
 import '../../data/models/project_model.dart';
 import '../../data/repositories/project_repository.dart';
+import '../../../task/presentation/providers/task_provider.dart';
 
 final projectRepositoryProvider = Provider<ProjectRepository>((ref) {
   final supabase = ref.watch(supabaseClientProvider);
@@ -252,6 +253,9 @@ final projectRealProgressProvider = FutureProvider.family<double, String>((ref, 
     return 0.0;
   }
   
+  // Memastikan bahwa progress proyek dimuat ulang saat ada perubahan pada task
+  ref.watch(projectTaskListProvider(projectId));
+
   final supabase = ref.watch(supabaseClientProvider);
   try {
     // Ambil semua tugas beserta logs progress-nya dalam 1 single query
