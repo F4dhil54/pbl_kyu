@@ -9,6 +9,7 @@ import 'package:pbl_kyu/features/profile/presentation/providers/profile_provider
 import 'package:pbl_kyu/features/task/presentation/providers/task_provider.dart';
 import 'package:pbl_kyu/features/notification/presentation/providers/notification_provider.dart';
 import 'package:pbl_kyu/features/kudos/presentation/providers/kudos_provider.dart';
+import 'package:pbl_kyu/core/services/github_status.dart';
 
 // Notifier Status Loading
 class AuthLoadingNotifier extends Notifier<bool> {
@@ -245,6 +246,9 @@ class AuthController {
 
     await _supabase.auth.signOut();
     
+    // Bersihkan status GitHub dari SharedPreferences HP agar tidak nyangkut ke akun lain
+    await GitHubStatus.clearStatus();
+
     // Tunda reset tema
     Future.delayed(const Duration(milliseconds: 400), () {
       ThemeControl.resetTheme();

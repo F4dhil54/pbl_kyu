@@ -28,4 +28,16 @@ class GitHubStatus {
     username = prefs.getString('username') ?? "";
     isSyncActive = prefs.getBool('isSyncActive') ?? false;
   }
+
+  // Fungsi untuk menghapus status saat logout
+  static Future<void> clearStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('isConnected');
+    await prefs.remove('username');
+    await prefs.remove('isSyncActive');
+    
+    isConnected = false;
+    username = "";
+    isSyncActive = false;
+  }
 }
