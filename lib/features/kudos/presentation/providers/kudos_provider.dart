@@ -48,7 +48,8 @@ class ActivitiesNotifier extends StateNotifier<ActivitiesState> {
   final SupabaseClient _supabase;
   RealtimeChannel? _taskChannel;
   RealtimeChannel? _kudosChannel;
-  final int _limit = 10;
+  RealtimeChannel? _commitChannel;
+  final int _limit = 5;
 
   ActivitiesNotifier(this._repo, this._supabase) : super(ActivitiesState()) {
     _initRealtime();
@@ -58,7 +59,11 @@ class ActivitiesNotifier extends StateNotifier<ActivitiesState> {
   Future<void> loadPage(int page, {bool isRefresh = false}) async {
     if (!isRefresh && state.isLoading && state.activities.isNotEmpty) return;
     
-    state = state.copyWith(isLoading: true, currentPage: page);
+    state = state.copyWith(
+      isLoading: true, 
+      currentPage: page,
+      activities: isRefresh ? state.activities : [], // Kosongkan list untuk spinner
+    );
     try {
       final offset = (page - 1) * _limit;
       final newActs = await _repo.getActivities(limit: _limit, offset: offset);
@@ -86,7 +91,7 @@ class ActivitiesNotifier extends StateNotifier<ActivitiesState> {
 
     _kudosChannel = _supabase.channel('public:kudos')
         .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
+          event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'kudos',
           callback: (payload) {
@@ -94,12 +99,88 @@ class ActivitiesNotifier extends StateNotifier<ActivitiesState> {
           },
         )
         .subscribe();
+
+    _commitChannel = _supabase.channel('public:github_commits')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'github_commits',
+          callback: (payload) {
+            loadPage(state.currentPage, isRefresh: true);
+          },
+        )
+        .subscribe();
+  }
+
+  void addOptimisticKudos({
+    String? taskId,
+    String? taskProgressLogId,
+    String? commitSha,
+    String? githubCommitId,
+    required String emoji,
+    required String userId,
+  }) {
+    final newActs = state.activities.map((a) {
+      bool isMatch = false;
+      if (a.type == 'progress' && taskProgressLogId != null && a.id == taskProgressLogId) {
+        isMatch = true;
+      } else if ((a.type == 'commit' || a.type == 'github') && (githubCommitId != null && a.id == githubCommitId || commitSha != null && a.commitSha == commitSha)) {
+        isMatch = true;
+      } else if (a.type == 'task' && taskId != null && a.taskId == taskId) {
+        isMatch = true;
+      }
+
+      if (isMatch) {
+        final updatedReactions = List<KudosReaction>.from(a.reactions);
+        // Cek tarik/tukar emoji
+        final existingIdx = updatedReactions.indexWhere((r) => r.pengirimId == userId);
+        if (existingIdx != -1) {
+          if (updatedReactions[existingIdx].reaksiEmoji.runes.first == emoji.runes.first) {
+            updatedReactions.removeAt(existingIdx); // Tarik
+          } else {
+            updatedReactions[existingIdx] = KudosReaction(
+              id: 'temp',
+              pengirimId: userId,
+              pengirimNama: 'Anda',
+              reaksiEmoji: emoji,
+            ); // Tukar
+          }
+        } else {
+          updatedReactions.add(KudosReaction(
+            id: 'temp',
+            pengirimId: userId,
+            pengirimNama: 'Anda',
+            reaksiEmoji: emoji,
+          )); // Tambah baru
+        }
+
+        return ActivityModel(
+          id: a.id,
+          userName: a.userName,
+          userAvatar: a.userAvatar,
+          actionText: a.actionText,
+          linkText: a.linkText,
+          time: a.time,
+          type: a.type,
+          taskId: a.taskId,
+          projectId: a.projectId,
+          projectName: a.projectName,
+          userId: a.userId,
+          commitSha: a.commitSha,
+          reactions: updatedReactions,
+        );
+      }
+      return a;
+    }).toList();
+
+    state = state.copyWith(activities: newActs);
   }
 
   @override
   void dispose() {
     _taskChannel?.unsubscribe();
     _kudosChannel?.unsubscribe();
+    _commitChannel?.unsubscribe();
     super.dispose();
   }
 }
@@ -122,29 +203,45 @@ class KudosActionNotifier extends StateNotifier<AsyncValue<void>> {
 
   KudosActionNotifier(this._repository, this._ref) : super(const AsyncValue.data(null));
 
-  Future<void> sendKudos({
+  Future<String> sendKudos({
     required String projectId,
     String? taskId,
     String? taskProgressLogId,
     required String receiverId,
     required String emoji,
     String? commitSha,
+    String? githubCommitId,
   }) async {
     state = const AsyncValue.loading();
     try {
-      await _repository.giveKudos(
+      final currentUserId = _ref.read(supabaseClientProvider).auth.currentUser?.id;
+      if (currentUserId != null) {
+        _ref.read(collabActivitiesProvider.notifier).addOptimisticKudos(
+          taskId: taskId,
+          taskProgressLogId: taskProgressLogId,
+          commitSha: commitSha,
+          githubCommitId: githubCommitId,
+          emoji: emoji,
+          userId: currentUserId,
+        );
+      }
+
+      final action = await _repository.giveKudos(
         projectId: projectId,
         taskId: taskId,
         taskProgressLogId: taskProgressLogId,
         receiverId: receiverId,
         emoji: emoji,
         commitSha: commitSha,
+        githubCommitId: githubCommitId,
       );
       state = const AsyncValue.data(null);
-      // Invalidate leaderboard to refresh points
+      // Refresh leaderboard
       _ref.invalidate(projectLeaderboardProvider(projectId));
-      // Refresh current page of activities
+      // Refresh aktivitas
+      await Future.delayed(const Duration(milliseconds: 800));
       _ref.read(collabActivitiesProvider.notifier).loadPage(_ref.read(collabActivitiesProvider).currentPage, isRefresh: true);
+      return action;
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
       rethrow;

@@ -24,7 +24,7 @@ void main() async {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     debugPrint("=== DEBUG: Firebase Berhasil Diinisialisasi ===");
 
-    // Menangani pesan yang diterima saat aplikasi berada di foreground
+    // Tangani pesan foreground
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint("Menangani pesan di foreground: ${message.notification?.title}");
       if (message.notification != null) {
@@ -60,7 +60,7 @@ void main() async {
       ),
     );
   } catch (e) {
-    // Menangkap error jika lupa daftarkan aset di pubspec atau salah ketik key
+    // Tangkap error konfigurasi/kunci
     debugPrint("=== ERROR CRITICAL: Gagal memuat konfigurasi -> $e ===");
   }
 }
@@ -77,7 +77,7 @@ class MyApp extends StatelessWidget {
           title: 'KYU App',
           debugShowCheckedModeBanner: false,
           
-          // Tema terang
+          // Tema Terang
           theme: ThemeData(
             fontFamily: 'Inter',
             colorScheme: ColorScheme.fromSeed(
@@ -88,7 +88,7 @@ class MyApp extends StatelessWidget {
             useMaterial3: true,
           ),
           
-          // Tema gelap
+          // Tema Gelap
           darkTheme: ThemeData(
             fontFamily: 'Inter',
             colorScheme: ColorScheme.fromSeed(

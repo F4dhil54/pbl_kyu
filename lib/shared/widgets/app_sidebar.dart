@@ -35,7 +35,7 @@ class AppSidebar extends ConsumerWidget {
           child: SafeArea(
             child: Column(
               children: [
-                // Drawer Header
+                // Header Drawer
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                   child: Row(
@@ -100,7 +100,7 @@ class AppSidebar extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Drawer Menu Items
+                // Menu Drawer
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -156,7 +156,7 @@ class AppSidebar extends ConsumerWidget {
                   ),
                 ),
 
-                // Theme Toggle & Profile Info
+                // Toggle Tema & Profil
                 Divider(
                   height: 1,
                   color: isDark ? AppDarkColors.border : AppColors.border,
@@ -166,7 +166,7 @@ class AppSidebar extends ConsumerWidget {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      // Mode Malam Toggler
+                      // Toggle Mode Malam
                       ListTile(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -192,7 +192,7 @@ class AppSidebar extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // Profile Card
+                      // Kartu Profil
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -316,7 +316,7 @@ class AppSidebar extends ConsumerWidget {
         ),
         onTap: () {
           ref.read(navigationIndexProvider.notifier).state = index;
-          Navigator.pop(context); // Close the drawer
+          Navigator.pop(context); // Tutup drawer
         },
       ),
     );

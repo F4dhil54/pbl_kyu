@@ -4,25 +4,25 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/theme_mode.dart';
 import 'profile_avatar.dart';
 
-/// Widget AppBar premium KYU dengan logo gradient yang konsisten di seluruh halaman.
-/// Gunakan widget ini sebagai pengganti AppBar biasa untuk tampilan yang seragam dan premium.
+/// Widget AppBar premium KYU
+/// Gunakan sebagai pengganti AppBar biasa
 class KyuAppBar extends StatelessWidget implements PreferredSizeWidget {
-  /// Apakah menampilkan tombol back arrow (kiri)
+  /// Tampilkan tombol back
   final bool showBackButton;
 
-  /// Apakah menampilkan tombol menu hamburger (kiri)
+  /// Tampilkan tombol menu
   final bool showMenuButton;
 
-  /// Fungsi custom saat back button ditekan (opsional)
+  /// Fungsi back custom (opsional)
   final VoidCallback? onBack;
 
-  /// Apakah menampilkan ProfileAvatarButton (kanan)
+  /// Tampilkan tombol profil
   final bool showAvatar;
 
-  /// Widget actions tambahan di kanan (opsional)
+  /// Aksi tambahan di kanan
   final List<Widget>? extraActions;
 
-  /// Apakah menampilkan bottom border/divider
+  /// Tampilkan border bawah
   final bool showBottomBorder;
 
   const KyuAppBar({
@@ -96,7 +96,7 @@ class KyuAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-/// Widget logo KYU dengan styling premium — gradient text + dot aksen
+/// Widget logo KYU premium
 class _KyuLogo extends StatelessWidget {
   final bool isDark;
   const _KyuLogo({required this.isDark});
@@ -106,7 +106,7 @@ class _KyuLogo extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Logo icon box
+        // Box ikon logo
         Container(
           width: 30,
           height: 30,
@@ -138,7 +138,7 @@ class _KyuLogo extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        // KYU text with gradient
+        // Teks KYU dengan gradient
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
             colors: [Color(0xFF1E50FF), Color(0xFF7C3AED)],
@@ -152,7 +152,7 @@ class _KyuLogo extends StatelessWidget {
               fontWeight: FontWeight.w900,
               fontSize: 22,
               letterSpacing: 2,
-              color: Colors.white, // required for ShaderMask
+              color: Colors.white, // Wajib untuk ShaderMask
             ),
           ),
         ),

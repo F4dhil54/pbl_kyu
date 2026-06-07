@@ -1,10 +1,10 @@
-import 'dart:async'; // Tambahkan untuk StreamSubscription
+import 'dart:async'; // StreamSubscription
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/colors.dart';
 import 'login_screen.dart';
-import '../../../main_layout.dart'; // Tambahkan import MainLayout
+import '../../../main_layout.dart';
 import '../../../../core/network/supabase_provider.dart'; 
 import '../../providers/auth_provider.dart';
 
@@ -18,7 +18,7 @@ class RegisterScreen extends ConsumerStatefulWidget {
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   
-  // Key khusus untuk validasi peran saat Daftar dengan Google
+  // Key validasi peran (Google Sign-In)
   final _roleFieldKey = GlobalKey<FormFieldState<String>>();
   
   final _nameController = TextEditingController();
@@ -33,7 +33,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
-  // Flag untuk mendeteksi alur Google OAuth
+  // Flag status Google OAuth
   bool _isGoogleAuthFlowActive = false;
   StreamSubscription<AuthState>? _authStateSubscription;
 
@@ -45,13 +45,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _passwordController.clear();
     _confirmPasswordController.clear();
 
-    // Dengarkan perubahan sesi untuk menangani kembalinya pengguna dari halaman Google OAuth
+    // Tangani kembalinya pengguna dari Google OAuth
     _authStateSubscription = ref.read(supabaseClientProvider).auth.onAuthStateChange.listen((data) async {
       final AuthChangeEvent event = data.event;
       final Session? session = data.session;
 
       if (event == AuthChangeEvent.signedIn && session != null) {
-        // Arahkan langsung ke Beranda jika login dipicu oleh alur Google dan peran sudah dipilih
+        // Arahkan jika via Google
         if (mounted && selectedRole != null && _isGoogleAuthFlowActive) {
           _isGoogleAuthFlowActive = false;
           
@@ -104,7 +104,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  // Logika pengiriman data registrasi ke Supabase dengan Email
+  // Registrasi via Email
   Future<void> _handleRegister() async {
     FocusScope.of(context).unfocus();
 
@@ -112,7 +112,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _emailErrorText = null;
     });
 
-    // Validasi Form
+    // Validasi form
     if (_formKey.currentState!.validate()) {
       final authController = ref.read(authControllerProvider);
       
@@ -124,7 +124,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         role: selectedRole!, 
       );
 
-      // Jika registrasi sukses, kembalikan user ke halaman Login
+      // Redirect ke Login
       if (errorMsg == null && mounted) {
         Navigator.pushReplacement(
           context,
@@ -133,18 +133,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       } else {
         if (mounted) {
           setState(() {
-            _emailErrorText = errorMsg;
+            if (errorMsg != null && (
+                errorMsg.toLowerCase().contains('socketexception') || 
+                errorMsg.toLowerCase().contains('failed host lookup') || 
+                errorMsg.toLowerCase().contains('connection') ||
+                errorMsg.toLowerCase().contains('koneksi'))) {
+              
+              bool isDark = false; // Auth screens use light/custom logic in this app usually
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Koneksi internet terputus.'),
+                  backgroundColor: AppColors.alertText,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+              _emailErrorText = null;
+            } else {
+              _emailErrorText = errorMsg;
+            }
           });
         }
       }
     }
   }
 
-  // Otorisasi Pendaftaran berbasis Google OAuth
+  // Registrasi Google OAuth
   Future<void> _handleGoogleRegister() async {
     FocusScope.of(context).unfocus();
 
-    // Hanya validasi kolom Peran
+    // Validasi peran saja
     if (!(_roleFieldKey.currentState?.validate() ?? false)) {
       return;
     }
@@ -160,7 +177,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         OAuthProvider.google,
         redirectTo: 'io.supabase.pblkyu://login-callback/', 
       );
-      // Pindah halaman akan ditangani oleh _authStateSubscription di initState
+      // Pindah halaman ditangani di initState
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -185,7 +202,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final isAuthLoading = ref.watch(authLoadingProvider);
-    const bool isDark = false; // Patenkan mode terang untuk halaman Auth
+    bool isDark = false; // Mode terang
 
     OutlineInputBorder buildBorder(Color borderColor, {double width = 1.0}) {
       return OutlineInputBorder(
@@ -205,7 +222,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Tombol Kembali
+                      // Tombol kembali
                       Align(
                         alignment: Alignment.centerLeft,
                         child: GestureDetector(
@@ -269,7 +286,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Nama Field
+                      // Input Nama
                       _buildFieldLabel('NAMA LENGKAP *', isDark),
                       const SizedBox(height: 8),
                       TextFormField(
@@ -297,7 +314,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Email Field
+                      // Input Email
                       _buildFieldLabel('ALAMAT EMAIL *', isDark),
                       const SizedBox(height: 8),
                       TextFormField(
@@ -334,7 +351,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Password Field
+                      // Input Password
                       _buildFieldLabel('KATA SANDI *', isDark),
                       const SizedBox(height: 8),
                       TextFormField(
@@ -370,7 +387,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Password Confirm Field
+                      // Konfirmasi Password
                       _buildFieldLabel('KONFIRMASI KATA SANDI *', isDark),
                       const SizedBox(height: 8),
                       TextFormField(
@@ -407,7 +424,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Peran Selektor
+                      // Pemilihan Peran
                       _buildFieldLabel('PILIH PERAN *', isDark),
                       const SizedBox(height: 12),
                       FormField<String>(
@@ -522,7 +539,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Registrasi Button
+                      // Tombol Daftar
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -555,7 +572,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Divider Pembatas "atau"
+                      // Garis pembatas
                       Row(
                         children: [
                           Expanded(child: Divider(color: isDark ? AppDarkColors.border : AppColors.border)),
@@ -574,7 +591,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Opsi Sign-In Google OAuth
+                      // Tombol Google
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -644,7 +661,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Link Kembali ke Login Screen
+                      // Link ke Login
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -668,7 +685,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Dots Indikator
+                      // Titik Indikator
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

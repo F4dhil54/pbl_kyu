@@ -6,7 +6,7 @@ class ProfileRepository {
 
   ProfileRepository(this._supabaseClient);
 
-  // Load invitations
+  // Load undangan
   Future<List<dynamic>> getInvitations(String invitedById) async {
     final response = await _supabaseClient
         .from('invitations')
@@ -15,7 +15,7 @@ class ProfileRepository {
     return response as List<dynamic>;
   }
 
-  // Load projects
+  // Load proyek
   Future<List<dynamic>> getProjects(String pembuatId) async {
     final response = await _supabaseClient
         .from('projects')
@@ -24,7 +24,7 @@ class ProfileRepository {
     return response as List<dynamic>;
   }
 
-  // Load teams
+  // Load tim
   Future<List<dynamic>> getTeams(String manajerId) async {
     final response = await _supabaseClient
         .from('teams')
@@ -33,14 +33,14 @@ class ProfileRepository {
     return response as List<dynamic>;
   }
 
-  // Create team, assign member
+  // Buat tim, tetapkan anggota
   Future<void> createTeam({
     required String teamName,
     required String managerId,
     required String memberId,
     required String managerName,
   }) async {
-    // Insert team
+    // Insert tim
     final teamResponse = await _supabaseClient.from('teams').insert({
       'nama_tim': teamName,
       'manajer_id': managerId,
@@ -49,16 +49,16 @@ class ProfileRepository {
 
     final teamId = teamResponse['id'] as String;
 
-    // Insert team member
+    // Insert tim member
     await _supabaseClient.from('team_members').insert({
       'team_id': teamId,
       'user_id': memberId,
     });
   }
 
-  // Upload avatar to storage bucket
+  // Upload avatar ke bucket
   Future<String> uploadAvatar(String userId, Uint8List imageBytes) async {
-    // Upload ke bucket 'avatars' dengan nama file kanonik
+    // Upload ke bucket 'avatars'
     const bucketName = 'avatars';
     final canonicalFileName = 'avatar_$userId.png';
 
@@ -77,19 +77,19 @@ class ProfileRepository {
       rethrow;
     }
 
-    // Resolve public URL — harus berupa string HTTP/HTTPS bersih
-    // Tambahkan timestamp untuk mencegah masalah cache agresif dari CDN Supabase
+    // Ambil URL publik bersih
+    // Tambahkan timestamp cegah cache
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final publicUrl = '${_supabaseClient.storage.from(bucketName).getPublicUrl(canonicalFileName)}?t=$timestamp';
     debugPrint('=== INFO: Avatar public URL: $publicUrl ===');
 
-    // Commit ke public.profiles.avatar_url (Pure String Rule: hanya HTTP/HTTPS)
+    // Commit ke avatar_url
     await updateProfileTable(userId: userId, avatarUrl: publicUrl);
 
     return publicUrl;
   }
 
-  // Update public.profiles table — dipisah agar bisa dipanggil mandiri
+  // Update tabel profiles
   Future<void> updateProfileTable({
     required String userId,
     String? avatarUrl,
@@ -121,7 +121,7 @@ class ProfileRepository {
     }
   }
 
-  // Update user profile metadata
+  // Update metadata user
   Future<UserResponse> updateUserProfile({
     required String name,
     String? avatarUrl,
@@ -136,10 +136,10 @@ class ProfileRepository {
     final attributes = UserAttributes(data: data);
     final response = await _supabaseClient.auth.updateUser(attributes);
     
-    // Force refresh session to ensure supabase.auth.currentUser is globally updated
+    // Refresh sesi auth
     await _supabaseClient.auth.refreshSession();
     
-    // Also update public.profiles table so other users see the new name!
+    // Update tabel public.profiles
     final userId = _supabaseClient.auth.currentUser?.id;
     if (userId != null) {
       await updateProfileTable(
@@ -152,7 +152,7 @@ class ProfileRepository {
     return response;
   }
 
-  // Invite member by email
+  // Undang dengan email
   Future<Map<String, dynamic>?> getProfileByEmail(String email) async {
     final response = await _supabaseClient
         .from('profiles')
@@ -175,7 +175,7 @@ class ProfileRepository {
       'status': status,
     });
 
-    // Send Notification
+    // Kirim Notifikasi
     await _supabaseClient.from('notifications').insert({
       'user_id': userId,
       'sender_id': invitedBy,
@@ -186,17 +186,17 @@ class ProfileRepository {
     });
   }
 
-  // Delete invitation/member
+  // Hapus undangan/anggota
   Future<void> deleteInvitation(String invitationId) async {
     await _supabaseClient.from('invitations').delete().eq('id', invitationId);
   }
 
-  // Delete team
+  // Hapus tim
   Future<void> deleteTeam(String teamId) async {
     await _supabaseClient.from('teams').delete().eq('id', teamId);
   }
 
-  // Update invitation status (edit member)
+  // Update status undangan
   Future<void> updateInvitationStatus(String invitationId, String status) async {
     await _supabaseClient
         .from('invitations')
@@ -204,7 +204,7 @@ class ProfileRepository {
         .eq('id', invitationId);
   }
 
-  // Respond to invitation (from notification)
+  // Respon undangan
   Future<void> respondToInvitation(String invitedBy, String userId, String newStatus) async {
     await _supabaseClient
         .from('invitations')
@@ -223,7 +223,7 @@ class ProfileRepository {
         .eq('status', 'pending');
   }
 
-  // Load Pomodoro sessions (profile view team stats)
+  // Load sesi Pomodoro
   Future<List<dynamic>> getPomodoroSessions({
     required String userId,
     required DateTime startOfWeek,
@@ -239,7 +239,7 @@ class ProfileRepository {
     return response as List<dynamic>;
   }
 
-  // Load team members (edit team screen)
+  // Load anggota tim
   Future<List<dynamic>> getTeamMembers(String teamId) async {
     final response = await _supabaseClient
         .from('team_members')
@@ -248,7 +248,7 @@ class ProfileRepository {
     return response as List<dynamic>;
   }
 
-  // Load colleagues (edit team screen)
+  // Load rekan kerja
   Future<List<dynamic>> getActiveColleagues(String invitedBy) async {
     final response = await _supabaseClient
         .from('invitations')
@@ -258,12 +258,12 @@ class ProfileRepository {
     return response as List<dynamic>;
   }
 
-  // Update team name (edit team screen)
+  // Update nama tim
   Future<void> updateTeamName(String teamId, String teamName) async {
     await _supabaseClient.from('teams').update({'nama_tim': teamName}).eq('id', teamId);
   }
 
-  // Sync team members (edit team screen)
+  // Sync anggota tim
   Future<void> syncTeamMembers(String teamId, List<String> memberIds) async {
     await _supabaseClient.from('team_members').delete().eq('team_id', teamId);
     if (memberIds.isNotEmpty) {
@@ -275,7 +275,7 @@ class ProfileRepository {
     }
   }
 
-  // Upsert project members (edit team screen)
+  // Upsert anggota proyek
   Future<void> upsertProjectMembers({
     required String projectId,
     required List<String> memberIds,

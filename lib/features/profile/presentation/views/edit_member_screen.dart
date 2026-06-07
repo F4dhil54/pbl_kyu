@@ -123,7 +123,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Form Card
+                // Kartu Form
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -176,7 +176,7 @@ class _EditMemberScreenState extends ConsumerState<EditMemberScreen> {
                       Divider(color: isDark ? AppDarkColors.border : AppColors.border),
                       const SizedBox(height: 24),
 
-                      // Action Buttons
+                      // Tombol Aksi
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(

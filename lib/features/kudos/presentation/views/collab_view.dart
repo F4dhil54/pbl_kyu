@@ -8,6 +8,7 @@ import '../../../../core/network/supabase_provider.dart';
 import '../../data/models/activity_model.dart';
 import '../providers/kudos_provider.dart';
 import '../../../../shared/widgets/app_sidebar.dart';
+import '../../../../shared/widgets/profile_avatar.dart';
 
 class CollabView extends ConsumerStatefulWidget {
   final String? role;
@@ -20,6 +21,7 @@ class CollabView extends ConsumerStatefulWidget {
 class _CollabViewState extends ConsumerState<CollabView> {
   String? _selectedProjectId;
   String _userRole = 'Tim';
+  String? _userAvatar;
   bool _isLoadingRole = true;
 
   @override
@@ -46,10 +48,11 @@ class _CollabViewState extends ConsumerState<CollabView> {
         final userId = user.id;
         final profileResponse = await supabase
             .from('profiles')
-            .select('role')
+            .select('role, avatar_url')
             .eq('id', userId)
             .single();
         final dbRole = profileResponse['role'] as String? ?? 'Tim';
+        final dbAvatar = profileResponse['avatar_url'] as String?;
         final metaRole = user.userMetadata?['role'] as String?;
         String role = 'Tim';
         if (metaRole != null && (dbRole == metaRole || dbRole.split(',').map((e) => e.trim()).contains(metaRole))) {
@@ -60,6 +63,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
         if (mounted) {
           setState(() {
             _userRole = role;
+            _userAvatar = dbAvatar ?? user.userMetadata?['avatar_url'] as String?;
             _isLoadingRole = false;
           });
         }
@@ -166,12 +170,12 @@ class _CollabViewState extends ConsumerState<CollabView> {
     final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
     final currentUserId = ref.read(supabaseClientProvider).auth.currentUser?.id;
     
-    // Cek apakah user sudah mengirim kudos dengan emoji ini
+    // Cek status pengiriman kudos
     bool hasVoted = activity.reactions.any((r) => 
         r.reaksiEmoji.runes.first == emoji.runes.first && 
         (r.pengirimId == currentUserId || currentUserId == null));
 
-    // Disable jika dirinya sendiri
+    // Nonaktifkan untuk diri sendiri
     bool isSelf = activity.userId == currentUserId;
 
     return GestureDetector(
@@ -179,9 +183,9 @@ class _CollabViewState extends ConsumerState<CollabView> {
         if (isSelf) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Anda tidak bisa memberi Kudos untuk diri sendiri! 😅'),
-              backgroundColor: Colors.orange,
+            SnackBar(
+              content: const Text('Anda tidak bisa memberi Kudos untuk diri sendiri!'),
+              backgroundColor: isDark ? Colors.red[900] : AppColors.alertText,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -190,19 +194,26 @@ class _CollabViewState extends ConsumerState<CollabView> {
 
         Navigator.pop(context);
         try {
-          await ref.read(kudosActionNotifierProvider.notifier).sendKudos(
+          final action = await ref.read(kudosActionNotifierProvider.notifier).sendKudos(
             projectId: activity.projectId,
             taskId: activity.taskId,
             taskProgressLogId: activity.type == 'progress' ? activity.id : null,
             receiverId: activity.userId,
             emoji: emoji,
             commitSha: activity.commitSha,
+            githubCommitId: (activity.type == 'commit' || activity.type == 'github') ? activity.id : null,
           );
           if (mounted) {
+            String msg = 'Kudos $emoji berhasil dikirim!';
+            if (action == 'retracted') {
+              msg = 'Kudos $emoji ditarik kembali.';
+            } else if (action == 'swapped') {
+              msg = 'Kudos diubah menjadi $emoji!';
+            }
             ScaffoldMessenger.of(this.context).showSnackBar(
               SnackBar(
-                content: Text('Kudos $emoji berhasil dikirim!'),
-                backgroundColor: AppColors.successText,
+                content: Text(msg),
+                backgroundColor: action == 'retracted' ? Colors.grey[700] : AppColors.successText,
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -391,19 +402,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
                     MaterialPageRoute(builder: (context) => const ProfileViewManager()),
                   );
                 },
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-                  child: Image.asset(
-                    'image/ic_profile.png',
-                    width: 24,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.person, 
-                      color: isDark ? AppDarkColors.textMain : AppColors.textMain, 
-                      size: 24
-                    ),
-                  ),
-                ),
+                child: const ProfileAvatarButton(radius: 16),
               ),
               const SizedBox(width: 20),
             ],
@@ -422,7 +421,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Leaderboard Section Header with Project Selector Dropdown
+                  // Header Leaderboard & Dropdown
                   projectsAsync.when(
                     loading: () => const Center(child: CircularProgressIndicator()),
                     error: (err, stack) => Text('Error: $err'),
@@ -502,7 +501,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
                   ),
                   const SizedBox(height: 16),
                   
-                  // Dynamic Podium Section
+                  // Podium Dinamis
                   if (_selectedProjectId != null)
                     ref.watch(projectLeaderboardProvider(_selectedProjectId!)).when(
                       loading: () => Container(
@@ -519,7 +518,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            // Rank 2
+                            // Peringkat 2
                             Expanded(
                               child: item2 != null
                                   ? _buildPodiumCard(
@@ -534,7 +533,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
                                   : _buildEmptyPodiumCard(2, isDark),
                             ),
                             const SizedBox(width: 12),
-                            // Rank 1
+                            // Peringkat 1
                             Expanded(
                               child: item1 != null
                                   ? _buildPodiumCard(
@@ -549,7 +548,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
                                   : _buildEmptyPodiumCard(1, isDark),
                             ),
                             const SizedBox(width: 12),
-                            // Rank 3
+                            // Peringkat 3
                             Expanded(
                               child: item3 != null
                                   ? _buildPodiumCard(
@@ -583,7 +582,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
                     ),
                   const SizedBox(height: 32),
 
-                  // Recent Activities Header
+                  // Header Aktivitas Terbaru
                   Text(
                     'Aktivitas Terbaru',
                     style: TextStyle(
@@ -594,7 +593,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Dynamic Activities Feed
+                  // Feed Aktivitas Dinamis
                   Builder(
                     builder: (context) {
                       if (activitiesAsync.isLoading && activitiesAsync.activities.isEmpty) {
@@ -655,41 +654,84 @@ class _CollabViewState extends ConsumerState<CollabView> {
                           if (activitiesList.isNotEmpty && (activitiesAsync.currentPage > 1 || activitiesAsync.hasMore)) ...[
                             const SizedBox(height: 24),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                ElevatedButton(
-                                  onPressed: activitiesAsync.currentPage > 1 && !activitiesAsync.isLoading
+                                InkWell(
+                                  onTap: activitiesAsync.currentPage > 1 && !activitiesAsync.isLoading
                                       ? () => ref.read(collabActivitiesProvider.notifier).loadPage(activitiesAsync.currentPage - 1)
                                       : null,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
-                                    foregroundColor: isDark ? Colors.white : Colors.black,
-                                    side: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  borderRadius: BorderRadius.circular(24),
+                                  child: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: (activitiesAsync.currentPage > 1 && !activitiesAsync.isLoading) 
+                                            ? (isDark ? AppDarkColors.border : AppColors.border) 
+                                            : Colors.grey.withValues(alpha: 0.3),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.chevron_left, 
+                                      color: (activitiesAsync.currentPage > 1 && !activitiesAsync.isLoading) 
+                                          ? (isDark ? AppDarkColors.textMain : AppColors.textMain) 
+                                          : Colors.grey,
+                                    ),
                                   ),
-                                  child: const Text('Sebelumnya'),
                                 ),
-                                Text(
-                                  'Halaman ${activitiesAsync.currentPage}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                                const SizedBox(width: 16),
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.primary,
+                                  ),
+                                  child: Center(
+                                    child: activitiesAsync.isLoading
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : Text(
+                                            '${activitiesAsync.currentPage}',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
                                   ),
                                 ),
-                                ElevatedButton(
-                                  onPressed: activitiesAsync.hasMore && !activitiesAsync.isLoading
+                                const SizedBox(width: 16),
+                                InkWell(
+                                  onTap: activitiesAsync.hasMore && !activitiesAsync.isLoading
                                       ? () => ref.read(collabActivitiesProvider.notifier).loadPage(activitiesAsync.currentPage + 1)
                                       : null,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: isDark ? AppDarkColors.surface : Colors.white,
-                                    foregroundColor: isDark ? Colors.white : Colors.black,
-                                    side: BorderSide(color: isDark ? AppDarkColors.border : AppColors.border),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  borderRadius: BorderRadius.circular(24),
+                                  child: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: (activitiesAsync.hasMore && !activitiesAsync.isLoading) 
+                                            ? (isDark ? AppDarkColors.border : AppColors.border) 
+                                            : Colors.grey.withValues(alpha: 0.3),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.chevron_right, 
+                                      color: (activitiesAsync.hasMore && !activitiesAsync.isLoading) 
+                                          ? (isDark ? AppDarkColors.textMain : AppColors.textMain) 
+                                          : Colors.grey,
+                                    ),
                                   ),
-                                  child: const Text('Selanjutnya'),
                                 ),
                               ],
                             ),
@@ -742,7 +784,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
       height: height,
       decoration: BoxDecoration(
         color: isFirst 
-            ? AppColors.rank1Background 
+            ? (isDark ? const Color(0xFF1E3A8A) : AppColors.rank1Background) 
             : (isDark ? AppDarkColors.surface : Colors.white),
         borderRadius: BorderRadius.circular(16),
         border: isFirst ? null : Border.all(color: isDark ? AppDarkColors.border : AppColors.border, width: 0.5),
@@ -882,14 +924,15 @@ class _CollabViewState extends ConsumerState<CollabView> {
                 : CircleAvatar(
                     radius: 20,
                     backgroundColor: isDark ? AppDarkColors.surface : const Color(0xFFE2E8F0),
-                    child: Text(
+                    backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty) ? NetworkImage(avatarUrl) : null,
+                    child: (avatarUrl == null || avatarUrl.isEmpty) ? Text(
                       name.isNotEmpty ? name[0].toUpperCase() : 'U',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: isDark ? AppDarkColors.textMain : AppColors.textMain,
                       ),
-                    ),
+                    ) : null,
                   ),
           ),
           const SizedBox(width: 16),
@@ -951,7 +994,7 @@ class _CollabViewState extends ConsumerState<CollabView> {
                     ),
                   ],
                 ),
-                // Reaction chips removed from card
+                // Hapus chips reaksi
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -985,42 +1028,47 @@ class _CollabViewState extends ConsumerState<CollabView> {
                       const Spacer(),
                       GestureDetector(
                         onTap: () => _showAggregatedKudosSummarySheet(context, reactions),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppDarkColors.background : AppColors.inputBackground,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isDark ? AppDarkColors.border : AppColors.border,
-                              width: 0.5,
-                            ),
-                          ),
-                          child: Builder(
-                            builder: (context) {
-                              final Map<String, int> reactionCounts = {};
-                              for (var r in reactions) {
-                                final emoji = r.reaksiEmoji;
-                                reactionCounts[emoji] = (reactionCounts[emoji] ?? 0) + 1;
-                              }
-                              final displayEmojis = reactionCounts.keys.take(3).join(' ');
-                              final totalReactions = reactions.length;
-                              return Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(displayEmojis, style: const TextStyle(fontSize: 12)),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    '$totalReactions',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                        child: Builder(
+                          builder: (context) {
+                            final Map<String, int> reactionCounts = {};
+                            for (var r in reactions) {
+                              final emoji = r.reaksiEmoji;
+                              reactionCounts[emoji] = (reactionCounts[emoji] ?? 0) + 1;
+                            }
+                            
+                            return Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: reactionCounts.entries.map((entry) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? AppDarkColors.background : AppColors.inputBackground,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isDark ? AppDarkColors.border : AppColors.border,
+                                      width: 0.5,
                                     ),
                                   ),
-                                ],
-                              );
-                            },
-                          ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(entry.key, style: const TextStyle(fontSize: 12)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${entry.value}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? AppDarkColors.textMain : AppColors.textMain,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
                         ),
                       ),
                     ],

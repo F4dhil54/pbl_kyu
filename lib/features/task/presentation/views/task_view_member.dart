@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/colors.dart';
-import '../../../../core/theme/theme_mode.dart'; // Pastikan path import ini sesuai dengan struktur projek Anda
+import '../../../../core/theme/theme_mode.dart'; // Import mode malam
 
 class TaskViewMember extends StatelessWidget {
   const TaskViewMember({super.key});
@@ -74,7 +74,7 @@ class TaskViewMember extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 
-                // Row Completion & Task
+                // Baris Task & Selesai
                 Row(
                   children: [
                     Expanded(
@@ -122,7 +122,7 @@ class TaskViewMember extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // In Progress Card
+                // Kartu Sedang Dikerjakan
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -221,7 +221,7 @@ class TaskViewMember extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Backlog Card
+                // Kartu Backlog
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -294,7 +294,7 @@ class TaskViewMember extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Recent Commits Card
+                // Kartu Commit Terbaru
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -358,7 +358,7 @@ class TaskViewMember extends StatelessWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(width: 16), // align with text above
+                          const SizedBox(width: 16), // Sejajarkan dengan teks
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -398,7 +398,7 @@ class TaskViewMember extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Workstream Optimization Card (Tetap berwarna biru terang agar mencolok sebagai AI Highlight)
+                // Kartu Optimasi AI
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -431,7 +431,7 @@ class TaskViewMember extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Sync Team Card
+                // Kartu Sinkronisasi Tim
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(

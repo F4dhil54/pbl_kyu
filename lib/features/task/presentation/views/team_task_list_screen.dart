@@ -139,13 +139,13 @@ class TeamTaskListScreen extends ConsumerWidget {
                             'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'
                           ][deadline.month - 1]} ${deadline.year}';
                           
-                          // If deadline is passed and not completed
+                          // Jika deadline terlewat
                           if (deadline.isBefore(DateTime.now()) && !isCompleted) {
                             dateColor = AppColors.alertText;
                           }
                         }
 
-                        // Status styling
+                        // Gaya status
                         String badgeText = task.statusTugas;
                         Color badgeColor;
                         Color badgeTextColor;
@@ -229,7 +229,7 @@ class TeamTaskListScreen extends ConsumerWidget {
             width: 0.5
           ),
           boxShadow: isDark 
-              ? [] // Hilangkan bayangan hitam di mode gelap agar tidak kotor
+              ? [] // Hilangkan bayangan gelap
               : [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.02),

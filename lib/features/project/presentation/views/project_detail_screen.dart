@@ -25,6 +25,48 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   int _activeTabIndex = 0; // 0: Tugas, 1: Orang
   String _selectedEisenhowerFilter = 'Semua';
   bool _isSyncing = false;
+  String _userRole = 'Tim';
+  bool _isLoadingRole = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserRole();
+  }
+
+  Future<void> _fetchUserRole() async {
+    final supabase = ref.read(supabaseClientProvider);
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      try {
+        final profileResponse = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        final dbRole = profileResponse['role'] as String? ?? 'Tim';
+        if (mounted) {
+          setState(() {
+            _userRole = dbRole;
+            _isLoadingRole = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _userRole = user.userMetadata?['role'] as String? ?? 'Tim';
+            _isLoadingRole = false;
+          });
+        }
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoadingRole = false;
+        });
+      }
+    }
+  }
 
 
 
@@ -61,7 +103,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                     height: 380,
                     child: Column(
                       children: [
-                        // Tab Selector
+                        // Pemilih Tab
                         Row(
                           children: [
                             Expanded(
@@ -117,7 +159,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        // List View content
+                        // Konten List View
                         Expanded(
                           child: !showTeamsTab
                               ? activeColleaguesAsync.when(
@@ -170,9 +212,9 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                       'status_akses': 'aktif',
                                                     });
 
-                                                    // Notifications
+                                                    // Notifikasi
                                                     try {
-                                                      // Notify the new member
+                                                      // Beritahu anggota baru
                                                       await supabase.from('notifications').insert({
                                                         'user_id': colleague['id'],
                                                         'sender_id': user?.id,
@@ -183,7 +225,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                         'is_read': false,
                                                       });
                                                       
-                                                      // Notify existing members
+                                                      // Beritahu anggota tim
                                                       final membersRes = await supabase.from('project_members')
                                                           .select('user_id')
                                                           .eq('project_id', project.id)
@@ -284,7 +326,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                     final user = supabase.auth.currentUser;
                                                     if (user == null) return;
 
-                                                    // Fetch team members
+                                                    // Ambil anggota tim
                                                     final teamMembersRes = await supabase
                                                         .from('team_members')
                                                         .select('user_id')
@@ -292,7 +334,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                     
                                                     final teamMembersList = teamMembersRes as List<dynamic>;
 
-                                                    // Insert each team member to project_members
+                                                    // Simpan anggota proyek
                                                     for (final tm in teamMembersList) {
                                                       await supabase.from('project_members').upsert({
                                                         'project_id': project.id,
@@ -302,13 +344,13 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                       }, onConflict: 'project_id, user_id');
                                                     }
 
-                                                    // Insert relationship into project_teams
+                                                    // Simpan relasi tim
                                                     await supabase.from('project_teams').insert({
                                                       'project_id': project.id,
                                                       'team_id': team['id'],
                                                     });
 
-                                                    // Notifications for team members
+                                                    // Notifikasi for team members
                                                     try {
                                                       final membersRes = await supabase.from('project_members')
                                                           .select('user_id')
@@ -324,7 +366,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                         if (uid == user.id) continue;
                                                         
                                                         if (newTeamMemberIds.contains(uid)) {
-                                                          // Notification for newly added team members
+                                                          // Notifikasi anggota baru
                                                           notifications.add({
                                                             'user_id': uid,
                                                             'sender_id': user.id,
@@ -335,7 +377,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                                             'is_read': false,
                                                           });
                                                         } else {
-                                                          // Notification for existing project members
+                                                          // Notifikasi anggota proyek
                                                           notifications.add({
                                                             'user_id': uid,
                                                             'sender_id': user.id,
@@ -479,9 +521,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         widget.project;
 
     final user = Supabase.instance.client.auth.currentUser;
-    final userRole = user?.userMetadata?['role'] as String? ?? 'Tim';
-    final isManager = userRole == 'Manajer';
-    final role = userRole;
+    final isManager = _userRole == 'Manajer' || project.creatorId == user?.id;
+    final role = _userRole;
 
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeControl.themeNotifier,
@@ -513,7 +554,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           ),
           body: Column(
             children: [
-              // Scrollable Header Info
+              // Info Header
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () async {
@@ -563,7 +604,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Project header details
+                      // Detail header proyek
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
@@ -647,7 +688,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Toggle View
+                      // Toggle Tampilan
                       if (_activeTabIndex == 0)
                         _buildTugasTab(isDark, isManager, role, project)
                       else
@@ -716,7 +757,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Git sync and suggestion instructions for everyone
+        // Instruksi sinkronisasi Git
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -777,7 +818,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         ),
         const SizedBox(height: 16),
 
-        // Eisenhower visual categories tabs with Funnel Filter
+        // Tab Filter Eisenhower
         Row(
           children: [
             Expanded(
@@ -891,26 +932,26 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         ),
         const SizedBox(height: 20),
 
-        // List tasks
+        // Daftar tugas
         tasksAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => Center(child: Text('Gagal memuat tugas: $err')),
           data: (allTasks) {
-            // Apply strict Gembok Hak Akses for Tim members on the raw list
+            // Terapkan pembatasan akses Tim
             final currentUserId = Supabase.instance.client.auth.currentUser?.id;
             List<TaskModel> visibleTasks = allTasks;
             if (!isManager) {
               final now = DateTime.now();
               visibleTasks = allTasks.where((t) {
-                // Tugas aktif yang sudah di-acc manajer
+                // Tugas aktif disetujui
                 if (t.statusTugas == 'Akan Dikerjakan') return true;
-                // Tugas yang sudah selesai
+                // Tugas selesai
                 if (t.statusTugas == 'Selesai') return true;
-                // Tugas terjadwal yang sudah tiba waktunya
+                // Tugas terjadwal aktif
                 if (t.statusTugas == 'Dijadwalkan' && t.scheduledFor != null && t.scheduledFor!.isBefore(now)) {
                   return true;
                 }
-                // Tugas review (usulan Tim) yang dibuat oleh anggota ini sendiri
+                // Tugas review dari anggota
                 if (t.statusTugas == 'Ditinjau' && t.createdBy == currentUserId) {
                   return true;
                 }
@@ -918,21 +959,21 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               }).toList();
             }
 
-            // Apply Manager vs Team filters
+            // Terapkan filter Manajer/Tim
             List<TaskModel> filteredList = [];
             if (isManager) {
               if (activeFilter == 'Tugas Aktif' || activeFilter == 'Tugas Aktif Proyek') {
-                // Manajer: tampilkan tugas aktif (accept) dan selesai
+                // Manajer: Tugas aktif & selesai
                 filteredList = visibleTasks.where((t) => t.statusTugas == 'Akan Dikerjakan' || t.statusTugas == 'Selesai').toList();
               } else if (activeFilter == 'Draft Manajer') {
-                // Manajer: draft privat yang dibuat manajer
+                // Manajer: Draft privat
                 filteredList = visibleTasks.where((t) =>
                   t.dibuatOlehRole == 'Manajer' &&
                   t.statusTugas == 'Draft' &&
                   t.scheduledFor == null
                 ).toList();
               } else if (activeFilter == 'Draft Tim') {
-                // Manajer: usulan dari anggota Tim yang menunggu persetujuan
+                // Manajer: Usulan Tim menunggu
                 filteredList = visibleTasks.where((t) =>
                   t.dibuatOlehRole == 'Tim' &&
                   t.statusTugas == 'Ditinjau' &&
@@ -941,19 +982,19 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               } else if (activeFilter == 'Dijadwalkan') {
                 filteredList = visibleTasks.where((t) => t.statusTugas == 'Dijadwalkan').toList();
               } else {
-                // Default fallback
+                // Fallback default
                 filteredList = visibleTasks.where((t) => t.statusTugas == 'Akan Dikerjakan' || t.statusTugas == 'Selesai').toList();
               }
             } else {
               if (activeFilter == 'Draft Tugas Saya') {
-                // Anggota Tim: usulan tugas yang dibuat oleh diri sendiri (menunggu / ditolak)
+                // Anggota Tim: Usulan sendiri
                 filteredList = visibleTasks.where((t) =>
                   t.dibuatOlehRole == 'Tim' &&
                   t.statusTugas == 'Ditinjau' &&
                   t.createdBy == currentUserId
                 ).toList();
               } else {
-                // Default: hanya tugas aktif (sudah disetujui manajer)
+                // Default: Tugas aktif
                 final now = DateTime.now();
                 filteredList = visibleTasks.where((t) =>
                   t.statusTugas == 'Akan Dikerjakan' ||
@@ -963,7 +1004,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               }
             }
 
-            // Apply Eisenhower priority visual classifications
+            // Klasifikasi visual Eisenhower
             if (_selectedEisenhowerFilter != 'Semua') {
               if (_selectedEisenhowerFilter == 'Done') {
                 filteredList = filteredList.where((t) => t.statusTugas == 'Selesai').toList();
@@ -1193,7 +1234,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                     ],
                   ],
                 ),
-                // Option edit/delete or draft actions
+                // Opsi edit/hapus/draft
                 if (isManager && task.dibuatOlehRole == 'Tim' && task.keputusanManajer == 'Menunggu')
                   Row(
                     children: [

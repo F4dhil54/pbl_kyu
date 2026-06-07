@@ -439,7 +439,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
     try {
       final profileRepo = ref.read(profileRepositoryProvider);
       
-      // Upload image if selected → stores to avatars bucket + updates profiles table
+      // Upload & simpan avatar
       if (_selectedImageBytes != null) {
         final userId = _currentUser?.id ?? 'user';
         _avatarUrl = await profileRepo.uploadAvatar(
@@ -584,7 +584,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                 ),
                 const SizedBox(height: 24),
 
-                // Edit Profil Card
+                // Kartu Edit Profil
                 _buildCardWrapper(
                   isDark: isDark,
                   title: 'Edit Profil',
@@ -681,7 +681,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                 ),
                 const SizedBox(height: 16),
 
-                // Hubungkan Akun Github Button
+                // Tombol Hubungkan GitHub
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -714,7 +714,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                 ),
                 const SizedBox(height: 16),
 
-                // Manajemen Orang Card
+                // Kartu Manajemen Orang
                 _buildCardWrapper(
                   isDark: isDark,
                   title: 'Manajemen Orang',
@@ -830,7 +830,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                 ),
                 const SizedBox(height: 16),
 
-                // Manajemen Tim Card
+                // Kartu Manajemen Tim
                 _buildCardWrapper(
                   isDark: isDark,
                   title: 'Manajemen Tim',
@@ -950,7 +950,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                 ),
                 const SizedBox(height: 16),
 
-                // Bagian Pengaturan Aplikasi
+                // Pengaturan Aplikasi
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -967,7 +967,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                   ),
                   child: Column(
                     children: [
-                      // Theme Toggle
+                      // Toggle Tema
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         child: Row(
@@ -1006,14 +1006,14 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
                       ),
                       Divider(height: 1, indent: 72, endIndent: 16, color: isDark ? AppDarkColors.border : AppColors.border),
                       
-                      // Notifikasi Suara
+                      // Suara Notifikasi
                       NotificationPreferenceItem(isDark: isDark),
                     ],
                   ),
                 ),
                 const SizedBox(height: 32),
 
-                // Keluar Button
+                // Tombol Keluar
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -1138,7 +1138,7 @@ class _ProfileViewManagerState extends ConsumerState<ProfileViewManager> {
     }
 
     return DropdownButtonFormField<String>(
-      value: _selectedMemberId,
+      initialValue: _selectedMemberId,
       hint: Text(
         'Nama Anggota', 
         style: TextStyle(

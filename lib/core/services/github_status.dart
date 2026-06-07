@@ -7,7 +7,7 @@ class GitHubStatus {
   static String repoName = "kyu-org/core-engine";
   static bool isSyncActive = false;
 
-  // Fungsi untuk menyimpan status ke HP
+  // Simpan status ke perangkat
   static Future<void> saveStatus(bool connected, String user, bool sync) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isConnected', connected);
@@ -21,7 +21,7 @@ class GitHubStatus {
     debugPrint("DEBUG: Status disimpan! Connected: $connected, User: $user");
   }
 
-  // Fungsi untuk memanggil status dari HP
+  // Muat status dari perangkat
   static Future<void> loadStatus() async {
     final prefs = await SharedPreferences.getInstance();
     isConnected = prefs.getBool('isConnected') ?? false;
@@ -29,7 +29,7 @@ class GitHubStatus {
     isSyncActive = prefs.getBool('isSyncActive') ?? false;
   }
 
-  // Fungsi untuk menghapus status saat logout
+  // Hapus status saat logout
   static Future<void> clearStatus() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('isConnected');

@@ -43,7 +43,7 @@ class _MessageDetailScreenState extends ConsumerState<MessageDetailScreen> {
     });
 
     try {
-      // The sender of this notification is the receiver of the reply
+      // Penerima balasan
       await ref.read(notificationNotifierProvider.notifier).replyMessage(
         widget.notification.senderId ?? '',
         widget.notification.judul,
@@ -194,7 +194,7 @@ class _MessageDetailScreenState extends ConsumerState<MessageDetailScreen> {
                 ),
                 const SizedBox(height: 40),
                 
-                // Reply Section
+                // Bagian Balasan
                 if (widget.notification.tipeNotifikasi == 'pesan' || widget.notification.tipeNotifikasi == 'mention') ...[
                   if (!_isReplying)
                     SizedBox(

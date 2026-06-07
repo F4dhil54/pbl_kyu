@@ -94,7 +94,7 @@ class TeamDashboard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Notifikasi Cepat Card
+                // Kartu Notifikasi
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -213,7 +213,7 @@ class TeamDashboard extends ConsumerWidget {
                               onPressed: () {
                                 final notifsState = ref.read(notificationNotifierProvider);
                                 if (notifsState.hasValue) {
-                                  // Mark all unread notifications as read
+                                  // Tandai semua notifikasi dibaca
                                   final unreadNotifs = notifsState.value!.where((n) => !n.isRead).toList();
                                   for (var n in unreadNotifs) {
                                     ref.read(notificationNotifierProvider.notifier).markAsRead(n.id);
@@ -243,7 +243,7 @@ class TeamDashboard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Tugas Saya Header
+                // Header Tugas Saya
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -280,7 +280,7 @@ class TeamDashboard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Task List
+                // Daftar Tugas
                 myTasksAsync.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
                   error: (err, stack) => Text('Gagal memuat tugas: $err'),
@@ -307,17 +307,17 @@ class TeamDashboard extends ConsumerWidget {
                         final task = tasks[index];
                         final isCompleted = task.statusTugas == 'Selesai';
                         
-                        // Find the project associated with this task
+                        // Cari proyek terkait
                         ProjectModel? matchedProject;
                         projectsAsync.whenData((projectList) {
                           try {
                             matchedProject = projectList.firstWhere((p) => p.id == task.projectId);
                           } catch (_) {
-                            // not found
+                            // tidak ditemukan
                           }
                         });
 
-                        // Deadline/Time text formatting
+                        // Format waktu
                         String timeText = 'Akan Dikerjakan';
                         if (isCompleted) {
                           timeText = 'Selesai';
@@ -368,7 +368,7 @@ class TeamDashboard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 40),
 
-                // Quote Section
+                // Bagian Kutipan
                 Center(
                   child: Column(
                     children: [

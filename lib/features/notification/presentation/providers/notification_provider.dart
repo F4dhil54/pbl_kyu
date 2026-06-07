@@ -5,15 +5,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../data/models/notification_model.dart';
 import '../../data/repositories/notification_repo.dart';
+import '../../../kudos/presentation/providers/kudos_provider.dart';
 
 enum NotificationFilter { semua, belumDibaca, mention, tugas }
 
 class NotificationNotifier extends StateNotifier<AsyncValue<List<NotificationModel>>> {
   final NotificationRepository _repository;
   final String _userId;
+  final Ref _ref;
   RealtimeChannel? _subscription;
 
-  NotificationNotifier(this._repository, this._userId) : super(const AsyncValue.loading()) {
+  NotificationNotifier(this._repository, this._userId, this._ref) : super(const AsyncValue.loading()) {
     loadNotifications();
     if (_userId.isNotEmpty) {
       _setupRealtime();
@@ -30,17 +32,26 @@ class NotificationNotifier extends StateNotifier<AsyncValue<List<NotificationMod
           callback: (payload) {
             final newRecord = payload.newRecord;
             
-            // Check if this notification is for me OR sent by me
+            // Cek notifikasi diri sendiri
             if (newRecord['user_id'] == _userId || newRecord['sender_id'] == _userId) {
               loadNotifications();
               
-              // Only trigger sound/popup if I am the RECEIVER and not the sender
+              // Trigger suara/popup untuk penerima
               if (newRecord['user_id'] == _userId && newRecord['sender_id'] != _userId) {
                 LocalNotificationService.showNotification(
                   id: (newRecord['id'] ?? '').hashCode,
                   title: newRecord['judul'] ?? 'Notifikasi Baru',
                   body: newRecord['pesan'] ?? 'Anda memiliki pesan baru',
                 );
+
+                // Auto-refresh bubble kudos
+                final tipe = newRecord['tipe_notifikasi'] as String?;
+                if (tipe != null && tipe.contains('kudos')) {
+                  try {
+                    // Refresh aktivitas untuk bubble
+                    _ref.read(collabActivitiesProvider.notifier).loadPage(_ref.read(collabActivitiesProvider).currentPage, isRefresh: true);
+                  } catch (_) {}
+                }
               }
             }
           },
@@ -67,7 +78,7 @@ class NotificationNotifier extends StateNotifier<AsyncValue<List<NotificationMod
   Future<void> markAsRead(String id) async {
     try {
       await _repository.markAsRead(id);
-      // Update locally
+      // Update lokal
       if (state.hasValue) {
         final currentList = state.value!;
         final updatedList = currentList.map((n) {
@@ -93,7 +104,7 @@ class NotificationNotifier extends StateNotifier<AsyncValue<List<NotificationMod
         state = AsyncValue.data(updatedList);
       }
     } catch (e) {
-      // Ignore or log error
+      // Abaikan/log error
     }
   }
 
@@ -106,7 +117,7 @@ class NotificationNotifier extends StateNotifier<AsyncValue<List<NotificationMod
         state = AsyncValue.data(updatedList);
       }
     } catch (e) {
-      // Ignore or log error
+      // Abaikan/log error
     }
   }
 
@@ -187,7 +198,7 @@ final notificationSearchProvider = StateProvider<String>((ref) => '');
 final notificationNotifierProvider = StateNotifierProvider<NotificationNotifier, AsyncValue<List<NotificationModel>>>((ref) {
   final repo = ref.watch(notificationRepositoryProvider);
   final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
-  return NotificationNotifier(repo, userId);
+  return NotificationNotifier(repo, userId, ref);
 });
 
 final filteredNotificationsProvider = Provider<AsyncValue<List<NotificationModel>>>((ref) {
@@ -198,7 +209,7 @@ final filteredNotificationsProvider = Provider<AsyncValue<List<NotificationModel
   return asyncNotifications.whenData((notifications) {
     var filtered = notifications;
 
-    // Search
+    // Pencarian
     if (search.isNotEmpty) {
       filtered = filtered.where((n) {
         final titleMatch = n.judul.toLowerCase().contains(search);

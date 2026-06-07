@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/colors.dart';
-import '../../../../core/theme/theme_mode.dart'; // Import ThemeControl untuk sinkronisasi mode malam
+import '../../../../core/theme/theme_mode.dart'; // Sinkronisasi mode malam
 
 class TaskViewManager extends StatelessWidget {
   const TaskViewManager({super.key});
@@ -97,7 +97,7 @@ class TaskViewManager extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 
-                // Do First Quadrant
+                // Kuadran Do First
                 _buildQuadrantCard(
                   isDark,
                   'Do First',
@@ -109,7 +109,7 @@ class TaskViewManager extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Schedule Quadrant
+                // Kuadran Schedule
                 _buildQuadrantCard(
                   isDark,
                   'Schedule',
@@ -120,7 +120,7 @@ class TaskViewManager extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Delegate Quadrant
+                // Kuadran Delegate
                 _buildQuadrantCard(
                   isDark,
                   'Delegate',
@@ -131,7 +131,7 @@ class TaskViewManager extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Eliminate Quadrant
+                // Kuadran Eliminate
                 _buildQuadrantCard(
                   isDark,
                   'Eliminate',
@@ -152,7 +152,7 @@ class TaskViewManager extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
 
-                // Execution Velocity Section
+                // Bagian Kecepatan Eksekusi
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -200,7 +200,7 @@ class TaskViewManager extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 100), // Spacing for FAB
+                const SizedBox(height: 100), // Jarak untuk FAB
               ],
             ),
           ),

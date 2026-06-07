@@ -60,7 +60,7 @@ class TaskDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Top Cards
+                // Kartu Atas
                 Row(
                   children: [
                     _buildInfoCard(isDark, 'MANAJER', 'Fadhil Syahidan', Icons.account_circle, const Color(0xFFE65100)),
@@ -70,7 +70,7 @@ class TaskDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Tugas Content Card
+                // Kartu Konten Tugas
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(

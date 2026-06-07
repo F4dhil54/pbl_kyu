@@ -79,7 +79,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
                 ),
                 const SizedBox(height: 24),
 
-                // My Daily Today Header
+                // Header Harian Saya
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -110,7 +110,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
                 ),
                 const SizedBox(height: 16),
 
-                // Task List
+                // Daftar Tugas
                 _buildTaskItem('HIGH PRIORITY', 'Aether-01', 'Finalize architectural\nSystem Design', true, isDark: isDark),
                 const SizedBox(height: 12),
                 _buildTaskItem('MEDIUM', 'Aether-04', 'Conduct Accessibility\nAudit On Main Dashboard', true, isDark: isDark),
@@ -120,7 +120,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
                 _buildTaskItem('LOW', 'Growth-12', 'Team Knowledge\nSharing Session Prep', true, isDark: isDark),
                 const SizedBox(height: 24),
 
-                // Fokus Mode
+                // Mode Fokus
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -182,7 +182,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
                 ),
                 const SizedBox(height: 24),
 
-                // Daily Motivation
+                // Motivasi Harian
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -236,7 +236,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
                 ),
                 const SizedBox(height: 24),
 
-                // Week Status
+                // Status Mingguan
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(

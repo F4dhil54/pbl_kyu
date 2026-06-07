@@ -50,7 +50,7 @@ class OnboardingScreen extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              //Dots
+              // Indikator titik
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -83,7 +83,7 @@ class OnboardingScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 32),
-              // Button
+              // Tombol Selanjutnya
               SizedBox(
                 width: double.infinity,
                 height: 50,

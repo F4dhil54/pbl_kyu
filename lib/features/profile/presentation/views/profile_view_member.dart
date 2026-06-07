@@ -39,7 +39,7 @@ class ProfileViewMember extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Profile Header
+                // Header Profil
                 Stack(
                   children: [
                     CircleAvatar(
@@ -110,7 +110,7 @@ class ProfileViewMember extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Focus Statistics
+                // Statistik Fokus
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -213,7 +213,7 @@ class ProfileViewMember extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Github Sync
+                // Sinkronisasi GitHub
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -268,14 +268,14 @@ class ProfileViewMember extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Account Control Header
+                // Header Kontrol Akun
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text('ACCOUNT CONTROL', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 10)),
                 ),
                 const SizedBox(height: 16),
                 
-                // Account Control Items
+                // Item Kontrol Akun
                 Container(
                   decoration: BoxDecoration(
                     color: isDark ? AppDarkColors.surface : Colors.white,
@@ -296,7 +296,7 @@ class ProfileViewMember extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
 
-                // Sign Out
+                // Keluar
                 GestureDetector(
                   onTap: () {
                     Navigator.pushAndRemoveUntil(

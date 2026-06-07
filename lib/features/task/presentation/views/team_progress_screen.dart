@@ -57,7 +57,7 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Task Summary
+          // Header Ringkasan Tugas
           Container(
             width: double.infinity,
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -96,7 +96,7 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
             ),
           ),
 
-          // Filters Bar
+          // Baris Filter
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
@@ -112,7 +112,7 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
 
           const SizedBox(height: 10),
 
-          // Logs List
+          // Daftar Log
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: logsAsync,
@@ -140,7 +140,7 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
                   );
                 }
 
-                // Filter logs
+                // Filter log
                 var logs = snapshot.data!;
                 if (_activeFilter == 'Hambatan') {
                   logs = logs.where((l) => l['hambatan'] != null && (l['hambatan'] as String).isNotEmpty).toList();
@@ -181,7 +181,7 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
                       final statusProgress = log['status_progress'] as String? ?? 'Sedang Dikerjakan';
                       final percent = log['persen_selesai'] ?? 0;
   
-                      // Color code status progress
+                      // Warna status progress
                       final Color statusColor = statusProgress == 'Selesai'
                           ? AppColors.successText
                           : (statusProgress == 'Sedang Dikerjakan' ? AppColors.warningText : AppColors.textSecondary);
@@ -210,7 +210,7 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Top info: Member profile & Date
+                            // Info Atas: Profil & Tanggal
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
@@ -268,7 +268,7 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
                             const Divider(height: 1),
                             const SizedBox(height: 12),
   
-                            // Catatan update
+                            // Catatan progress
                             Text(
                               log['catatan'] ?? '-',
                               style: TextStyle(
@@ -280,7 +280,7 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
   
                             const SizedBox(height: 8),
   
-                            // Progress Percent
+                            // Persentase Progress
                             Row(
                               children: [
                                 Expanded(
@@ -310,13 +310,13 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
   
                             const SizedBox(height: 12),
   
-                            // Date text
+                            // Tanggal
                             Text(
                               'Disubmit pada: $dateStr',
                               style: const TextStyle(fontSize: 10, color: Colors.grey),
                             ),
   
-                            // Obstacle / Hambatan (if present)
+                            // Tampilkan Hambatan
                             if (hambatan != null && hambatan.isNotEmpty) ...[
                               const SizedBox(height: 12),
                               Container(
@@ -367,7 +367,7 @@ class _TeamProgressScreenState extends ConsumerState<TeamProgressScreen> {
                               ),
                             ],
   
-                            // Attachments (if present)
+                            // Tampilkan Lampiran
                             if (attachments.isNotEmpty) ...[
                               const SizedBox(height: 12),
                               const Text(

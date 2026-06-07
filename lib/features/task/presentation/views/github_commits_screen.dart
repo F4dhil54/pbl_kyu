@@ -52,7 +52,7 @@ class _GithubCommitsScreenState extends ConsumerState<GithubCommitsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Task Summary
+          // Header Ringkasan Tugas
           Container(
             width: double.infinity,
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -116,7 +116,7 @@ class _GithubCommitsScreenState extends ConsumerState<GithubCommitsScreen> {
 
           const SizedBox(height: 10),
 
-          // Commits List
+          // Daftar Commit
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: commitsFuture,

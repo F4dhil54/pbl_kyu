@@ -18,7 +18,7 @@ class TaskModel {
   
   final int? taskNumber;
   
-  // Custom relations
+  // Relasi kustom
   final List<String> assignees; // User IDs
   final List<AttachmentModel> attachments;
   final String? projectTeamId;
@@ -61,7 +61,7 @@ class TaskModel {
       sf = DateTime.tryParse(json['scheduled_for'] as String)?.toLocal();
     }
 
-    // KONVERSI DARI DATABASE (lowercase) KE TEKS UI INDONESIA
+    // Konversi dari DB ke UI
     String rawStatus = (json['status_tugas'] as String? ?? 'draft').toLowerCase().trim();
     if (rawStatus == 'scheduled' && sf != null && sf.isBefore(DateTime.now())) {
       rawStatus = 'accept';
@@ -96,7 +96,7 @@ class TaskModel {
       judulTugas: json['judul_tugas'] as String? ?? '',
       deskripsiTugas: json['deskripsi_tugas'] as String? ?? '',
       kuadranEisenhower: json['kuadran_eisenhower'] as String? ?? json['prioritas'] as String? ?? 'Schedule',
-      statusTugas: uiStatus, // Menggunakan status yang sudah ramah UI
+      statusTugas: uiStatus, // Gunakan status UI
       durasiPomodoro: json['durasi_pomodoro'] as int? ?? 25,
       rejectionReason: json['rejection_reason'] as String?,
       deadlineDate: dl,
@@ -113,7 +113,7 @@ class TaskModel {
   }
 
   Map<String, dynamic> toJson() {
-    // KONVERSI DARI TEKS UI INDONESIA KE KEYWORD DATABASE (lowercase)
+    // Konversi dari UI ke DB
     String dbStatus;
     switch (statusTugas.toLowerCase().trim()) {
       case 'draft':
@@ -137,7 +137,7 @@ class TaskModel {
         dbStatus = 'scheduled';
         break;
       default:
-        dbStatus = 'draft'; // Fallback aman sesuai default struktur tabel
+        dbStatus = 'draft'; // Fallback ke default DB
     }
 
     final data = {

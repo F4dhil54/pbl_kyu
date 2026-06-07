@@ -35,7 +35,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
   Uint8List? _selectedImageBytes;
   User? _currentUser;
 
-  // Real-time Pomodoro Focus Stats state
+  // State Statistik Pomodoro
   double _totalFocusHoursThisWeek = 0.0;
   List<double> _weeklyFocusMinutes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
   RealtimeChannel? _pomodoroChannel;
@@ -240,7 +240,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
       final now = DateTime.now();
       final currentWeekday = now.weekday;
       
-      // Calculate Monday (1) of this week
+      // Hitung Senin minggu ini
       final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: currentWeekday - 1));
       final endOfWeek = startOfWeek.add(const Duration(days: 7));
 
@@ -355,7 +355,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
     try {
       final profileRepo = ref.read(profileRepositoryProvider);
       
-      // Upload image if selected → stores to avatars bucket + updates profiles table
+      // Upload & simpan avatar
       if (_selectedImageBytes != null) {
         final userId = _currentUser?.id ?? 'user';
         _avatarUrl = await profileRepo.uploadAvatar(
@@ -461,7 +461,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                // Profile Header
+                // Header Profil
                 Row(
                   children: [
                     Image.asset(
@@ -499,7 +499,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                 ),
                 const SizedBox(height: 32),
 
-                // Edit Profil Card
+                // Kartu Edit Profil
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -519,7 +519,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Avatar with camera icon
+                      // Avatar dengan ikon kamera
                       Center(
                         child: GestureDetector(
                           onTap: _pickImage,
@@ -627,7 +627,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                 ),
                 const SizedBox(height: 16),
 
-                // Hubungkan Akun Github Button
+                // Tombol Hubungkan GitHub
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -661,7 +661,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                 
                 const SizedBox(height: 40),
 
-                // Statistik Fokus Card
+                // Kartu Statistik Fokus
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -750,7 +750,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                 ),
                 const SizedBox(height: 16),
 
-                // Bagian Pengaturan Aplikasi
+                // Pengaturan Aplikasi
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -767,7 +767,7 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                   ),
                   child: Column(
                     children: [
-                      // Theme Toggle
+                      // Toggle Tema
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         child: Row(
@@ -806,14 +806,14 @@ class _ProfileViewTeamState extends ConsumerState<ProfileViewTeam> {
                       ),
                       Divider(height: 1, indent: 72, endIndent: 16, color: isDark ? AppDarkColors.border : AppColors.border),
                       
-                      // Notifikasi Suara
+                      // Suara Notifikasi
                       NotificationPreferenceItem(isDark: isDark),
                     ],
                   ),
                 ),
                 const SizedBox(height: 32),
 
-                // Keluar Button
+                // Tombol Keluar
                 SizedBox(
                   width: double.infinity,
                   height: 48,

@@ -37,7 +37,7 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
     _descController = TextEditingController(text: widget.project.description);
     _githubController = TextEditingController(text: widget.project.githubRepo);
     
-    // Find matching category or set as "Lainnya"
+    // Cari kategori
     final matchingCat = _categories.firstWhere(
       (c) => c.toLowerCase() == widget.project.category.toLowerCase(),
       orElse: () => 'Lainnya',
@@ -48,7 +48,7 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
     }
     _selectedLabels = List.from(widget.project.labels);
 
-    // Ensure initial label is in available list
+    // Validasi label
     for (final label in _selectedLabels) {
       if (!_availableLabels.contains(label)) {
         _availableLabels.add(label);
@@ -137,7 +137,7 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
             backgroundColor: AppColors.successText,
           ),
         );
-        // Pop and return updated project to refresh detail screen
+        // Kembali & refresh layar
         Navigator.pop(context, updatedProject);
       }
     } catch (e) {
@@ -243,7 +243,7 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Main Form Card
+                  // Form utama
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -398,7 +398,7 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Info Card 1
+                  // Info dasar
                   _buildInfoCard(
                     'Panduan',
                     'Manajer harus menentukan milestone yang jelas pada langkah selanjutnya untuk memastikan keselarasan tim sejak hari pertama.',
@@ -406,7 +406,7 @@ class _EditProjectScreenState extends ConsumerState<EditProjectScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Info Card 2
+                  // Info detail
                   _buildInfoCard(
                     'Visibilitas',
                     'Secara default, proyek baru bersifat privat. Anda dapat mengubah pengaturan visibilitas setelah proyek dibuat.',

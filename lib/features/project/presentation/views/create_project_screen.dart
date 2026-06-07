@@ -95,7 +95,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
           : _selectedCategory;
 
       final newProject = ProjectModel(
-        id: '', // Supabase will auto-generate or repository mock
+        id: '', // Auto-generate ID
         name: _nameController.text.trim(),
         description: _descController.text.trim(),
         labels: _selectedLabels,
@@ -232,7 +232,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Main Form Card
+                  // Form utama
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -411,7 +411,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Info Card 1
+                  // Info dasar
                   _buildInfoCard(
                     'Panduan',
                     'Manajer harus menentukan milestone yang jelas pada langkah selanjutnya untuk memastikan keselarasan tim sejak hari pertama.',
@@ -419,7 +419,7 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Info Card 2
+                  // Info detail
                   _buildInfoCard(
                     'Visibilitas',
                     'Secara default, proyek baru bersifat privat. Anda dapat mengubah pengaturan visibilitas setelah proyek dibuat.',

@@ -55,11 +55,11 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   bool _isLoadingDate = false;
   bool _isSaving = false;
 
-  // Failsafe timer: paksa reset _isSaving jika Supabase hang di Flutter Web
+  // Failsafe timer Supabase hang
   Timer? _saveTimeoutTimer;
 
-  // Flag untuk mencegah infinite loop: _resolveAssigneeNames hanya boleh
-  // memicu setState SATU kali setelah nama berhasil diambil.
+  // Cegah infinite loop setState
+  // Memicu setState sekali
   bool _assigneesResolved = false;
 
   String _selectedPriority = 'Schedule'; // 'Do' | 'Schedule' | 'Delegate'
@@ -116,17 +116,17 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     super.dispose();
   }
 
-  // Dipanggil SEKALI saat data members/teams sudah tersedia untuk edit mode.
-  // Menggunakan flag _assigneesResolved agar TIDAK membuat infinite loop:
-  // resolve → setState → rebuild → resolve → setState → rebuild ...
+  // Dipanggil sekali saat edit
+  // Gunakan flag resolved
+  // Hindari loop render
   void _resolveAssigneeNamesOnce(
     List<Map<String, dynamic>> membersList,
     List<Map<String, dynamic>> teamsList,
   ) {
-    // Sudah resolved? Jangan setState lagi — ini mencegah infinite loop.
+    // Cek status resolved
     if (_assigneesResolved) return;
 
-    // Tidak perlu resolve jika tidak ada yang perlu diisi
+    // Lewati resolve jika kosong
     final hasUnresolved = _selectedAssignees.any((item) => item['name'].toString().startsWith('Loading'));
     if (!hasUnresolved) {
       _assigneesResolved = true;
@@ -170,14 +170,14 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     }
 
     if (updated) {
-      // Tandai sudah resolved SEBELUM addPostFrameCallback agar rebuild
-      // berikutnya tidak masuk ke sini lagi.
+      // Tandai resolved sebelum rebuild
+      // Cegah pemanggilan ulang
       _assigneesResolved = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() {});
       });
     } else {
-      // Tidak ada yang cocok tapi juga tidak perlu loop lagi
+      // Lewati loop jika tak cocok
       _assigneesResolved = true;
     }
   }
@@ -278,8 +278,8 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       );
 
       if (pickedTime != null) {
-        // Hanya set tanggal jadwal di state form — TIDAK auto-save.
-        // User harus menekan tombol "Ditugaskan" / "Simpan Draft" secara eksplisit.
+        // Set jadwal di form saja
+        // Tunggu tombol ditekan eksplisit
         setState(() {
           _scheduledDate = DateTime(
             pickedDate.year,
@@ -471,7 +471,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   }
 
   // ============================================================
-  // APPROVAL: Manajer menyetujui usulan Draft Tim → Tugas Aktif
+  // ACC Manajer (Draft -> Aktif)
   // ============================================================
   Future<void> _approveTimDraft() async {
     if (widget.taskToEdit == null) return;
@@ -500,11 +500,11 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   }
 
   // ============================================================
-  // REJECTION: Manajer menolak usulan Draft Tim
+  // Tolak usulan Draft Tim
   // ============================================================
   Future<void> _rejectTimDraft() async {
     if (widget.taskToEdit == null) return;
-    // Tampilkan dialog konfirmasi sebelum menolak
+    // Dialog konfirmasi tolak
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -546,16 +546,16 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   }
 
   // ============================================================
-  // PUBLISH: Manajer menerbitkan draft-nya sendiri → Tugas Aktif
-  // (seperti tombol "Tugaskan" di Google Classroom)
+  // Publish Draft Manajer
+  // Tombol "Tugaskan"
   // ============================================================
   Future<void> _tugaskanDraft() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    // Override _scheduledDate agar tidak masuk ke path 'scheduled'
+    // Override jadwal untuk path 'accept'
     _scheduledDate = null;
-    await _simpanTugas(false); // isDraft=false, scheduledDate=null → accept
+    await _simpanTugas(false); // isDraft=false -> accept
   }
 
   Future<void> _simpanTugas(bool isDraft) async {
@@ -568,10 +568,10 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
 
     setState(() { _isSaving = true; });
 
-    // ── LAYER 1: Timer failsafe ─────────────────────────────────────────────
-    // Jika Supabase hang di Flutter Web (HTTP browser tidak merespons),
-    // Timer ini PAKSA reset _isSaving setelah 20 detik. Bekerja independen
-    // dari async/await dan tidak bergantung pada event loop Supabase.
+    // -- Failsafe Timer --
+    // Tangani Supabase hang di web
+    // Paksa reset setelah 20s
+    // Independen dari loop Supabase
     _saveTimeoutTimer?.cancel();
     _saveTimeoutTimer = Timer(const Duration(seconds: 20), () {
       if (mounted && _isSaving) {
@@ -589,11 +589,11 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     final isManager = widget.isManager ?? (user?.userMetadata?['role'] == 'Manajer');
 
     // =======================================================
-    // LOGIKA STATUS TUGAS:
-    // - Tim buat tugas → selalu 'review' (butuh persetujuan manajer)
-    // - Manajer simpan draft → 'draft' (privat, hanya manajer)
-    // - Manajer jadwalkan → 'scheduled'
-    // - Manajer tugaskan langsung → 'accept' (tugas aktif)
+    // Logika status tugas:
+    // Tim: review (butuh acc)
+    // Manajer: draft (privat)
+    // Manajer: scheduled
+    // Manajer: accept (aktif)
     // =======================================================
     String statusTugas;
     String keputusanManajer;
@@ -612,7 +612,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       keputusanManajer = 'Setujui';
     }
 
-    // Determine assignees
+    // Tentukan assignee
     List<Map<String, dynamic>> assignees = [];
     if (isManager) {
       if (_assignToAll) {
@@ -649,7 +649,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       }
     }
 
-    // Upload attachments that have local bytes
+    // Upload file lampiran
     final List<AttachmentModel> uploadedAttachments = [];
     for (final att in _attachments) {
       if (_attachmentBytes.containsKey(att.filePathOrUrl)) {
@@ -695,9 +695,9 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     );
 
     try {
-      // ── LAYER 2: Future.timeout(15s) ────────────────────────────────────
-      // Jika notifier tidak menyelesaikan operasi dalam 15 detik,
-      // lempar exception ke catch block sehingga finally pasti jalan.
+      // -- Timeout 15s --
+      // Jika operasi melebihi 15s
+      // Lempar exception ke catch
       if (widget.taskToEdit != null) {
         await ref.read(projectTaskListProvider(widget.projectId).notifier)
             .editTask(task, assignees)
@@ -740,7 +740,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
         );
       }
     } finally {
-      // Batalkan timer failsafe dan selalu reset _isSaving
+      // Batalkan timer & reset
       _saveTimeoutTimer?.cancel();
       if (mounted) {
         setState(() { _isSaving = false; });
@@ -791,7 +791,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
               ),
             ),
             actions: [
-              // ── KONTEKS 1: Manajer melihat usulan Draft Tim ──────────────────
+              // -- Konteks 1: Review Draft Tim --
               if (isManager && widget.taskToEdit != null &&
                   widget.taskToEdit!.dibuatOlehRole == 'Tim' &&
                   widget.taskToEdit!.statusTugas == 'Ditinjau') ...[
@@ -801,13 +801,13 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                     child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
                   )
                 else ...[
-                  // Tombol Tolak (merah)
+                  // Tombol Tolak
                   TextButton(
                     onPressed: _rejectTimDraft,
                     style: TextButton.styleFrom(foregroundColor: Colors.red),
                     child: const Text('Tolak', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                  // Tombol Setujui (hijau) — seperti "Tugaskan" Google Classroom
+                  // Tombol Setuju
                   Padding(
                     padding: const EdgeInsets.only(right: 12, left: 4),
                     child: ElevatedButton(
@@ -823,7 +823,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                   ),
                 ],
               ]
-              // ── KONTEKS 2: Manajer edit draft miliknya sendiri ───────────────
+              // -- Konteks 2: Edit Draft Manajer --
               else if (isManager && widget.taskToEdit != null &&
                   widget.taskToEdit!.dibuatOlehRole == 'Manajer' &&
                   widget.taskToEdit!.statusTugas == 'Draft') ...[
@@ -833,7 +833,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                     child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
                   )
                 else ...[
-                  // Tombol TUGASKAN — seperti Google Classroom (biru, prominent)
+                  // Tombol Tugaskan
                   Padding(
                     padding: const EdgeInsets.only(right: 4, left: 4),
                     child: ElevatedButton(
@@ -847,7 +847,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                       child: const Text('Tugaskan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
-                  // Popup: hanya Jadwalkan (Simpan Draft sudah ada di tombol bawah)
+                  // Popup Jadwal
                   PopupMenuButton<String>(
                     icon: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
                     onSelected: (value) {
@@ -868,7 +868,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                   ),
                 ],
               ]
-              // ── KONTEKS 3: Manajer membuat tugas baru atau edit tugas aktif ──
+              // -- Konteks 3: Buat/Edit Tugas Aktif --
               else if (isManager) ...[
                 PopupMenuButton<String>(
                   icon: Icon(Icons.more_vert, color: isDark ? AppDarkColors.textMain : AppColors.textMain),
@@ -1009,7 +1009,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                                 loading: () => const Center(child: CircularProgressIndicator()),
                                 error: (err, stack) => Text('Gagal memuat tim: $err', style: const TextStyle(color: Colors.red)),
                                 data: (teamsList) {
-                                  // Resolve initial loaded/editing assignee names (hanya sekali)
+                                  // Resolve nama assignee
                                   _resolveAssigneeNamesOnce(membersList, teamsList);
 
                                   if (membersList.isEmpty && teamsList.isEmpty) {
@@ -1282,12 +1282,12 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // ── TOMBOL BAWAH: Context-aware ──────────────────────────
+                      // -- Tombol Bawah --
                       if (_isSaving)
                         const Center(child: CircularProgressIndicator())
                       
-                      // KONTEKS A: Manajer meninjau usulan Draft Tim
-                      // → Aksi (Tolak/Setujui) sudah ada di AppBar, tombol bawah hanya Batal
+                      // Konteks A: Review Tim
+                      // Aksi di AppBar, bawah cuma Batal
                       else if (isManager && widget.taskToEdit != null &&
                           widget.taskToEdit!.dibuatOlehRole == 'Tim' &&
                           widget.taskToEdit!.statusTugas == 'Ditinjau')
@@ -1304,8 +1304,8 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                           ),
                         )
                       
-                      // KONTEKS B: Manajer edit draft miliknya sendiri
-                      // → AppBar punya tombol "Tugaskan" & "Jadwalkan", tombol bawah = Simpan Draft
+                      // Konteks B: Edit Draft Manajer
+                      // AppBar: Tugaskan/Jadwal, Bawah: Simpan
                       else if (isManager && widget.taskToEdit != null &&
                           widget.taskToEdit!.dibuatOlehRole == 'Manajer' &&
                           widget.taskToEdit!.statusTugas == 'Draft')
@@ -1339,7 +1339,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                           ],
                         )
 
-                      // KONTEKS C: Default — Manajer buat tugas baru / edit tugas aktif / Tim usulkan
+                      // Konteks C: Default form
                       else
                         Row(
                           children: [

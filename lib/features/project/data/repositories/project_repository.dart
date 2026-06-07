@@ -7,7 +7,7 @@ import '../models/project_model.dart';
 class ProjectRepository {
   final SupabaseClient _supabaseClient;
 
-  // Local fallback database to make sure the app works even without Supabase setup
+  // Fallback lokal DB
   final List<ProjectModel> _localProjects = [
     ProjectModel(
       id: 'local-1',
@@ -61,7 +61,7 @@ class ProjectRepository {
 
   ProjectRepository(this._supabaseClient);
 
-  // Fetch projects depending on role
+  // Ambil proyek sesuai peran
   Future<List<ProjectModel>> getProjects() async {
     try {
       final user = _supabaseClient.auth.currentUser;
@@ -101,7 +101,7 @@ class ProjectRepository {
         final data = response as List<dynamic>;
         return data.map((json) => ProjectModel.fromJson(json)).toList();
       } else {
-        // Team member sees only active projects they are joined in
+        // Anggota tim hanya melihat proyek aktif
         final memberResponse = await _supabaseClient
             .from('project_members')
             .select('project_id')
@@ -115,7 +115,7 @@ class ProjectRepository {
           return [];
         }
 
-        // Ambil status undangan dari manajer untuk menentukan status read-only
+        // Cek status undangan manajer
         final invitationsResponse = await _supabaseClient
             .from('invitations')
             .select('invited_by, status')
@@ -166,7 +166,7 @@ class ProjectRepository {
     }
   }
 
-  // Create a new project
+  // Buat proyek baru
   Future<ProjectModel> createProject(ProjectModel project) async {
     try {
       final user = _supabaseClient.auth.currentUser;
@@ -205,7 +205,7 @@ class ProjectRepository {
     }
   }
 
-  // Update an existing project
+  // Perbarui proyek
   Future<ProjectModel> updateProject(ProjectModel project) async {
     if (project.id.startsWith('local-')) {
       final index = _localProjects.indexWhere((p) => p.id == project.id);
@@ -249,7 +249,7 @@ class ProjectRepository {
     }
   }
 
-  // Update project active/inactive status
+  // Perbarui status proyek
   Future<void> updateProjectStatus(String id, bool statusAktif) async {
     if (id.startsWith('local-')) {
       final index = _localProjects.indexWhere((p) => p.id == id);
@@ -273,7 +273,7 @@ class ProjectRepository {
     }
   }
 
-  // Delete a project by ID
+  // Hapus proyek
   Future<void> deleteProject(String id) async {
     if (id.startsWith('local-')) {
       _localProjects.removeWhere((p) => p.id == id);
@@ -323,7 +323,7 @@ class ProjectRepository {
       return;
     }
 
-    // Fetch project repository details
+    // Ambil detail repo proyek
     final projectRes = await _supabaseClient
         .from('projects')
         .select('github_repo_url, manager_github_token, pembuat_id')
@@ -345,7 +345,7 @@ class ProjectRepository {
       throw Exception("Token GitHub manajer tidak ditemukan. Silakan hubungkan akun GitHub terlebih dahulu.");
     }
 
-    // Fetch all members with their github usernames
+    // Ambil semua anggota tim
     final membersRes = await _supabaseClient
         .from('project_members')
         .select('user_id, profiles:profiles!project_members_user_id_fkey(id, github_username)')
@@ -364,7 +364,7 @@ class ProjectRepository {
       }
     }
 
-    // Include the manager/creator
+    // Masukkan manajer
     final creatorProfile = await _supabaseClient
         .from('profiles')
         .select('id, github_username')
@@ -379,7 +379,7 @@ class ProjectRepository {
       }
     }
 
-    // Make HTTP request to GitHub API to pull the 100 latest commits
+    // Ambil 100 commit terbaru dari GitHub
     final url = Uri.parse('https://api.github.com/repos/$repoUrl/commits?per_page=100');
     final response = await http.get(
       url,
@@ -396,7 +396,7 @@ class ProjectRepository {
 
     final List<dynamic> commitsJson = jsonDecode(response.body);
 
-    // Parse and Upsert each commit
+    // Parsing dan upsert commit
     final List<Map<String, dynamic>> commitsToUpsert = [];
     final regex = RegExp(r'#(\d+)');
 
@@ -414,7 +414,7 @@ class ProjectRepository {
       }
       userId ??= creatorId;
 
-      // Extract task ID from commit message
+      // Ekstrak ID tugas dari commit
       final match = regex.firstMatch(message);
       String? taskId;
       if (match != null) {

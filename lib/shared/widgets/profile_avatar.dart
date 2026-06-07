@@ -5,29 +5,29 @@ import 'package:pbl_kyu/core/theme/theme_mode.dart';
 import 'package:pbl_kyu/features/profile/presentation/views/profile_view_manager.dart';
 import 'package:pbl_kyu/features/profile/presentation/views/profile_view_team.dart';
 
-// ── MODULE C: Anti-404 Asset Engine ───────────────────────────────────────
-// Fungsi global untuk membangun ImageProvider yang aman dari error 404.
-// Dipanggil di seluruh viewport app yang menampilkan avatar.
+// -- Mesin Anti-404 Aset --
+// ImageProvider aman dari 404
+// Dipanggil di semua avatar
 ImageProvider buildSafeAvatarImage(String? avatarUrl) {
-  // Rule 1: null atau kosong → fallback ke aset lokal
+  // Rule 1: Fallback lokal
   if (avatarUrl == null || avatarUrl.trim().isEmpty) {
     return const AssetImage('image/logoSemua.png');
   }
 
   final url = avatarUrl.trim();
 
-  // Rule 2: URL internet (http/https) → NetworkImage
+  // Rule 2: NetworkImage untuk URL internet
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return NetworkImage(url);
   }
 
-  // Rule 3: Path lama dengan percent-encoding → bersihkan dan gunakan AssetImage
+  // Rule 3: Bersihkan path lama
   final cleaned = url
       .replaceAll('%2520', ' ')
       .replaceAll('%20', ' ');
   return AssetImage(cleaned);
 }
-// ──────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------
 
 class ProfileAvatar extends StatelessWidget {
   final double radius;
@@ -35,14 +35,14 @@ class ProfileAvatar extends StatelessWidget {
   const ProfileAvatar({super.key, this.radius = 16});
 
   Widget _buildAvatarChild(String? avatarUrl, bool isDark) {
-    // MODULE C: Logika Anti-404 dengan kondisi yang ketat
+    // Logika Anti-404
     if (avatarUrl != null && avatarUrl.trim().startsWith('http')) {
       return Image.network(
         avatarUrl.trim(),
         width: radius * 2,
         height: radius * 2,
         fit: BoxFit.cover,
-        // Error fallback: tampilkan ikon person jika network 404 / gagal load
+        // Fallback: Tampilkan ikon person jika gagal
         errorBuilder: (context, error, stackTrace) => Icon(
           Icons.person,
           color: isDark ? AppDarkColors.textMain : AppColors.textMain,
@@ -51,7 +51,7 @@ class ProfileAvatar extends StatelessWidget {
       );
     }
 
-    // Fallback: Tampilkan icon person secara langsung tanpa load asset gambar yang tidak ada
+    // Fallback: Tampilkan ikon person
     return Center(
       child: Icon(
         Icons.person,
@@ -72,14 +72,39 @@ class ProfileAvatar extends StatelessWidget {
           stream: Supabase.instance.client.auth.onAuthStateChange,
           builder: (context, snapshot) {
             final user = Supabase.instance.client.auth.currentUser;
-            final avatarUrl = user?.userMetadata?['avatar_url'] ??
-                              user?.userMetadata?['picture'] ??
-                              user?.userMetadata?['avatar'];
-
-            return CircleAvatar(
-              radius: radius,
-              backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
-              child: ClipOval(child: _buildAvatarChild(avatarUrl as String?, isDark)),
+            if (user == null) {
+              return CircleAvatar(
+                radius: radius,
+                backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
+                child: ClipOval(child: _buildAvatarChild(null, isDark)),
+              );
+            }
+            
+            // Cek metadata
+            final metadataAvatar = user.userMetadata?['avatar_url'] ??
+                                   user.userMetadata?['picture'] ??
+                                   user.userMetadata?['avatar'];
+            
+            // Pakai avatar dari metadata
+            if (metadataAvatar != null && metadataAvatar.toString().isNotEmpty) {
+              return CircleAvatar(
+                radius: radius,
+                backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
+                child: ClipOval(child: _buildAvatarChild(metadataAvatar as String, isDark)),
+              );
+            }
+            
+            // Ambil dari profil jika tidak ada di metadata
+            return FutureBuilder(
+              future: Supabase.instance.client.from('profiles').select('avatar_url').eq('id', user.id).maybeSingle(),
+              builder: (context, AsyncSnapshot<Map<String, dynamic>?> dbSnapshot) {
+                final dbAvatar = dbSnapshot.data?['avatar_url'] as String?;
+                return CircleAvatar(
+                  radius: radius,
+                  backgroundColor: isDark ? AppDarkColors.surface : AppColors.inputBackground,
+                  child: ClipOval(child: _buildAvatarChild(dbAvatar, isDark)),
+                );
+              },
             );
           },
         );

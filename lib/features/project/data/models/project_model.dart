@@ -39,19 +39,19 @@ class ProjectModel {
         (json['progress'] as num?)?.toDouble() ??
         0.0;
 
-    // Map integer percentage (e.g. 75) to double 0.75 if it is greater than 1.0
+    // Map persen ke desimal
     final double doubleProgress = progressVal > 1.0
         ? progressVal / 100.0
         : progressVal;
 
-    // Ambil string dari database, lalu buat agar tampil rapi di UI jika perlu
+    // Format string database untuk UI
     String rawDate =
         json['deadline'] as String? ??
         json['date_deadline'] as String? ??
         json['date'] as String? ??
         '';
 
-    // Jika format dari Supabase adalah ISO String (ada huruf T atau Z), kita bersihkan atau biarkan berupa String
+    // Bersihkan format ISO Supabase
     if (rawDate.contains('T')) {
       try {
         DateTime parsed = DateTime.parse(rawDate).toLocal();
@@ -89,21 +89,21 @@ class ProjectModel {
     );
   }
 
-  /// Menangani konversi String Tanggal dari UI ke format ISO yang dimengerti PostgreSQL
+  /// Konversi tanggal ke format ISO
   String? _formatToPostgresTimestamp(String dateStr) {
     if (dateStr.isEmpty) return null;
 
     try {
-      // Jika formatnya sudah valid standar (YYYY-MM-DD), langsung parsing aman
+      // Parsing standar aman
       return DateTime.parse(dateStr).toIso8601String();
     } catch (_) {
       try {
-        // Jika formatnya kustom seperti "23 Mei" atau "23 Mei 2026"
+        // Tangani format kustom
         int currentYear = DateTime.now().year;
         DateTime parsed;
 
         if (!dateStr.contains(currentYear.toString())) {
-          // Jika tidak ada tahunnya (misal cuma "23 Mei"), tambahkan tahun sekarang otomatis
+          // Tambahkan tahun otomatis
           parsed = DateFormat(
             "d MMMM yyyy",
             "id",
@@ -113,11 +113,11 @@ class ProjectModel {
         }
         return parsed.toIso8601String();
       } catch (e) {
-        // Fallback terakhir: Coba format 'yyyy-MM-dd' manual jika library intl mendeteksi variasi lain
+        // Fallback format manual
         try {
           return DateFormat('yyyy-MM-dd').parse(dateStr).toIso8601String();
         } catch (_) {
-          return null; // Jika benar-benar acak-acakan, kembalikan null agar tidak crash
+          return null; // Kembalikan null jika gagal
         }
       }
     }
@@ -132,7 +132,7 @@ class ProjectModel {
       'kategori': category,
       'deadline': _formatToPostgresTimestamp(
         date,
-      ), // Di-formatting otomatis di sini
+      ), // Format otomatis
       'pembuat_id': creatorId.isNotEmpty && !creatorId.startsWith('local-')
           ? creatorId
           : null,
@@ -152,7 +152,7 @@ class ProjectModel {
       'kategori': category,
       'deadline': _formatToPostgresTimestamp(
         date,
-      ), // Di-formatting otomatis di sini
+      ), // Format otomatis
       'pembuat_id': creatorId.isNotEmpty && !creatorId.startsWith('local-')
           ? creatorId
           : null,

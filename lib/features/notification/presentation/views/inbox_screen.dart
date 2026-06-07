@@ -27,7 +27,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   @override
   void initState() {
     super.initState();
-    // Load data initially
+    // Load data awal
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(notificationNotifierProvider.notifier).loadNotifications();
     });
@@ -53,7 +53,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     } else if (isYesterday) {
       return 'Kemarin $hour:$minute';
     } else if (difference >= 2 && difference <= 7) {
-      // 3 to 7 days (difference of 2 days = 3rd day)
+      // 3-7 hari (selisih 2 hari)
       final days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
       return '${days[date.weekday - 1]} $hour:$minute';
     } else {
@@ -63,7 +63,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   }
 
   void _handleNotificationTap(NotificationModel notif) async {
-    // Mark as read
+    // Tandai dibaca
     if (!notif.isRead) {
       ref.read(notificationNotifierProvider.notifier).markAsRead(notif.id);
     }
@@ -232,7 +232,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                 ),
               ),
 
-              // Search Bar
+              // Pencarian Bar
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: TextField(
@@ -260,7 +260,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                 ),
               ),
               
-              // Tabs Section
+              // Bagian Tab
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -275,7 +275,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               ),
               const SizedBox(height: 8),
 
-              // Notification List
+              // Daftar Notifikasi
               Expanded(
                 child: asyncNotifications.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
@@ -325,7 +325,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           final currentUserId = Supabase.instance.client.auth.currentUser?.id;
                           final isSentByMe = notif.senderId == currentUserId && notif.userId != currentUserId;
                           
-                          // Determine icon/color based on type
+                          // Tentukan ikon/warna dari tipe
                           IconData iconData = Icons.notifications;
                           Color iconColor = AppColors.primary;
                           Color iconBgColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFF0F4FF);
@@ -348,8 +348,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                             iconData = Icons.folder_open;
                             iconColor = Colors.orange;
                             iconBgColor = isDark ? const Color(0xFF422006) : const Color(0xFFFFF7ED);
-                          } else if (notif.tipeNotifikasi == 'kudos') {
-                            iconData = Icons.star_border;
+                          } else if (notif.tipeNotifikasi.contains('kudos') == true) {
+                            iconData = Icons.notifications;
                             iconColor = Colors.amber;
                             iconBgColor = isDark ? const Color(0xFF422006) : const Color(0xFFFFFBEB);
                           } else if (isAccepted) {
@@ -371,6 +371,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                                       : (isDark ? AppDarkColors.surface : AppColors.inputBackground)));
 
                           String? displayAvatar = isSentByMe ? notif.receiverAvatar : notif.senderAvatar;
+                          if (notif.tipeNotifikasi.contains('kudos') == true) {
+                            displayAvatar = null; // Rahasiakan avatar pengirim
+                          }
 
                           return GestureDetector(
                             onTap: () => _handleNotificationTap(notif),

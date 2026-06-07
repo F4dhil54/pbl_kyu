@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_provider.dart';
 import '../../data/models/task_model.dart';
 import '../../data/models/attachment_model.dart';
@@ -15,17 +16,35 @@ final taskRepositoryProvider = Provider<TaskRepository>((ref) {
 class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
   final TaskRepository _repository;
   final String _projectId;
+  final SupabaseClient _supabase;
+  RealtimeChannel? _taskChannel;
   Timer? _autoActivateTimer;
   final Set<String> _deadlineNotifiedTaskIds = {};
 
-  TaskListNotifier(this._repository, this._projectId) : super(const AsyncValue.loading()) {
+  TaskListNotifier(this._repository, this._projectId, this._supabase) : super(const AsyncValue.loading()) {
     fetchTasks();
+    _initRealtime();
     _autoActivateTimer = Timer.periodic(const Duration(seconds: 15), (_) => _checkScheduledTasks());
+  }
+
+  void _initRealtime() {
+    _taskChannel = _supabase.channel('public:tasks:project_$_projectId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'tasks',
+          filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'project_id', value: _projectId),
+          callback: (payload) {
+            fetchTasks();
+          },
+        )
+        .subscribe();
   }
 
   @override
   void dispose() {
     _autoActivateTimer?.cancel();
+    _taskChannel?.unsubscribe();
     super.dispose();
   }
 
@@ -77,7 +96,7 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
       }
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
-      rethrow; // Agar UI dapat menangkap error & mereset _isSaving
+      rethrow; // Agar UI bisa catch error
     }
   }
 
@@ -93,7 +112,7 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
       }
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
-      rethrow; // Agar UI dapat menangkap error & mereset _isSaving
+      rethrow; // Agar UI bisa catch error
     }
   }
 
@@ -179,7 +198,7 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
         endedAt: endedAt,
       );
     } catch (e) {
-      // Log error internally, do not set state error since it doesn't affect list UI directly
+      // Log error internal
       debugPrint("Failed logging pomodoro session: $e");
     }
   }
@@ -213,13 +232,14 @@ class TaskListNotifier extends StateNotifier<AsyncValue<List<TaskModel>>> {
   }
 }
 
-// StateNotifierProvider family to track task lists of multiple projects
+// Provider tracker tugas proyek
 final projectTaskListProvider = StateNotifierProvider.family<TaskListNotifier, AsyncValue<List<TaskModel>>, String>((ref, projectId) {
   final repo = ref.watch(taskRepositoryProvider);
-  return TaskListNotifier(repo, projectId);
+  final supabase = ref.watch(supabaseClientProvider);
+  return TaskListNotifier(repo, projectId, supabase);
 });
 
-// A provider for task tab filters
+// Provider filter tab tugas
 final taskFilterProvider = StateProvider<String>((ref) => 'Tugas Aktif');
 
 final _myTasksDeadlineNotified = <String>{};

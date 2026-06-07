@@ -12,7 +12,7 @@ class NotificationRepository {
   NotificationRepository(this._supabaseClient);
 
   Future<List<NotificationModel>> getNotifications(String userId) async {
-    // Dapatkan peran aktif dari session metadata
+    // Dapatkan peran aktif
     final user = _supabaseClient.auth.currentUser;
     String role = 'Tim';
     if (user != null) {
@@ -32,7 +32,7 @@ class NotificationRepository {
       }
     }
 
-    // Ambil ID proyek yang valid/diizinkan untuk peran ini
+    // Ambil ID proyek valid
     final Set<String> allowedProjectIds = {};
     if (role == 'Manajer') {
       try {
@@ -53,7 +53,7 @@ class NotificationRepository {
       } catch (_) {}
     }
 
-    // Ambil notifikasi dari Supabase
+    // Ambil notifikasi Supabase
     final response = await _supabaseClient
         .from('notifications')
         .select('*, projects(nama_proyek), sender:profiles!sender_id(nama, email, avatar_url), receiver:profiles!user_id(nama, email, avatar_url)')
@@ -63,8 +63,11 @@ class NotificationRepository {
     final list = response as List<dynamic>;
     final notificationsList = list.map((e) => NotificationModel.fromJson(e as Map<String, dynamic>)).toList();
 
-    // Saring notifikasi agar tidak bocor
+    // Filter notifikasi
     return notificationsList.where((notif) {
+      if ((notif.tipeNotifikasi.contains('kudos') == true) && notif.senderId == userId) {
+        return false; // Sembunyikan notifikasi untuk pengirim
+      }
       if (notif.projectId == null || notif.projectId!.isEmpty) {
         return true;
       }
@@ -115,7 +118,7 @@ class NotificationRepository {
     });
   }
 
-  // Find user by email for messaging
+  // Cari user dari email
   Future<Map<String, dynamic>?> getUserByEmail(String email) async {
     final response = await _supabaseClient
         .from('profiles')

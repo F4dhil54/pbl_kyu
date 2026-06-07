@@ -27,7 +27,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
   Future<void> _simpanTokenFCM() async {
     try {
-      // Meminta izin notifikasi
+      // Izin notifikasi
       final messaging = FirebaseMessaging.instance;
       final settings = await messaging.requestPermission(
         alert: true,
@@ -39,14 +39,14 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
-        // Ambil token unik dari perangkat HP ini
+        // Ambil token FCM
         String? token = await messaging.getToken();
         
         if (token != null) {
           await _uploadTokenToSupabase(token);
         }
 
-        // Dengarkan jika token diperbarui
+        // Dengarkan pembaruan token
         messaging.onTokenRefresh.listen((newToken) async {
           if (mounted) {
             await _uploadTokenToSupabase(newToken);
@@ -63,7 +63,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
     final user = supabase.auth.currentUser;
 
     if (user != null) {
-      // Simpan atau update ke tabel user_tokens di Supabase
+      // Simpan token ke Supabase
       try {
         await supabase.from('user_tokens').upsert({
           'user_id': user.id,

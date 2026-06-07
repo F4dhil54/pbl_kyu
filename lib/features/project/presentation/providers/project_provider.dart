@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_provider.dart';
 import '../../data/models/project_model.dart';
 import '../../data/repositories/project_repository.dart';
@@ -13,9 +14,31 @@ final projectRepositoryProvider = Provider<ProjectRepository>((ref) {
 
 class ProjectListNotifier extends StateNotifier<AsyncValue<List<ProjectModel>>> {
   final ProjectRepository _repository;
+  final SupabaseClient _supabase;
+  RealtimeChannel? _projectChannel;
 
-  ProjectListNotifier(this._repository) : super(const AsyncValue.loading()) {
+  ProjectListNotifier(this._repository, this._supabase) : super(const AsyncValue.loading()) {
     fetchProjects();
+    _initRealtime();
+  }
+
+  void _initRealtime() {
+    _projectChannel = _supabase.channel('public:projects')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'projects',
+          callback: (payload) {
+            fetchProjects();
+          },
+        )
+        .subscribe();
+  }
+
+  @override
+  void dispose() {
+    _projectChannel?.unsubscribe();
+    super.dispose();
   }
 
   Future<void> fetchProjects() async {
@@ -79,13 +102,14 @@ class ProjectListNotifier extends StateNotifier<AsyncValue<List<ProjectModel>>> 
 
 final projectListProvider = StateNotifierProvider<ProjectListNotifier, AsyncValue<List<ProjectModel>>>((ref) {
   final repo = ref.watch(projectRepositoryProvider);
-  return ProjectListNotifier(repo);
+  final supabase = ref.watch(supabaseClientProvider);
+  return ProjectListNotifier(repo, supabase);
 });
 
-// A provider for search query
+// Provider pencarian
 final projectSearchQueryProvider = StateProvider<String>((ref) => '');
 
-// Provider to fetch members of a project
+// Provider anggota proyek
 final projectMembersProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, projectId) async {
   if (projectId.startsWith('local-')) return [];
   final supabase = ref.watch(supabaseClientProvider);
@@ -115,7 +139,7 @@ final projectMembersProvider = FutureProvider.family<List<Map<String, dynamic>>,
 });
 
 
-// Provider to fetch all registered user profiles
+// Provider daftar user
 final allProfilesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final supabase = ref.watch(supabaseClientProvider);
   try {
@@ -127,7 +151,7 @@ final allProfilesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asy
   }
 });
 
-// Provider to fetch active colleagues of the manager
+// Provider rekan aktif manajer
 final managerActiveColleaguesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final supabase = ref.watch(supabaseClientProvider);
   final user = supabase.auth.currentUser;
@@ -156,7 +180,7 @@ final managerActiveColleaguesProvider = FutureProvider<List<Map<String, dynamic>
   }
 });
 
-// Provider to fetch teams created by the manager
+// Provider tim manajer
 final managerTeamsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final supabase = ref.watch(supabaseClientProvider);
   final user = supabase.auth.currentUser;
@@ -175,7 +199,7 @@ final managerTeamsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) as
   }
 });
 
-// Provider to fetch teams associated with a specific project
+// Provider tim dalam proyek
 final projectTeamsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, projectId) async {
   if (projectId.startsWith('local-')) return [];
   final supabase = ref.watch(supabaseClientProvider);
@@ -200,12 +224,12 @@ final projectTeamsProvider = FutureProvider.family<List<Map<String, dynamic>>, S
   }
 });
 
-// Fetch which team each user in the project belongs to, restricted to teams that are actually in the project.
+// Ambil data tim pengguna di proyek
 final projectMembersTeamsProvider = FutureProvider.family<Map<String, List<String>>, String>((ref, projectId) async {
   if (projectId.startsWith('local-')) return {};
   final supabase = ref.watch(supabaseClientProvider);
   try {
-    // Get teams in this project
+    // Ambil tim proyek
     final projectTeamsRes = await supabase.from('project_teams').select('team_id, teams(nama_tim)').eq('project_id', projectId);
     final pTeamsList = projectTeamsRes as List<dynamic>;
     if (pTeamsList.isEmpty) return {};
@@ -220,12 +244,12 @@ final projectMembersTeamsProvider = FutureProvider.family<Map<String, List<Strin
 
     if (teamIdToName.isEmpty) return {};
 
-    // Get members of these teams
+    // Ambil anggota tim
     final teamIds = teamIdToName.keys.toList();
     final teamMembersRes = await supabase.from('team_members').select('user_id, team_id').inFilter('team_id', teamIds);
     final tmList = teamMembersRes as List<dynamic>;
 
-    // Map user_id to List<String> (team names)
+    // Map user ke tim
     final Map<String, List<String>> userToTeams = {};
     for (var tm in tmList) {
       final userId = tm['user_id'] as String;
@@ -247,18 +271,18 @@ final projectMembersTeamsProvider = FutureProvider.family<Map<String, List<Strin
   }
 });
 
-// Provider to calculate real project progress based on task logs
+// Provider progress proyek
 final projectRealProgressProvider = FutureProvider.family<double, String>((ref, projectId) async {
   if (projectId.startsWith('local-')) {
     return 0.0;
   }
   
-  // Memastikan bahwa progress proyek dimuat ulang saat ada perubahan pada task
+  // Sinkronisasi progress proyek
   ref.watch(projectTaskListProvider(projectId));
 
   final supabase = ref.watch(supabaseClientProvider);
   try {
-    // Ambil semua tugas beserta logs progress-nya dalam 1 single query
+    // Ambil tugas dan log sekaligus
     final response = await supabase
         .from('tasks')
         .select('id, task_progress_logs(persen_selesai, created_at)')
@@ -274,7 +298,7 @@ final projectRealProgressProvider = FutureProvider.family<double, String>((ref, 
         continue;
       }
       
-      // Cari log dengan created_at paling terbaru
+      // Cari log terbaru
       var latestLog = logsList.first;
       for (var log in logsList) {
         final currentLatestTime = DateTime.tryParse(latestLog['created_at'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);

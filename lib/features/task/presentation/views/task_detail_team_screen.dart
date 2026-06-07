@@ -30,15 +30,15 @@ class TaskDetailTeamScreen extends ConsumerStatefulWidget {
 }
 
 class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
-  // Timer state
+  // State timer
   Timer? _timer;
-  int _secondsRemaining = 25 * 60; // 25 minutes default
+  int _secondsRemaining = 25 * 60; // Default 25 menit
   bool _isRunning = false;
-  bool _isFocusSession = true; // Focus vs Break
+  bool _isFocusSession = true; // Fokus / Istirahat
   int _elapsedFocusSeconds = 0;
   DateTime? _startedAt;
 
-  // Status & Attachment Form state
+  // State form status
   String _selectedStatus = 'Akan Dikerjakan';
   String _attachmentType = 'link'; // 'foto' | 'file' | 'link'
   final _attachmentNameController = TextEditingController();
@@ -48,7 +48,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
   bool _isUpdatingStatus = false;
   Uint8List? _pickedAttachmentBytes;
 
-  // Fallback mock task if null
+  // Fallback task mock
   late TaskModel _activeTask;
 
   String get _timerText {
@@ -67,7 +67,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
     if (widget.task != null) {
       _activeTask = widget.task!;
     } else {
-      // Create a mock fallback task
+      // Buat mock task
       _activeTask = TaskModel(
         id: 'mock-task-id',
         projectId: 'mock-project-id',
@@ -86,7 +86,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
       );
     }
 
-    // Auto-aktivasi lokal jika scheduled_for sudah lewat
+    // Auto-aktifkan tugas terjadwal
     final now = DateTime.now();
     if (_activeTask.statusTugas == 'Dijadwalkan' && 
         _activeTask.scheduledFor != null && 
@@ -215,7 +215,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
     _isRunning = false;
 
     if (_isFocusSession) {
-      // Focus session finished
+      // Sesi fokus selesai
       _showSessionDialog(
         title: 'Sesi Fokus Selesai!',
         message: 'Luar biasa, Anda telah menyelesaikan 25 menit fokus. Apakah Anda ingin memulai sesi istirahat 10 menit?',
@@ -223,7 +223,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
         onConfirm: () {
           setState(() {
             _isFocusSession = false;
-            _secondsRemaining = 10 * 60; // 10 minutes
+            _secondsRemaining = 10 * 60; // 10 menit
             _startTimer();
           });
         },
@@ -234,7 +234,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
         },
       );
     } else {
-      // Break session finished
+      // Sesi istirahat selesai
       _showSessionDialog(
         title: 'Sesi Istirahat Selesai!',
         message: 'Waktu istirahat habis. Siap untuk kembali fokus mengerjakan tugas Anda?',
@@ -465,12 +465,12 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
 
   Widget buildAttachmentViewer(Map<String, dynamic> attachmentData) {
     final String rawUrlMedia = attachmentData['file_path_or_url'] ?? '';
-    // Harmonize bucket name to lowercase 'task_attachments'
+    // Samakan nama bucket
     final String urlMedia = rawUrlMedia.replaceAll('/TASK_ATTACHMENTS/', '/task_attachments/');
     final String tipe = attachmentData['tipe_lampiran'] ?? 'file';
     final String namaFile = attachmentData['nama_file'] ?? 'Lampiran';
 
-    // KONDISI JIKA LAMPIRAN ADALAH FOTO/GAMBAR
+    // Jika lampiran berupa foto
     if (tipe == 'foto') {
       final session = Supabase.instance.client.auth.currentSession;
       return ClipRRect(
@@ -483,7 +483,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
           headers: {
             if (session != null) 'Authorization': 'Bearer ${session.accessToken}',
           },
-          // Handler pencegah aplikasi crash jika link rusak/terhapus di storage
+          // Tangani error link rusak
           errorBuilder: (context, error, stackTrace) {
             return Container(
               color: Colors.grey[800],
@@ -500,14 +500,14 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
       );
     }
 
-    // KONDISI JIKA LAMPIRAN ADALAH DOKUMEN/LINK GOOGLE DRIVE
+    // Jika lampiran dokumen/link
     return ListTile(
       leading: const Icon(Icons.insert_drive_file, color: Colors.blue),
       title: Text(namaFile),
       subtitle: const Text("Klik untuk membuka tautan berkas"),
       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
       onTap: () async {
-        // Menggunakan library url_launcher untuk membuka file PDF/Link di browser luar
+        // Buka link di browser luar
         final Uri url = Uri.parse(urlMedia);
         if (await canLaunchUrl(url)) {
           await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -536,7 +536,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                   final pickedFile = await picker.pickImage(source: ImageSource.camera, imageQuality: 70, maxWidth: 1080);
                   if (pickedFile != null) {
                     final size = await pickedFile.length();
-                    // ✅ 5MB limit: 5 × 1024 × 1024 = 5242880 bytes
+                    // Limit ukuran file 5MB
                     if (size > 5242880) {
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
@@ -567,7 +567,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                   final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 1080);
                   if (pickedFile != null) {
                     final size = await pickedFile.length();
-                    // ✅ 5MB limit: 5 × 1024 × 1024 = 5242880 bytes
+                    // Limit ukuran file 5MB
                     if (size > 5242880) {
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
@@ -600,7 +600,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                   );
                   if (result != null) {
                     final size = result.files.single.size;
-                    // ✅ 5MB limit: 5 × 1024 × 1024 = 5242880 bytes
+                    // Limit ukuran file 5MB
                     if (size > 5242880) {
                       if (mounted) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
@@ -712,7 +712,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title card
+        // Kartu Judul
         Text(
           _activeTask.taskNumber != null ? '#${_activeTask.taskNumber} ${_activeTask.judulTugas}' : _activeTask.judulTugas,
           style: TextStyle(
@@ -761,7 +761,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
           ],
         ),
 
-        // Assigned members list
+        // Daftar assignee
         _buildSectionLabel('Ditugaskan Ke', isDark),
         membersAsync.when(
           loading: () => const CircularProgressIndicator(),
@@ -812,7 +812,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
           },
         ),
 
-        // Initial attachments
+        // Lampiran awal
         _buildSectionLabel('Lampiran Tugas Awal', isDark),
         () {
           final initialAttachments = _activeTask.attachments.where((att) => att.logId == null).toList();
@@ -834,7 +834,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
           );
         }(),
 
-        // GitHub repository
+        // Repositori GitHub
         if (project != null && project.githubRepo.isNotEmpty) ...[
           _buildSectionLabel('Repositori GitHub Proyek', isDark),
           InkWell(
@@ -865,7 +865,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
 
         _buildGithubCommitsSection(isDark),
 
-        // Riwayat Progress Tim
+        // Riwayat progress
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -1140,7 +1140,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title & Priority Badge
+        // Judul & badge prioritas
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1189,11 +1189,11 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
         const SizedBox(height: 24),
 
         if (!widget.isReadOnly) ...[
-          // Pomodoro Card
+          // Kartu Pomodoro
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: _isFocusSession ? AppColors.rank1Background : const Color(0xFF0F766E), // Focus Teal vs Break Cyan/Teal
+              color: _isFocusSession ? AppColors.rank1Background : const Color(0xFF0F766E), // Warna Teal/Cyan
               borderRadius: BorderRadius.circular(16),
               border: isDark ? Border.all(color: AppDarkColors.border, width: 1) : null,
             ),
@@ -1281,7 +1281,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
           const SizedBox(height: 24),
         ],
 
-        // Description
+        // Deskripsi
         _buildSectionLabel('Deskripsi Tugas', isDark),
         Text(
           _activeTask.deskripsiTugas,
@@ -1292,7 +1292,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
           ),
         ),
 
-        // GitHub project repo
+        // Repo GitHub proyek
         if (project != null && project.githubRepo.isNotEmpty) ...[
           _buildSectionLabel('Repositori GitHub Proyek', isDark),
           InkWell(
@@ -1323,7 +1323,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
 
         _buildGithubCommitsSection(isDark),
 
-        // Initial attachments
+        // Lampiran awal
         _buildSectionLabel('Lampiran Tugas Awal', isDark),
         () {
           final initialAttachments = _activeTask.attachments.where((att) => att.logId == null).toList();
@@ -1381,7 +1381,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
         const SizedBox(height: 16),
         const Divider(),
 
-        // Form Update Status Progress
+        // Form update progress
         _buildSectionLabel('Pembaruan Status & Progress', isDark),
         if ((project != null && project.isReadOnly) || widget.isReadOnly)
           Container(
@@ -1649,7 +1649,7 @@ class _TaskDetailTeamScreenState extends ConsumerState<TaskDetailTeamScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Conditional Layout based on Role
+                // Layout kondisional berdasarkan Peran
                 if (isManager)
                   _buildManagerDetailBody(isDark, project)
                 else

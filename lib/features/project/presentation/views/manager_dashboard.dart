@@ -90,7 +90,7 @@ class ManagerDashboard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Progress Tim Card
+                // Kartu Progress Tim
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -178,7 +178,7 @@ class ManagerDashboard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // Status Anggota Card
+                // Kartu Status Anggota
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -299,7 +299,7 @@ class ManagerDashboard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // Notifikasi Cepat Card
+                // Kartu Notifikasi
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -418,7 +418,7 @@ class ManagerDashboard extends ConsumerWidget {
                               onPressed: () {
                                 final notifsState = ref.read(notificationNotifierProvider);
                                 if (notifsState.hasValue) {
-                                  // Mark all unread notifications as read
+                                  // Tandai semua notifikasi dibaca
                                   final unreadNotifs = notifsState.value!.where((n) => !n.isRead).toList();
                                   for (var n in unreadNotifs) {
                                     ref.read(notificationNotifierProvider.notifier).markAsRead(n.id);

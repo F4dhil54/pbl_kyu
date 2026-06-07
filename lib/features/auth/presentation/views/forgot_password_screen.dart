@@ -24,7 +24,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  // Eksekusi reset kata sandi langsung lewat provider (RPC Supabase)
+  // Eksekusi reset via RPC Supabase
   Future<void> _handleSubmit() async {
     if (_formKey.currentState!.validate()) {
       final authController = ref.read(authControllerProvider);
@@ -35,7 +35,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         newPassword: _newPasswordController.text,
       );
 
-      // Jika berhasil, kembalikan user secara otomatis ke halaman Login
+      // Jika berhasil, kembali ke Login
       if (success && mounted) {
         Navigator.pushReplacement(
           context,
@@ -48,9 +48,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final isAuthLoading = ref.watch(authLoadingProvider);
-    const bool isDark = false; // Patenkan mode terang untuk halaman Auth
+    bool isDark = false; // Selalu gunakan mode terang
 
-    // Base styling border input adaptif konsisten dengan Kyu
+    // Border input adaptif
     OutlineInputBorder buildBorder(Color borderColor, {double width = 1.0}) {
       return OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -68,7 +68,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Tombol Kembali ke LoginScreen
+                    // Tombol kembali
                     Align(
                       alignment: Alignment.centerLeft,
                       child: GestureDetector(
@@ -133,7 +133,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // Alamat Email
+                    // Input Email
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -180,7 +180,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Kata Sandi Baru
+                    // Input Password Baru
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -236,7 +236,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Tombol Reset Kata Sandi
+                    // Tombol Reset
                     SizedBox(
                       width: double.infinity,
                       height: 50,

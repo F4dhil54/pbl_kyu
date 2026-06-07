@@ -7,7 +7,7 @@ import '../models/attachment_model.dart';
 class TaskRepository {
   final SupabaseClient _supabaseClient;
 
-  // Local fallback database
+  // Fallback lokal DB
   final List<TaskModel> _localTasks = [];
 
   TaskRepository(this._supabaseClient);
@@ -29,7 +29,7 @@ class TaskRepository {
 
       final taskIds = tasksData.map((t) => t['id'] as String).toList();
 
-      // FETCH DARI TASK_ASSIGNEES (MENGGANTIKAN TASK_ASSIGNMENTS)
+      // Ambil dari task_assignees
       final assigneesResponse = await _supabaseClient
           .from('task_assignees')
           .select('task_id, user_id, project_member_id, project_team_id')
@@ -54,7 +54,7 @@ class TaskRepository {
         }
       }
 
-      // Fetch attachments
+      // Ambil lampiran
       final attachmentsResponse = await _supabaseClient
           .from('task_attachments')
           .select()
@@ -67,14 +67,14 @@ class TaskRepository {
         taskAttachmentsMap.putIfAbsent(attachment.taskId, () => []).add(attachment);
       }
 
-      // ── AUTO-AKTIVASI TUGAS TERJADWAL & PENGINGAT TENGGAT WAKTU ───────
+      // -- Auto-aktivasi & pengingat
       final now = DateTime.now().toUtc();
       final scheduledExpiredIds = await _autoActivateScheduledTasks(tasksData, now, taskAssigneesMap);
       await _autoCheckDeadlines(tasksData, now, taskAssigneesMap);
       // ─────────────────────────────────────────────────────────────────────
 
-      // Bangun TaskModel. Untuk tugas yang di-auto-aktifkan, buat Map baru
-      // (spread operator) karena Supabase mengembalikan UnmodifiableMapView.
+      // Buat TaskModel (auto-aktif)
+      // Gunakan spread operator
       return tasksData.map((json) {
         final taskId = json['id'] as String;
         final effectiveJson = scheduledExpiredIds.contains(taskId)
@@ -247,7 +247,7 @@ class TaskRepository {
       final user = _supabaseClient.auth.currentUser;
       if (user == null) return [];
 
-      // Fetch task IDs assigned to the user
+      // Ambil ID tugas pengguna
       final assigneesResponse = await _supabaseClient
           .from('task_assignees')
           .select('task_id')
@@ -258,7 +258,7 @@ class TaskRepository {
 
       final taskIds = assigneesData.map((e) => e['task_id'] as String).toList();
 
-      // Fetch the tasks
+      // Ambil daftar tugas
       final tasksResponse = await _supabaseClient
           .from('tasks')
           .select()
@@ -269,10 +269,10 @@ class TaskRepository {
 
 
 
-      // We should also fetch project names to display on the dashboard if needed, 
-      // but ProjectListProvider can handle project info mapping.
+      // Ambil nama proyek untuk dashboard 
+      // ProjectListProvider menangani info proyek
       
-      // Fetch assignees for these tasks
+      // Ambil assignees tugas
       final allAssigneesResponse = await _supabaseClient
           .from('task_assignees')
           .select('task_id, user_id, project_member_id, project_team_id')
@@ -297,7 +297,7 @@ class TaskRepository {
         }
       }
 
-      // Fetch attachments
+      // Ambil lampiran
       final attachmentsResponse = await _supabaseClient
           .from('task_attachments')
           .select()
@@ -310,7 +310,7 @@ class TaskRepository {
         taskAttachmentsMap.putIfAbsent(attachment.taskId, () => []).add(attachment);
       }
 
-      // ── AUTO-AKTIVASI TUGAS TERJADWAL & PENGINGAT TENGGAT WAKTU ───────
+      // -- Auto-aktivasi & pengingat
       final now = DateTime.now().toUtc();
       final scheduledExpiredIds = await _autoActivateScheduledTasks(tasksData, now, taskAssigneesMap);
       await _autoCheckDeadlines(tasksData, now, taskAssigneesMap);
@@ -356,8 +356,8 @@ class TaskRepository {
       createdBy: user?.id ?? '',
     );
 
-    // Timeout 10 detik: jika Supabase hang (misal trigger/constraint DB live),
-    // langsung gagal dan tampilkan error ke user — tidak stuck loading selamanya.
+    // Timeout 10s: cegah Supabase hang
+    // Tampilkan error ke user
     final response = await _supabaseClient
         .from('tasks')
         .insert(taskWithCreator.toJson())
@@ -372,7 +372,7 @@ class TaskRepository {
 
     final createdTask = TaskModel.fromJson(response);
 
-    // INSERT KE TASK_ASSIGNEES (DENGAN CO-CREATOR/ASSIGNED_BY)
+    // Insert ke task_assignees
     if (assignees.isNotEmpty) {
       final List<Map<String, dynamic>> assignments = assignees.map((a) {
         return {
@@ -387,7 +387,7 @@ class TaskRepository {
           .timeout(const Duration(seconds: 10));
     }
 
-    // Create initial attachments
+    // Buat lampiran awal
     if (task.attachments.isNotEmpty) {
       final List<Map<String, dynamic>> attachments = task.attachments.map((att) {
         return {
@@ -417,13 +417,13 @@ class TaskRepository {
       }
     }
 
-    // 6. Notifications on Create Task
+    // Notifikasi buat tugas
     try {
       final projectRes = await _supabaseClient.from('projects').select('pembuat_id').eq('id', task.projectId).single();
       final managerId = projectRes['pembuat_id'] as String;
 
       if (task.dibuatOlehRole == 'Tim' && task.statusTugas.toLowerCase() == 'review') {
-        // Send notification to manager about new draft proposal
+        // Notifikasi draft ke manajer
         await _supabaseClient.from('notifications').insert({
           'user_id': managerId,
           'sender_id': user?.id,
@@ -438,11 +438,11 @@ class TaskRepository {
                  task.statusTugas.toLowerCase().trim() != 'draf' && 
                  task.statusTugas.toLowerCase().trim() != 'scheduled' &&
                  task.statusTugas.toLowerCase().trim() != 'dijadwalkan') {
-        // Construct assigned names string
+        // Buat string nama assignee
         String assignedStr = '';
         if (assignees.isNotEmpty) {
           final List<String> names = assignees.map((a) => (a['name'] ?? 'Anggota') as String).toList();
-          // Remove duplicates (e.g. if a team has multiple members and is passed as individual user_ids, though we pass team_id)
+          // Hapus duplikat assignee
           final uniqueNames = names.toSet().toList();
           if (uniqueNames.length > 2) {
             assignedStr = '${uniqueNames[0]}, ${uniqueNames[1]}, dan ${uniqueNames.length - 2} lainnya';
@@ -453,7 +453,7 @@ class TaskRepository {
           assignedStr = 'Semua Anggota';
         }
 
-        // Send notification to all active project members
+        // Notifikasi ke anggota aktif proyek
         final membersRes = await _supabaseClient.from('project_members')
             .select('user_id')
             .eq('project_id', task.projectId)
@@ -523,7 +523,7 @@ class TaskRepository {
           ),
         );
 
-    // SYNC KE TASK_ASSIGNEES (DELETE LALU RE-INSERT)
+    // Sync task_assignees (Delete & Insert)
     await _supabaseClient.from('task_assignees').delete().eq('task_id', task.id)
         .timeout(const Duration(seconds: 10));
     if (assignees.isNotEmpty) {
@@ -540,7 +540,7 @@ class TaskRepository {
           .timeout(const Duration(seconds: 10));
     }
 
-    // 6. Notifications on Update Task (Draft/Scheduled -> Active)
+    // Notifikasi update tugas
     try {
       final oldStatus = previousStatus?.toLowerCase().trim() ?? '';
       final newStatus = task.statusTugas.toLowerCase().trim();
@@ -637,7 +637,7 @@ class TaskRepository {
       return;
     }
     try {
-      // Pastikan status dikonversi ke lowercase jika fungsi pemanggil belum memetakan ke format DB
+      // Konversi status ke lowercase
       String dbStatus = status.toLowerCase().trim();
       if (dbStatus == 'akan dikerjakan' || dbStatus == 'sedang dikerjakan' || dbStatus == 'accept') {
         dbStatus = 'accept';
@@ -691,7 +691,7 @@ class TaskRepository {
         'status_tugas': dbStatus,
       }).eq('id', id);
 
-      // Notification to Team Member (Task Creator)
+      // Notifikasi ke pembuat tugas
       try {
         final taskRes = await _supabaseClient.from('tasks').select('created_by, project_id, judul_tugas').eq('id', id).single();
         final user = _supabaseClient.auth.currentUser;
@@ -823,7 +823,7 @@ class TaskRepository {
         throw Exception("Pengguna tidak terautentikasi!");
       }
 
-      // Validasi tugas terjadwal di masa depan
+      // Validasi jadwal masa depan
       final taskCheck = await _supabaseClient
           .from('tasks')
           .select('status_tugas, scheduled_for, project_id, judul_tugas')
@@ -842,7 +842,7 @@ class TaskRepository {
         }
       }
 
-      // 1. MAPPING STATUS: Konversi Bahasa UI ke Kode Database PostgreSQL
+      // Mapping Status (UI ke DB)
       String dbStatus = 'accept';
       if (status == 'Akan Dikerjakan' || status == 'accept') {
         dbStatus = 'accept';
@@ -852,25 +852,25 @@ class TaskRepository {
         dbStatus = 'done';
       }
 
-      // 2. KONDISI PENDUKUNG CONSTRAINT (chk_done_at)
-      // Buat payload untuk update data tabel 'tasks'
+      // Kondisi constraint chk_done_at
+      // Buat payload update
       final Map<String, dynamic> taskUpdatePayload = {
         'status_tugas': dbStatus,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       };
 
-      // Jika statusnya selesai, WAJIB isi done_at agar lolos constraint chk_done_at
+      // Isi done_at jika selesai
       if (dbStatus == 'done') {
         taskUpdatePayload['done_at'] = DateTime.now().toUtc().toIso8601String();
       }
 
       final String? dbCatatan = (catatan != null && catatan.trim().isNotEmpty) ? catatan.trim() : null;
 
-      // 3. Insert ke tabel 'task_progress_logs'
+      // Insert log progress
       final logResponse = await _supabaseClient.from('task_progress_logs').insert({
         'task_id': taskId,
         'logged_by': user.id,
-        'catatan': dbCatatan, // trigger will set default if null
+        'catatan': dbCatatan, // Trigger set default jika null
         'persen_selesai': persenSelesai ?? (status == 'Selesai' ? 100 : (status == 'Sedang Dikerjakan' ? 50 : 0)),
         'jenis_aksi': 'memperbarui',
         'hambatan': hambatan,
@@ -879,7 +879,7 @@ class TaskRepository {
 
       final logId = logResponse['id'] as String;
 
-      // 4. Jika ada file lampiran progress dari tim, simpan ke database
+      // Simpan lampiran progress
       if (attachment != null) {
         await _supabaseClient.from('task_attachments').insert({
           'task_id': taskId,
@@ -890,13 +890,13 @@ class TaskRepository {
         });
       }
 
-      // 5. Update tabel 'tasks' dengan payload yang sudah aman dan lolos check constraint
+      // Update tabel tasks
       await _supabaseClient
           .from('tasks')
           .update(taskUpdatePayload)
           .eq('id', taskId);
 
-      // 6. Notifications for Manager
+      // Notifikasi untuk manajer
       try {
         final projectRes = await _supabaseClient.from('projects').select('pembuat_id').eq('id', projectId).single();
         final managerId = projectRes['pembuat_id'] as String;
@@ -948,7 +948,7 @@ class TaskRepository {
     try {
       await _supabaseClient.storage.createBucket('task_attachments', const BucketOptions(public: true));
     } catch (_) {
-      // Bucket might already exist
+      // Bucket mungkin sudah ada
     }
 
     await _supabaseClient.storage.from('task_attachments').uploadBinary(

@@ -43,7 +43,7 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
       final user = ref.read(supabaseClientProvider).auth.currentUser;
       if (user == null) return;
 
-      // Load team members
+      // Load anggota tim
       final teamMembersRes = await profileRepo.getTeamMembers(widget.teamId);
 
       final List<Map<String, dynamic>> currentMembers = [];
@@ -54,7 +54,7 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
         });
       }
 
-      // Load all colleagues to see who is available
+      // Load semua rekan kerja
       final colleaguesRes = await profileRepo.getActiveColleagues(user.id);
 
       final List<Map<String, dynamic>> availableMembers = [];
@@ -97,12 +97,12 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
     try {
       final profileRepo = ref.read(profileRepositoryProvider);
 
-      // Update team name if changed
+      // Update nama tim
       if (teamName != widget.teamName) {
         await profileRepo.updateTeamName(widget.teamId, teamName);
       }
 
-      //Sync team_members (simplest way: delete all and insert current selection)
+      // Sinkronisasi anggota tim
       final memberIds = _selectedMembers.map((m) => m['id'] as String).toList();
       await profileRepo.syncTeamMembers(widget.teamId, memberIds);
 
@@ -199,7 +199,7 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Form Card
+                // Kartu Form
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -242,7 +242,7 @@ class _EditTeamScreenState extends ConsumerState<EditTeamScreen> {
                       Divider(color: isDark ? AppDarkColors.border : AppColors.border),
                       const SizedBox(height: 24),
 
-                      // Action Buttons
+                      // Tombol Aksi
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(

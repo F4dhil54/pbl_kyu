@@ -1,9 +1,10 @@
-import 'dart:async'; // Tambahkan untuk StreamSubscription
+import 'dart:async'; // StreamSubscription
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/theme_mode.dart';
 import '../../../../core/network/supabase_provider.dart';
 import 'package:pbl_kyu/features/auth/providers/auth_provider.dart';
 import 'package:pbl_kyu/features/project/presentation/providers/project_provider.dart';
@@ -29,7 +30,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   
-  // Key khusus untuk memvalidasi peran secara terpisah saat Google Sign-In
+  // Key validasi peran (Google Sign-In)
   final _roleFieldKey = GlobalKey<FormFieldState<String>>(); 
   
   final _emailController = TextEditingController();
@@ -43,7 +44,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
   
-  // Flag untuk mendeteksi apakah kita sedang menunggu alur Google Sign-In
+  // Flag status Google Sign-In
   bool _isGoogleAuthFlowActive = false; 
   StreamSubscription<AuthState>? _authStateSubscription;
 
@@ -93,7 +94,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await supabase.auth.updateUser(UserAttributes(data: {'role': selectedRole}));
       }
 
-      // Flush/invalidate all active workspace providers to force fresh Supabase fetching upon login
+      // Reset provider agar mengambil data terbaru dari Supabase
       ref.invalidate(projectListProvider);
       ref.invalidate(projectSearchQueryProvider);
       ref.invalidate(allProfilesProvider);
@@ -142,13 +143,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _emailController.clear();
     _passwordController.clear();
 
-    // Dengarkan perubahan sesi untuk menangani kembalinya pengguna dari halaman Google OAuth
+    // Tangani kembalinya pengguna dari Google OAuth
     _authStateSubscription = ref.read(supabaseClientProvider).auth.onAuthStateChange.listen((data) async {
       final AuthChangeEvent event = data.event;
       final Session? session = data.session;
 
       if (event == AuthChangeEvent.signedIn && session != null) {
-        // Hanya arahkan langsung jika login dipicu oleh alur Google
+        // Arahkan jika via Google
         if (mounted && _isGoogleAuthFlowActive) {
           _isGoogleAuthFlowActive = false;
           await _fetchRoleAndNavigate(session.user.id, isGoogleAuth: true);
@@ -165,7 +166,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  // Fungsi penanganan login dengan validasi formulir dan integrasi Supabase
+  // Penanganan login via Supabase
   Future<void> _handleLogin() async {
     FocusScope.of(context).unfocus();
 
@@ -175,7 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _roleErrorText = null;
     });
 
-    // Validasi Form (Otomatis akan memvalidasi Peran, Email, dan Password sekaligus)
+    // Validasi form
     if (_formKey.currentState!.validate()) {
       final authController = ref.read(authControllerProvider);
       
@@ -189,7 +190,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         password: _passwordController.text,
       );
 
-      // Jika login sukses, arahkan ke halaman Layout Utama sesuai Role
+      // Redirect ke MainLayout sesuai peran
       if (errorMsg == null && mounted) {
         final supabase = ref.read(supabaseClientProvider);
         final user = supabase.auth.currentUser;
@@ -214,7 +215,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               } else if (errorMsg.contains('Kata sandi salah')) {
                 _passwordErrorText = errorMsg;
               } else {
-                _emailErrorText = errorMsg;
+                final isDark = ThemeControl.themeNotifier.value == ThemeMode.dark;
+                String displayMsg = errorMsg;
+                if (errorMsg.toLowerCase().contains('socketexception') || 
+                    errorMsg.toLowerCase().contains('failed host lookup') || 
+                    errorMsg.toLowerCase().contains('connection') ||
+                    errorMsg.toLowerCase().contains('koneksi')) {
+                  displayMsg = 'Koneksi internet terputus.';
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(displayMsg),
+                    backgroundColor: isDark ? Colors.red[900] : AppColors.alertText,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
               }
             }
           });
@@ -223,11 +238,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  // Otorisasi Google Sign-In via OAuth
+  // Login Google OAuth
   Future<void> _handleGoogleSignIn() async {
     FocusScope.of(context).unfocus();
 
-    // Hanya validasi kolom Peran. Jika email/password kosong, mereka tidak akan di-highlight merah
+    // Validasi kolom peran saja
     if (!(_roleFieldKey.currentState?.validate() ?? false)) {
       return;
     }
@@ -243,11 +258,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         OAuthProvider.google,
         redirectTo: 'io.supabase.pblkyu://login-callback/',
       );
-      // Pindah halaman akan ditangani oleh _authStateSubscription di initState
+      // Pindah halaman ditangani di initState
     } catch (e) {
       if (mounted) {
         setState(() {
-          _isGoogleAuthFlowActive = false; // Reset jika terjadi kegagalan sebelum pindah
+          _isGoogleAuthFlowActive = false; // Reset jika gagal
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -268,7 +283,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final isAuthLoading = ref.watch(authLoadingProvider);
-    const bool isDark = false; // Patenkan mode terang untuk halaman Auth
+    bool isDark = false; // Mode terang
 
     OutlineInputBorder buildBorder(Color borderColor, {double width = 1.0}) {
       return OutlineInputBorder(
@@ -288,7 +303,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Tombol Kembali
+                      // Tombol kembali
                       Align(
                         alignment: Alignment.centerLeft,
                         child: GestureDetector(
@@ -350,7 +365,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 40),
 
-                      // Peran Selector
+                      // Pemilihan Peran
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -364,7 +379,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 12),
                       FormField<String>(
-                        key: _roleFieldKey, // Menggunakan key agar bisa divalidasi tersendiri oleh Google Sign In
+                        key: _roleFieldKey, // Key validasi peran Google
                         validator: (value) {
                           if (selectedRole == null) {
                             return 'Peran harus dipilih terlebih dahulu';
@@ -490,7 +505,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Email Field
+                      // Input Email
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -548,7 +563,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Password Field
+                      // Input Password
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -635,7 +650,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Login Button
+                      // Tombol Login
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -668,7 +683,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Divider Pembatas "atau"
+                      // Garis pembatas
                       Row(
                         children: [
                           Expanded(child: Divider(color: isDark ? AppDarkColors.border : AppColors.border)),
@@ -687,7 +702,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Opsi Sign-In Google OAuth
+                      // Tombol Google
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -727,7 +742,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Link Pindah ke Register Screen
+                      // Link ke Daftar
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -753,7 +768,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Dots Indikator
+                      // Titik Indikator
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

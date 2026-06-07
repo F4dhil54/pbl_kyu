@@ -140,18 +140,18 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                 ),
               ),
               data: (projects) {
-                // Role and status filtering
+                // Filter peran dan status
                 List<ProjectModel> filteredProjects = projects;
                 
                 if (isManager) {
-                  // Manager: Filter by active vs inactive tab
+                  // Manajer: Filter tab aktif/inaktif
                   filteredProjects = projects.where((p) => p.statusAktif == _showActiveOnly).toList();
                 } else {
-                  // Team: Only active projects
+                  // Tim: Hanya proyek aktif
                   filteredProjects = projects.where((p) => p.statusAktif).toList();
                 }
 
-                // Search filtering
+                // Filter pencarian
                 if (searchQuery.isNotEmpty) {
                   final searchLower = searchQuery.toLowerCase();
                   filteredProjects = filteredProjects.where((project) {
@@ -188,7 +188,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Manager Filter Tabs (Active vs Inactive)
+                      // Tab Filter Manajer
                       if (isManager) ...[
                         Row(
                           children: [
@@ -328,7 +328,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
     required bool isDark,
     required bool isManager,
   }) {
-    // Map category to styles dynamically
+    // Map gaya kategori
     Color categoryBgColor;
     Color categoryTextColor;
 
@@ -444,7 +444,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                   ],
                 ],
               ),
-                // 3-dot Menu (Only for Manager)
+                // Menu 3-titik (Hanya Manajer)
                 if (isManager)
                   PopupMenuButton<String>(
                     elevation: 3,
@@ -571,7 +571,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
               ),
             ),
             
-            // Team card: show description
+            // Kartu tim: deskripsi
             if (!isManager) ...[
               const SizedBox(height: 8),
               Text(
@@ -703,7 +703,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Real project member avatars
+                // Avatar anggota
                 Consumer(
                   builder: (context, ref, child) {
                     final membersAsync = ref.watch(projectMembersProvider(project.id));
@@ -773,7 +773,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                     );
                   },
                 ),
-                // Date
+                // Tanggal
                 Row(
                   children: [
                     Icon(

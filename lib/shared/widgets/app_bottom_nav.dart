@@ -13,7 +13,7 @@ class AppBottomNav extends StatelessWidget {
   });
 
   Widget _buildIcon(String assetPath, IconData fallbackIcon, bool isSelected, bool isDark) {
-    // Menentukan warna ikon tidak aktif berdasarkan status tema
+    // Warna ikon tidak aktif
     final Color unselectedColor = isDark ? AppDarkColors.textSecondary : AppColors.textSecondary;
 
     return Image.asset(
@@ -22,7 +22,7 @@ class AppBottomNav extends StatelessWidget {
       height: 24,
       color: isSelected ? AppColors.primary : unselectedColor,
       errorBuilder: (context, error, stackTrace) {
-        // Fallback ke standar ikon material jika file aset gambar belum tersedia
+        // Fallback ke ikon material standar
         return Icon(
           fallbackIcon,
           size: 24,
